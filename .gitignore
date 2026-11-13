@@ -1,5 +1,4 @@
 CLAUDE.local.md
-.env
 apps/desktop/.env.windows
 apps/desktop/.env.macos
 apps/desktop/*.p12
@@ -49,6 +48,27 @@ worktrees/
 .agents/worktrees/
 .typert-*/
 native/system/test/bin/
+
+# 本地启动、测试和诊断产物。
+/output/
+/.logs/
+*.log
+*.pid
+
+# Python 虚拟环境与缓存。
+.venv/
+venv/
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.py[cod]
+
+# 编辑器和操作系统临时文件。
+._*
+Thumbs.db
+*.swp
+*.swo
 
 # Generated company-signed CUA release record.
 /packages/experimental/cua-macos/cua-helper.json
