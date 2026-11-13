@@ -1,10 +1,9 @@
-CLAUDE.local.md
-apps/desktop/.env.windows
-apps/desktop/.env.macos
+# 内网 GitLab 允许提交环境、编辑器及 Agent 配置；以下规则排除本地产物。
 apps/desktop/*.p12
 node_modules/
 lib/
 *.tsbuildinfo
+.typecheck/
 pnpm-debug.log
 .pnpm-store/
 .cache/
@@ -14,6 +13,10 @@ examples/*/*.jsonl
 examples/*/.sessions/
 coverage/
 .coverage-times.json
+.nyc_output/
+/playwright-report/
+/test-results/
+/blob-report/
 .doc-typecheck-*/
 .node-next-types-*/
 .oxlint-contract-*/
@@ -21,13 +24,12 @@ coverage/
 oxlint-contract-*.ts
 .humanize/
 tmp/
-.claude/commands/
-.claude/launch.json
-.claude/settings.json
-.vscode/
 .DS_Store
-.idea
-mise.toml
+# IDE 的个人工作区状态；项目设置和运行配置可以提交。
+.idea/workspace.xml
+.idea/tasks.xml
+.idea/shelf/
+.idea/httpRequests/
 dist-exe/
 /dist/
 apps/desktop/.desktop-build/
@@ -43,17 +45,40 @@ apps/cli/docs/
 .ui-review/
 .playwright-mcp/
 .orig
-.worktrees/
-worktrees/
-.agents/worktrees/
+*.orig
+*.rej
+/.worktrees/
+/worktrees/
+/.agents/worktrees/
 .typert-*/
 native/system/test/bin/
 
 # 本地启动、测试和诊断产物。
 /output/
 /.logs/
+/logs/
 *.log
+*.log.[0-9]*
+*.log.gz
 *.pid
+*.pid.lock
+*.heapsnapshot
+*.heapprofile
+*.cpuprofile
+*.stackdump
+/report.*.json
+
+# 将 Harness 运行目录放进项目时，只排除数据、状态和缓存，保留配置。
+/.dsh/data/
+/.dsh/state/
+/.dsh/cache/
+/.dsh/backup/
+/.dsh/sessions/
+/.dsh/storages/
+/.dsh/office-kit/outputs/
+/.dsh/dsh-runtimes/
+/.dsh/cua-mcp/workspace/
+/.dsh/speech-to-text/sensevoice/
 
 # Python 虚拟环境与缓存。
 .venv/
@@ -63,6 +88,23 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 *.py[cod]
+.tox/
+.nox/
+.hypothesis/
+.coverage
+.coverage.*
+htmlcov/
+.eggs/
+*.egg-info/
+/python/*/build/
+/python/*/dist/
+
+# 直接在包目录运行打包命令生成的归档；测试目录中的归档样本仍可提交。
+/*.tgz
+/apps/*/*.tgz
+/packages/*/*/*.tgz
+/native/system/*.tgz
+/native/system/packages/*/*.tgz
 
 # 编辑器和操作系统临时文件。
 ._*

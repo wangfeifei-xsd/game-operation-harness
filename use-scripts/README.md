@@ -31,4 +31,4 @@ Model configuration uses the application's Web settings and root `.env` loading.
 
 The current launch log is `output/local-service/web.log`; check it when startup fails. Each new launch overwrites the log. The launch record and dependency installation marker share this directory, which the root `.gitignore` excludes entirely.
 
-Commit source, dependency manifests, `pnpm-lock.yaml`, and `use-scripts` to Git. Local environment files, dependencies, build outputs, logs, launch records, and Python caches are ignored; configuration examples such as `.env.example` remain available to commit.
+Source, configuration files (including `.env`), dependency manifests, `pnpm-lock.yaml`, and `use-scripts` can be committed to the internal GitLab repository. Ignore rules exclude installed dependencies, build outputs, test reports, logs, runtime data, and caches. Test fixtures and generated source or documentation required by repository checks remain versioned.

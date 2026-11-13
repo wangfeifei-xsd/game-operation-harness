@@ -31,4 +31,4 @@ macOS 也可以双击 `start.command` 启动、双击 `stop.command` 关闭。�
 
 本次启动日志保存在 `output/local-service/web.log`，启动失败时先查看此文件。再次启动会覆盖日志；运行记录及依赖安装标记保存在同一目录，全部由根目录 `.gitignore` 忽略。
 
-源码和依赖声明、`pnpm-lock.yaml`、`use-scripts` 需要提交到 Git；本地环境文件、依赖目录、构建产物、日志、运行记录和 Python 缓存均被忽略，`.env.example` 等配置示例保留可提交。
+源码、配置文件（含 `.env`）、依赖声明、`pnpm-lock.yaml` 和 `use-scripts` 可以提交到内网 GitLab。忽略规则排除已安装依赖、构建产物、测试报告、日志、运行数据及缓存；测试样本以及仓库检查依赖的生成源码和文档保留版本管理。
