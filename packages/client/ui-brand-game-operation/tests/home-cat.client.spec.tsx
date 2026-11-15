@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { cleanup } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { WHALE_ARTWORK, type WhaleArtwork } from '../src/client/home-whale/artwork.ts'
-import { attachPixelWhale } from '../src/client/home-whale/renderer.ts'
+import { CAT_ARTWORK, type CatArtwork } from '../src/client/home-cat/artwork.ts'
+import { attachPixelCat } from '../src/client/home-cat/renderer.ts'
 
 const releases: (() => void)[] = []
 afterEach(() => {
@@ -13,7 +13,7 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-function scene(options: WhaleArtwork = WHALE_ARTWORK, missingContext = -1) {
+function scene(options: CatArtwork = CAT_ARTWORK, missingContext = -1) {
   let now = 0
   let nextFrame = 1
   const frames = new Map<number, FrameRequestCallback>()
@@ -35,6 +35,7 @@ function scene(options: WhaleArtwork = WHALE_ARTWORK, missingContext = -1) {
     putImageData: vi.fn<(data: ImageData, x: number, y: number) => void>(),
     getImageData: vi.fn(() => ({ data: pixels, width: 2304, height: 1296, colorSpace: 'srgb' as const })),
     globalAlpha: 1,
+    fillStyle: '',
   })
   const contexts: ReturnType<typeof drawing>[] = []
   const canvases: HTMLCanvasElement[] = []
@@ -87,10 +88,10 @@ function scene(options: WhaleArtwork = WHALE_ARTWORK, missingContext = -1) {
   vi.spyOn(canvas, 'getBoundingClientRect').mockImplementation(() => new DOMRect(10, 20, width, 900))
   surface.append(canvas)
   document.body.append(surface)
-  const whale = attachPixelWhale(canvas, options, 'data:image/webp;base64,fixture')
-  const dispose = whale.dispose
+  const cat = attachPixelCat(canvas, options, 'data:image/webp;base64,fixture')
+  const dispose = cat.dispose
   releases.push(dispose)
-  const click = whale.play
+  const click = cat.play
   function step(time: number) {
     now = time
     const pending = [...frames.values()]
@@ -107,7 +108,14 @@ function scene(options: WhaleArtwork = WHALE_ARTWORK, missingContext = -1) {
   }
 }
 
-describe('official home pixel whale', () => {
+describe('official home pixel cat', () => {
+  it('uses styles applied after mounting on the first playback', () => {
+    const s = scene()
+    s.canvas.style.color = 'rgb(65, 118, 230)'
+    s.click(); s.load(); s.step(1500)
+    expect(s.contexts[0]!.fillStyle).toBe('rgb(65, 118, 230)')
+  })
+
   it('alternates dots and code on completed clicks, without interrupting or automatically repeating', () => {
     const s = scene()
     const output = s.contexts[0]!
@@ -142,8 +150,8 @@ describe('official home pixel whale', () => {
     for (const canvas of s.canvases.slice(2)) expect(canvas.width).toBe(0)
   })
 
-  it('fills the code whale only with authored snippets', () => {
-    const options = { ...WHALE_ARTWORK, phrases: ['ctx.effect(() => dispose)', 'await agent.run()'] }
+  it('fills the code cat only with authored snippets', () => {
+    const options = { ...CAT_ARTWORK, phrases: ['ctx.effect(() => dispose)', 'await agent.run()'] }
     const s = scene(options)
     for (let y = 15; y < 80; y++) {
       for (let x = 20; x < 165; x++) s.pixels[((3 * 108 + y) * 2304 + x) * 4 + 1] = 180
@@ -262,7 +270,7 @@ describe('official home pixel whale', () => {
 
   it('stops decoration when the code fill cannot allocate its canvases', () => {
     const warning = vi.spyOn(console, 'warn').mockImplementation(() => {})
-    const s = scene(WHALE_ARTWORK, 2)
+    const s = scene(CAT_ARTWORK, 2)
     s.click(); s.load(); s.step(5800)
     s.click(); s.step(7300)
     expect(warning).toHaveBeenCalledOnce()
@@ -287,7 +295,7 @@ describe('official home pixel whale', () => {
   })
 
   it('leaves home usable without Canvas through an inert handle', () => {
-    const s = scene(WHALE_ARTWORK, 0)
+    const s = scene(CAT_ARTWORK, 0)
     s.click()
     s.dispose()
     expect(s.frames.size).toBe(0)
@@ -297,7 +305,7 @@ describe('official home pixel whale', () => {
 
   it.each(['decode', 'geometry', 'context', 'pixels'] as const)('contains %s failure and does not retry until remount', (failure) => {
     const warning = vi.spyOn(console, 'warn').mockImplementation(() => {})
-    const s = scene(WHALE_ARTWORK, failure === 'context' ? 1 : -1)
+    const s = scene(CAT_ARTWORK, failure === 'context' ? 1 : -1)
     s.click()
     if (failure === 'decode') s.image.dispatchEvent(new Event('error'))
     else {

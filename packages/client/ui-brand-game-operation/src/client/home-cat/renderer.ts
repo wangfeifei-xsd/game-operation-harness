@@ -1,32 +1,32 @@
 /** Alternating dot and code breaches sharing one bundled animation atlas. */
-import type { WhaleArtwork } from './artwork.ts'
+import type { CatArtwork } from './artwork.ts'
 import { createCodeFill } from './code-fill.ts'
 
-// Geometry of assets/breach-atlas.webp: 137 frames at 192 × 108 cells, in twelve columns.
+// Geometry of assets/cat-atlas.webp: 137 frames at 192 × 108 cells, in twelve columns.
 const ATLAS = { width: 192, height: 108, columns: 12, frames: 137 } as const
 
-/** Control of one attached whale decoration. */
-export interface PixelWhaleHandle {
+/** Control of one attached cat decoration. */
+export interface PixelCatHandle {
   /** Request one playback; ignored while playing, failed, hidden, or under reduced motion. */
   play: () => void
   /** Release frame work, atlas pixels, and observers; late atlas loads are ignored. */
   dispose: () => void
 }
 
-const NO_WHALE: PixelWhaleHandle = { play: () => {}, dispose: () => {} }
+const NO_CAT: PixelCatHandle = { play: () => {}, dispose: () => {} }
 
 /**
  * Bind one noninteractive, initially transparent home decoration.
  * Missing Canvas support returns a no-op handle, so home stays usable without decoration.
  * An atlas failure stops decoration and logs a reload action.
- * @param canvas - presentation-owned output, with its neutral color supplied by CSS.
+ * @param canvas - 展示层画布，颜色由语义主题 token 提供。
  * @param options - fixed opacity, lettering, frame rate, and duration artwork.
  * @param atlasUrl - URL of the packaged frame atlas, loaded once on the first eligible playback.
  * @returns the playback trigger and its teardown.
  */
-export function attachPixelWhale(canvas: HTMLCanvasElement, options: WhaleArtwork, atlasUrl: string): PixelWhaleHandle {
+export function attachPixelCat(canvas: HTMLCanvasElement, options: CatArtwork, atlasUrl: string): PixelCatHandle {
   const context = canvas.getContext('2d')
-  if (context === null) return NO_WHALE
+  if (context === null) return NO_CAT
   const ctx = context
   const image = new Image()
   const media = matchMedia('(prefers-reduced-motion: reduce)')
@@ -65,7 +65,7 @@ export function attachPixelWhale(canvas: HTMLCanvasElement, options: WhaleArtwor
     if (disposed) return
     failed = true
     stop()
-    console.warn('Home whale animation is unavailable; home remains usable. Reload the page to retry.', error)
+    console.warn('Home cat animation is unavailable; home remains usable. Reload the page to retry.', error)
   }
 
   function paint(now: number): void {
@@ -149,9 +149,11 @@ export function attachPixelWhale(canvas: HTMLCanvasElement, options: WhaleArtwor
 
   function begin(): void {
     if (!moving() || !drawable()) return
+    // 首次挂载可能早于插件样式注入；播放时重新读取已生效的主题色。
+    ctx.fillStyle = getComputedStyle(canvas).color
     if (fill === 'pixels') {
       code ??= createCodeFill(options, ATLAS)
-      if (code === undefined) { fail(new Error('Home whale code Canvas context is unavailable')); return }
+      if (code === undefined) { fail(new Error('Home cat code Canvas context is unavailable')); return }
       code.resize(canvas, sceneWidth)
     }
     fill = fill === 'pixels' ? 'code' : 'pixels'
@@ -167,10 +169,10 @@ export function attachPixelWhale(canvas: HTMLCanvasElement, options: WhaleArtwor
     try {
       if (source.width !== ATLAS.width * ATLAS.columns
         || source.height !== ATLAS.height * Math.ceil(ATLAS.frames / ATLAS.columns)) {
-        throw new Error('Home whale atlas dimensions do not match its frame geometry')
+        throw new Error('Home cat atlas dimensions do not match its frame geometry')
       }
       const reader = source.getContext('2d')
-      if (reader === null) { fail(new Error('Home whale atlas Canvas context is unavailable')); return }
+      if (reader === null) { fail(new Error('Home cat atlas Canvas context is unavailable')); return }
       reader.drawImage(image, 0, 0)
       pixels = reader.getImageData(0, 0, source.width, source.height).data
     } catch (error) {
@@ -182,7 +184,7 @@ export function attachPixelWhale(canvas: HTMLCanvasElement, options: WhaleArtwor
     }
     begin()
   }
-  image.onerror = () => { fail(new Error('Home whale atlas could not be decoded')) }
+  image.onerror = () => { fail(new Error('Home cat atlas could not be decoded')) }
 
   function play(): void {
     if (failed || !moving() || !drawable() || started !== undefined) return

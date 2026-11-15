@@ -4,7 +4,7 @@
 }
 
 .canvas {
-  --home-whale-code-ink: var(--dsw-alias-label-primary);
+  --home-cat-code-ink: var(--dsw-alias-state-business-primary);
   /* The host isolates stacking at the Conversation root, so -1 lands above its background and below its content. */
   position: absolute;
   inset: 0;
@@ -14,7 +14,6 @@
   display: block;
   pointer-events: none;
   opacity: 0.18;
-  color: var(--dsw-alias-label-secondary);
-  filter: grayscale(1);
+  color: var(--dsw-alias-state-business-primary);
   font-family: var(--ds-font-family-code);
 }

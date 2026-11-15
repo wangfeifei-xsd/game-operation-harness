@@ -1,6 +1,6 @@
 {
-  "name": "@deepseek-ai/dsh-client-ui-brand-official",
-  "description": "Official DeepSeek Harness brand artwork and click-triggered home background",
+  "name": "@deepseek-ai/dsh-client-ui-brand-game-operation",
+  "description": "Game operation cat branding and click-triggered home background",
   "version": "0.2.2-rc.3",
   "publishConfig": {
     "access": "public"
@@ -8,7 +8,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/deepseek-ai/deepseek-harness.git",
-    "directory": "packages/client/ui-brand-official"
+    "directory": "packages/client/ui-brand-game-operation"
   },
   "type": "module",
   "main": "lib/index.js",
@@ -54,7 +54,8 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "@deepseek-ai/dsh-client-ui-conversation": "workspace:*",
-    "@deepseek-ai/dsh-client-ui-slots": "workspace:*"
+    "@deepseek-ai/dsh-client-ui-slots": "workspace:*",
+    "@deepseek-ai/dsh-client-locale": "workspace:*"
   },
   "files": [
     "locale/*.json",

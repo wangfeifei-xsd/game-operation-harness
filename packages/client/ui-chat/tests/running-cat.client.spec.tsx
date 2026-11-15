@@ -4,13 +4,13 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { cleanup, render } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { RunningWhaleTail } from '../src/client/chat/RunningWhaleTail.tsx'
+import { RunningCat } from '../src/client/chat/RunningCat.tsx'
 
 afterEach(cleanup)
 
-describe('RunningWhaleTail', () => {
+describe('RunningCat', () => {
   it('renders a decorative mask seat and static SVG without inline styles', () => {
-    const view = render(<RunningWhaleTail />)
+    const view = render(<RunningCat />)
     const icon = view.container.firstElementChild!
     expect(icon.tagName).toBe('SPAN')
     expect(icon.getAttribute('aria-hidden')).toBe('true')
@@ -19,7 +19,7 @@ describe('RunningWhaleTail', () => {
     expect(icon.firstElementChild?.childElementCount).toBe(0)
     const svg = icon.querySelector('svg')!
     expect(icon.lastElementChild).toBe(svg)
-    expect(svg.getAttribute('viewBox')).toBe('0 0 16 16')
+    expect(svg.getAttribute('viewBox')).toBe('0 0 100 100')
     expect(svg.querySelectorAll('path')).toHaveLength(1)
     expect(svg.querySelector('path')?.getAttribute('d')).toMatch(/^M/)
     expect(svg.querySelector('path')?.getAttribute('stroke')).toBe('currentColor')
@@ -28,7 +28,7 @@ describe('RunningWhaleTail', () => {
   })
 
   it('ships a 28px alpha APNG with sixty 50ms frames and infinite playback', () => {
-    const png = readFileSync(resolve(import.meta.dirname, '../src/client/assets/running-whale@2x.png'))
+    const png = readFileSync(resolve(import.meta.dirname, '../src/client/assets/running-cat@2x.png'))
     expect([...png.subarray(0, 8)]).toEqual([137, 80, 78, 71, 13, 10, 26, 10])
     const chunks: { type: string; data: Buffer }[] = []
     for (let offset = 8; offset < png.length;) {
@@ -42,7 +42,7 @@ describe('RunningWhaleTail', () => {
     const headers = chunks.filter(chunk => chunk.type === 'IHDR')
     expect(headers).toHaveLength(1)
     const header = headers[0]!.data
-    expect([header.readUInt32BE(0), header.readUInt32BE(4), header[8], header[9]]).toEqual([28, 28, 8, 4])
+    expect([header.readUInt32BE(0), header.readUInt32BE(4), header[8], header[9]]).toEqual([28, 28, 8, 6])
     const animations = chunks.filter(chunk => chunk.type === 'acTL')
     expect(animations).toHaveLength(1)
     expect([animations[0]!.data.readUInt32BE(0), animations[0]!.data.readUInt32BE(4)]).toEqual([60, 0])

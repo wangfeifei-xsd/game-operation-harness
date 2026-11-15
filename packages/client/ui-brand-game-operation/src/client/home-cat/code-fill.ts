@@ -1,5 +1,5 @@
-/** Cached code lettering clipped by the same frames that drive the dotted whale. */
-import type { WhaleArtwork } from './artwork.ts'
+/** Cached code lettering clipped by the same frames that drive the dotted cat. */
+import type { CatArtwork } from './artwork.ts'
 
 interface CodeFill {
   resize(canvas: HTMLCanvasElement, width: number): void
@@ -15,7 +15,7 @@ interface CodeFill {
  * @returns a drawing cache, or undefined when Canvas 2D is unavailable.
  */
 export function createCodeFill(
-  options: WhaleArtwork, atlas: { width: number; height: number; columns: number; frames: number },
+  options: CatArtwork, atlas: { width: number; height: number; columns: number; frames: number },
 ): CodeFill | undefined {
   const lettering = document.createElement('canvas')
   const mask = document.createElement('canvas')
@@ -41,7 +41,7 @@ export function createCodeFill(
       lettering.height = Math.ceil(height * dpr)
       ink.setTransform(dpr, 0, 0, dpr, 0, 0)
       const style = getComputedStyle(canvas)
-      ink.fillStyle = style.getPropertyValue('--home-whale-code-ink')
+      ink.fillStyle = style.getPropertyValue('--home-cat-code-ink')
       ink.font = `500 ${options.fontSize}px ${style.fontFamily}`
       ink.textBaseline = 'middle'
       let seed = 0x9e3779b9

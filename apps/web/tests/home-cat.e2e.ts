@@ -5,11 +5,11 @@ import { fileURLToPath } from 'node:url'
 import { chromium, type Browser, type Page } from 'playwright'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { launchWebScaffold, watchConsole, type WebScaffold } from './scaffold.ts'
-import { ZH_BROWSER_LOCALE } from './support.ts'
+import { openSettings, ZH_BROWSER_LOCALE } from './support.ts'
 
-const artifacts = fileURLToPath(new URL('../../../.artifacts/home-whale/', import.meta.url))
+const artifacts = fileURLToPath(new URL('../../../.artifacts/home-cat/', import.meta.url))
 
-describe('official home whale in the default web profile', () => {
+describe('official home cat in the default web profile', () => {
   let scaffold: WebScaffold
   let browser: Browser
   let page: Page
@@ -19,12 +19,12 @@ describe('official home whale in the default web profile', () => {
   beforeAll(async () => {
     await mkdir(artifacts, { recursive: true })
     captureDir = await mkdtemp(join(artifacts, 'run-'))
-    scaffold = await launchWebScaffold({ firstUse: true })
+    scaffold = await launchWebScaffold({ firstUse: true, extraOverlayPath: fileURLToPath(new URL('./pin-browse-picker.overlay.yml', import.meta.url)) })
     browser = await chromium.launch()
     page = await browser.newPage({ viewport: { width: 1440, height: 960 }, locale: ZH_BROWSER_LOCALE })
     consoleState = watchConsole(page)
     await page.goto(scaffold.authenticatedUrl)
-    await page.locator('[data-home-whale]').waitFor()
+    await page.locator('[data-home-cat]').waitFor()
     await page.locator('[data-composer-input]').waitFor()
   }, 120_000)
 
@@ -36,8 +36,8 @@ describe('official home whale in the default web profile', () => {
     }
   })
 
-  it('alternates grayscale dot and code breaches on click and respects reduced motion', async () => {
-    const canvas = page.locator('[data-home-whale]')
+  it('alternates blue dot and code animations on click and respects reduced motion', async () => {
+    const canvas = page.locator('[data-home-cat]')
     const surface = page.locator('[data-conversation-content]')
     const pixelSummary = () => canvas.evaluate((node: HTMLCanvasElement) => {
       const values = node.getContext('2d')!.getImageData(0, 0, node.width, node.height).data
@@ -56,7 +56,7 @@ describe('official home whale in the default web profile', () => {
     })
     expect(await canvas.evaluate(node => getComputedStyle(node).pointerEvents)).toBe('none')
     expect(await canvas.getAttribute('aria-hidden')).toBe('true')
-    expect(await canvas.evaluate(node => getComputedStyle(node).filter)).toBe('grayscale(1)')
+    expect(await canvas.evaluate(node => getComputedStyle(node).filter)).toBe('none')
     await expect.poll(async () => (await pixelSummary()).nontransparent).toBe(0)
     await page.screenshot({ path: `${captureDir}/idle.png` })
     const box = await surface.boundingBox()
@@ -82,6 +82,7 @@ describe('official home whale in the default web profile', () => {
       await page.screenshot({ path: `${captureDir}/ripple.png` })
       await page.mouse.click(box!.x + box!.width * 0.78, box!.y + box!.height * 0.72)
       expect((await pixelSummary()).opaque).toBeGreaterThan(0)
+      expect((await pixelSummary()).saturated).toBeGreaterThan(0)
       expect((await pixelSummary()).contrast).toBeLessThanOrEqual(100)
       // The last visible pixels disappear before the playback deadline; finish the full timeline before the next click.
       await page.clock.runFor(5700)
@@ -107,21 +108,24 @@ describe('official home whale in the default web profile', () => {
   })
 
   it('keeps native draft editing independent of the decoration', async () => {
-    const input = page.locator('[data-composer-input]')
+    await page.reload()
+    await page.locator('[data-home-cat]').waitFor()
+    const input = page.locator('[data-composer-input][contenteditable="true"]')
+    await input.waitFor()
     await input.fill('保留这个试用草稿')
-    const canvas = page.locator('[data-home-whale]')
+    const canvas = page.locator('[data-home-cat]')
     const idleFrame = await canvas.evaluate((node: HTMLCanvasElement) => node.toDataURL())
     await input.click()
     // Observe several normal animation frames while focus stays in the composer.
     await page.waitForTimeout(300)
-    expect(await canvas.evaluate((node: HTMLCanvasElement) => node.toDataURL())).toBe(idleFrame)
+    expect(await canvas.evaluate((node: HTMLCanvasElement) => node.toDataURL()) === idleFrame).toBe(true)
     expect(await input.innerText()).toBe('保留这个试用草稿')
     await input.press('ControlOrMeta+A')
     await input.press('Backspace')
   })
 
   it('paints the decoration between the Conversation background and the home content', async () => {
-    const order = await page.locator('[data-home-whale]').evaluate((node) => {
+    const order = await page.locator('[data-home-cat]').evaluate((node) => {
       // The canvas's negative z-index resolves in the nearest ancestor that establishes a stacking context. Walk up to
       // the document root and report the first one, which must be the home Conversation root that paints the background.
       const stacking = (element: Element): boolean => {
@@ -147,9 +151,9 @@ describe('official home whale in the default web profile', () => {
 
   it('loads from the default composition without a separately enabled bundle', async () => {
     await page.reload()
-    await page.locator('[data-home-whale]').waitFor()
-    const facts = await page.locator('[data-home-whale]').evaluate(node => ({
-      count: document.querySelectorAll('[data-home-whale]').length,
+    await page.locator('[data-home-cat]').waitFor()
+    const facts = await page.locator('[data-home-cat]').evaluate(node => ({
+      count: document.querySelectorAll('[data-home-cat]').length,
       hiddenFromAssistiveTech: node.getAttribute('aria-hidden'),
       pointerEvents: getComputedStyle(node).pointerEvents,
       nativeComposer: document.querySelectorAll('[data-composer-seat]').length,
@@ -166,9 +170,9 @@ describe('official home whale in the default web profile', () => {
     expect(consoleState.warnings).toEqual([])
   })
 
-  it('keeps neutral dots visible in both themes and fits a narrow home', async () => {
+  it('keeps blue dots visible in both themes and fits a narrow home', async () => {
     const settings = scaffold.ctx.get('settings')!
-    const canvas = page.locator('[data-home-whale]')
+    const canvas = page.locator('[data-home-cat]')
     const visibleDots = () => canvas.evaluate((node: HTMLCanvasElement) =>
       node.getContext('2d')!.getImageData(0, 0, node.width, node.height).data.some((value, i) => i % 4 === 3 && value > 10))
     const clickHome = async () => {
@@ -193,9 +197,46 @@ describe('official home whale in the default web profile', () => {
       expect(box.x).toBeGreaterThanOrEqual(0)
       expect(box.x + box.width).toBeLessThanOrEqual(390)
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390)
+      await page.screenshot({ path: `${captureDir}/home-dark-narrow.png` })
     } finally {
       await page.setViewportSize({ width: 1440, height: 960 })
       await settings.update('ui-theme', { preference: 'light' })
     }
   })
+
+  it('keeps the cat identity across locales, sidebar collapse, and settings', async () => {
+    const settings = scaffold.ctx.get('settings')!
+    await page.setViewportSize({ width: 1600, height: 850 })
+    for (const locale of ['zh', 'en'] as const) {
+      await settings.update('locale', { preference: locale })
+      const label = locale === 'zh' ? '游戏运营 Agent' : 'game-operation-harness'
+      await page.getByRole('img', { name: label, exact: true }).waitFor()
+      expect(await page.locator('[data-brand-cat]').count()).toBeGreaterThanOrEqual(2)
+      expect(await page.locator('[data-brand-wordmark] [data-brand-cat]').count()).toBe(0)
+      await page.screenshot({ path: `${captureDir}/home-${locale}.png` })
+      const collapse = page.getByRole('button', { name: locale === 'zh' ? '收起侧边栏' : 'Collapse sidebar', exact: true })
+      await collapse.click()
+      const expand = page.getByRole('button', { name: locale === 'zh' ? '打开侧边栏' : 'Open sidebar', exact: true })
+      await expand.waitFor()
+      await expect.poll(() => expand.locator('[data-brand-cat]').count()).toBe(1)
+      await page.screenshot({ path: `${captureDir}/home-${locale}-collapsed.png` })
+      await expand.click()
+      await openSettings(page, locale)
+      const dialog = page.getByRole('dialog', { name: locale === 'zh' ? '设置' : 'Settings', exact: true })
+      await dialog.getByRole('button', { name: locale === 'zh' ? '模型' : 'Models', exact: true }).click()
+      const add = dialog.getByRole('button', { name: locale === 'zh' ? '添加模型提供商' : 'Add model provider', exact: true })
+      await add.waitFor()
+      await page.screenshot({ path: `${captureDir}/providers-models-page${locale === 'zh' ? '.zh' : ''}.png` })
+      await add.click()
+      await dialog.getByRole('tab', { name: locale === 'zh' ? '自定义模型 API' : 'Custom model API', exact: true }).click()
+      await dialog.getByRole('textbox', { name: 'Provider ID', exact: true }).waitFor()
+      await page.setViewportSize({ width: 1128, height: locale === 'zh' ? 1390 : 1426 })
+      await page.screenshot({ path: `${captureDir}/providers-custom-form${locale === 'zh' ? '.zh' : ''}.png` })
+      await page.setViewportSize({ width: 1600, height: 850 })
+      await page.keyboard.press('Escape')
+      await page.keyboard.press('Escape')
+    }
+    await settings.update('locale', { preference: 'zh' })
+  })
+
 })
