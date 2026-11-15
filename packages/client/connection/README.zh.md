@@ -22,6 +22,8 @@ kind: "package-reference"
 
 -----
 
+认证集成可通过 `connection/authorize-operation` 在每次 Gateway 调用前执行异步检查，包括流打开及远程事件结果提交。waterfall 必须调用 `next()` 委托，拒绝时不执行调用。它不续期认证会话，也不复用握手授权；整个 HTTP 请求和实际执行时的检查由嵌入产品负责。
+
 <a id="use-this-package"></a>
 ## 使用本包
 

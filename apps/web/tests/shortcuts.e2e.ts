@@ -19,8 +19,8 @@ describe('web e2e: shortcut reference', () => {
   afterAll(async () => { await browser?.close(); await scaffold?.close() })
 
   it.each([
-    { locale: 'zh-CN', platform: 'MacIntel', title: '快捷键', accountMenu: '账号菜单', settings: '设置', view: '编辑快捷键', search: '搜索快捷键', key: 'Meta' },
-    { locale: 'en-US', platform: 'Win32', title: 'Keyboard shortcuts', accountMenu: 'Account menu', settings: 'Settings', view: 'Edit shortcuts', search: 'Search shortcuts', key: 'Control' },
+    { locale: 'zh-CN', platform: 'MacIntel', title: '快捷键', accountMenu: '模型供应商菜单', settings: '设置', view: '编辑快捷键', search: '搜索快捷键', key: 'Meta' },
+    { locale: 'en-US', platform: 'Win32', title: 'Keyboard shortcuts', accountMenu: 'Model provider menu', settings: 'Settings', view: 'Edit shortcuts', search: 'Search shortcuts', key: 'Control' },
   ])('opens, searches, and restores nested focus in $locale', async ({ locale, platform, title, accountMenu, settings, view, search, key }) => {
     const referenceKey = platform === 'Win32' ? 'Control+Slash' : 'Meta+Slash'
     const context = await browser.newContext({ locale, colorScheme: 'light', viewport: { width: 1440, height: 1000 } })
@@ -392,7 +392,7 @@ describe('web e2e: shortcut reference', () => {
       await context.addInitScript((value) => { Object.defineProperty(navigator, 'platform', { value }) }, platform)
       const page = await context.newPage()
       await page.goto(scaffold.authenticatedUrl, { waitUntil: 'load' })
-      await page.getByRole('button', { name: 'Account menu', exact: true }).waitFor()
+      await page.getByRole('button', { name: 'Model provider menu', exact: true }).waitFor()
       const referenceKey = `${modifier}+Slash`
       const open = async () => {
         await page.keyboard.press(referenceKey)
@@ -414,7 +414,7 @@ describe('web e2e: shortcut reference', () => {
       await page.keyboard.press(sidebarKey)
       await page.getByRole('button', { name: 'Open sidebar', exact: true }).waitFor()
       await page.reload({ waitUntil: 'load' })
-      await page.getByRole('button', { name: 'Account menu', exact: true }).waitFor()
+      await page.getByRole('button', { name: 'Model provider menu', exact: true }).waitFor()
       const toggleAfterReload = page.getByRole('button', { name: /^(Open|Collapse) sidebar$/ })
       await expect.poll(() => toggleAfterReload.getAttribute('aria-keyshortcuts'))
         .toBe(modifier === 'Meta' ? 'Shift+Meta+.' : 'Control+Shift+.')
@@ -429,7 +429,7 @@ describe('web e2e: shortcut reference', () => {
       await editor.getByRole('button', { name: 'Press a shortcut', exact: true }).focus()
       const other = await context.newPage()
       await other.goto(scaffold.authenticatedUrl, { waitUntil: 'load' })
-      await other.getByRole('button', { name: 'Account menu', exact: true }).waitFor()
+      await other.getByRole('button', { name: 'Model provider menu', exact: true }).waitFor()
       await other.keyboard.press(referenceKey)
       await other.getByRole('button', { name: 'Edit shortcut for Toggle left sidebar', exact: true }).click()
       await other.getByRole('button', { name: 'Remove', exact: true }).click()

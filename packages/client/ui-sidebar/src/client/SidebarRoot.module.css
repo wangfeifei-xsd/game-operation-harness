@@ -70,6 +70,7 @@
 }
 
 :global([data-windows-titlebar]) .brandMark {
+  color: var(--dsw-alias-state-business-primary);
   transform: translateX(1px);
 }
 
@@ -261,6 +262,7 @@
    emphasis only). A button only in behavior (New Session shortcut): the
    pointer cursor is the sole affordance — no hover chrome on the mark. */
 .brand {
+  container: brand-identity / inline-size;
   flex: 1;
   min-width: 0;
   display: inline-flex;
@@ -290,6 +292,7 @@
 }
 
 .brandMark {
+  color: var(--dsw-alias-state-business-primary);
   flex: none;
   display: inline-flex;
   align-items: center;
@@ -388,11 +391,13 @@
   }
 
   .collapsed .toggle:hover .railMark {
+  color: var(--dsw-alias-state-business-primary);
     display: none;
   }
 }
 
 .railMark {
+  color: var(--dsw-alias-state-business-primary);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -841,4 +846,9 @@
     transition: none;
     animation: none;
   }
+}
+
+/* 窄侧栏保留猫头；完整产品名仍在可访问名称中。 */
+@container brand-identity (max-width: 235px) {
+  .brandName:has([data-brand-wide]) { display: none; }
 }

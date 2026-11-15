@@ -176,17 +176,18 @@ const base = process.env.DOCS_BASE ?? '/'
 
 /** Site identity shared by the VitePress configuration and the llms.txt index. */
 const siteIdentity = {
-  title: 'DeepSeek Harness',
-  description: '用于构建 Agent Harness 的插件化 SDK',
+  title: '游戏运营 Agent',
+  description: '游戏运营 Agent Harness',
 }
 
 /**
- * The DeepSeek wordmark, inlined so its `currentColor` fills follow the active
- * theme. An `<img>` would freeze the mark at the colors the file declares.
+ * 连接猫字标以内联 SVG 加载，使 currentColor 填色跟随当前
+ * 主题；外部 img 不能继承页面颜色。
  */
-const wordmark = readFileSync(resolve(import.meta.dirname, '../public/wordmark.svg'), 'utf8')
-  .trim()
-  .replace('<svg ', '<svg class="dsh-wordmark" ')
+const wordmarks = Object.fromEntries(['zh', 'en'].map(locale => [locale,
+  readFileSync(resolve(import.meta.dirname, `../public/wordmark${locale === 'en' ? '-en' : ''}.svg`), 'utf8')
+    .trim().replace('<svg ', '<svg class="dsh-wordmark" '),
+]))
 
 /**
  * Head-injected styles for the site identity and sidebar scrollbar.
@@ -201,6 +202,7 @@ const wordmark = readFileSync(resolve(import.meta.dirname, '../public/wordmark.s
 const siteStyle = `
 .dsh-lockup { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
 .dsh-wordmark { display: block; height: 22px; width: auto; color: var(--vp-c-text-1); }
+@media (max-width: 480px) { .dsh-lockup .dsh-tag { display: none; } }
 .dsh-tag {
   display: inline-flex;
   align-items: center;
@@ -252,14 +254,14 @@ const scrollbarScript = `
 `
 
 /**
- * Navigation-bar title: the DeepSeek wordmark and the release-stage tag.
+ * 导航标题由连接猫字标和发布阶段标签组成。
  * VitePress renders `siteTitle` as HTML.
  *
  * @param previewTag - Localized release-stage label.
  * @returns Markup placed beside the navigation-bar home link.
  */
-function siteTitle(previewTag: string): string {
-  return `<span class="dsh-lockup">${wordmark}<span class="dsh-tag">${previewTag}</span></span>`
+function siteTitle(previewTag: string, locale: 'zh' | 'en'): string {
+  return `<span class="dsh-lockup">${wordmarks[locale]}<span class="dsh-tag">${previewTag}</span></span>`
 }
 
 export default withMermaid({
@@ -287,7 +289,7 @@ export default withMermaid({
       label: '简体中文',
       lang: 'zh-CN',
       themeConfig: {
-        siteTitle: siteTitle('技术预览'),
+        siteTitle: siteTitle('技术预览', 'zh'),
         nav: [
           { text: '入门', link: landingLink('root', guideModules.root.guide), activeMatch: '^/guide/' },
           ...moduleNav('root'),
@@ -311,9 +313,10 @@ export default withMermaid({
     en: {
       label: 'English',
       lang: 'en-US',
+      title: 'game-operation-harness',
       link: '/en/',
       themeConfig: {
-        siteTitle: siteTitle('Preview'),
+        siteTitle: siteTitle('Preview', 'en'),
         nav: [
           { text: 'Guide', link: landingLink('en', guideModules.en.guide), activeMatch: '^/en/guide/' },
           ...moduleNav('en'),

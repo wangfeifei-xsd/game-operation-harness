@@ -423,7 +423,7 @@ describe.skipIf(MODE === 'record')('web e2e: bonus notice', () => {
     expect(platform.acks).toHaveLength(2)
 
     // Closing settings repeats no acknowledgement and leaves the card on the sidebar.
-    const launcher = page.getByRole('button', { name: '账号菜单', exact: true })
+    const launcher = page.getByRole('button', { name: '模型供应商菜单', exact: true })
     await page.keyboard.press('Escape')
     await settings.waitFor({ state: 'detached', timeout: 30_000 })
     // The shell restores focus to the launcher once the close commits.
@@ -456,8 +456,8 @@ describe.skipIf(MODE === 'record')('web e2e: bonus notice', () => {
     const nav = reopened.locator('nav')
     await nav.getByRole('button', { name: '模型', exact: true }).click()
     await expect.poll(async () => nav.getByRole('button', { name: '模型', exact: true }).getAttribute('aria-current'), { timeout: 30_000 }).toBe('true')
-    await nav.getByRole('button', { name: '账号与余额', exact: true }).click()
-    await expect.poll(async () => nav.getByRole('button', { name: '账号与余额', exact: true }).getAttribute('aria-current'), { timeout: 30_000 }).toBe('true')
+    await nav.getByRole('button', { name: '模型授权与余额', exact: true }).click()
+    await expect.poll(async () => nav.getByRole('button', { name: '模型授权与余额', exact: true }).getAttribute('aria-current'), { timeout: 30_000 }).toBe('true')
     platform.releaseGet()
     const sectionPanel = (await reopened.textContent()) ?? ''
     observations.push(`reopen.section-switch gets=${String(platform.gets.length - sectionGetsBefore)} summaries=${String(platform.summaries.length - sectionSummariesBefore)} amount=${String(sectionPanel.includes('¥13.00'))} cards=${String(await noticeCards(page).count())} acks=${String(platform.acks.length)}`)
@@ -788,7 +788,7 @@ describe.skipIf(MODE === 'record')('web e2e: bonus notice', () => {
     expect(await refreshCards.count()).toBe(3)
     const accountSettings = refreshPage.getByRole('dialog', { name: 'Settings', exact: true })
     await accountSettings.waitFor()
-    expect(await accountSettings.getByRole('button', { name: 'Account', exact: true }).getAttribute('aria-current')).toBe('true')
+    expect(await accountSettings.getByRole('button', { name: 'Model authorization', exact: true }).getAttribute('aria-current')).toBe('true')
     observations.push('refresh.business-action event=cta_clicked cards=3 account-open=true')
     await refreshPage.keyboard.press('Escape')
     await accountSettings.waitFor({ state: 'detached' })

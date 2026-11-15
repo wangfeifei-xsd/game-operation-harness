@@ -71,8 +71,8 @@ export interface ProxyPolicy {
   readonly httpsProxy?: string
   /** The bypass list, already merged with {@link LOOPBACK_NO_PROXY}. Empty when nothing is bypassed. */
   readonly noProxy: string
-  /** Which layer supplied the winning proxy URL; `env` when either field came from the environment. */
-  readonly source: 'env' | 'none'
+  /** 代理地址来自传统环境、显式文件配置，或未配置。 */
+  readonly source: 'env' | 'config' | 'none'
 }
 
 /** A policy that proxies nothing. Callers that have not installed a policy resolve URLs against this. */

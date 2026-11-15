@@ -277,6 +277,23 @@ Source: [`packages/schedule/schedule/src/index.ts`](../../packages/schedule/sche
 
 ### `schedule/*` events
 
+<a id="schedulebefore-deliver--waterfall"></a>
+
+#### `schedule/before-deliver` — waterfall
+
+投递或恢复任务前异步验证当前运行身份。
+
+```ts cordis-catalog
+/**
+ * 投递或恢复任务前异步验证当前运行身份。
+ * @mode waterfall
+ * @param next - 继续投递检查。
+ */
+'schedule/before-deliver'(next: () => Promise<void>): Promise<void>
+```
+
+Source: [`packages/schedule/schedule/src/index.ts`](../../packages/schedule/schedule/src/index.ts)
+
 <a id="schedulechanged--emit"></a>
 
 #### `schedule/changed` — emit

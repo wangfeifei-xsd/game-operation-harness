@@ -22,6 +22,8 @@ kind: "package-reference"
 
 -----
 
+产品提供 `fileDeployment` 服务时，凭据仅从显式账号 home 与 `deploymentCredentials` 读取：账号保存文件优先，其次为部署配置值，不读取进程变量、共享或项目 `.env`。通用 profile 保留下文所述原有优先级。
+
 <a id="use-this-package"></a>
 ## 使用本包
 

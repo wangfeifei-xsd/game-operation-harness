@@ -22,6 +22,8 @@ English | [中文](README.zh.md)
 
 -----
 
+`boot()` accepts an explicit `runtime.home`; `createRuntimeResolution()` accepts `home`. Both bind the path services to that directory without modifying `process.env.DSH_HOME`. Product callers supply the same verified account home to both operations. Generic callers that omit it retain the normal home resolution.
+
 <a id="use-this-package"></a>
 ## Use this package
 

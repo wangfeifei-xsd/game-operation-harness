@@ -1,0 +1,37 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/client/ui-brand-game-operation/README.md
+/:
+  en: f782c5dec5a7644c
+  zh: 07450083bfab8e39
+/deepseek-ai-dsh-client-ui-brand-game-operation:
+  en: 4a1265f9f74d140a
+  zh: a789174218ccb1ef
+/deepseek-ai-dsh-client-ui-brand-game-operation/summary:
+  en: c375e4f2bf3118bb
+  zh: dfccdcde3dbc78fb
+/deepseek-ai-dsh-client-ui-brand-game-operation/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: 364c80ee00a374ff
+/deepseek-ai-dsh-client-ui-brand-game-operation/use-this-package:
+  en: ab09d3df3eb41ddd
+  zh: ad94969b33d6bbee
+/deepseek-ai-dsh-client-ui-brand-game-operation/understand-the-implementation:
+  en: e34cddb12269a46b
+  zh: ca105c4c4b28542b
+/deepseek-ai-dsh-client-ui-brand-game-operation/further-exploration:
+  en: 3f7ee99c78d01a85
+  zh: a1c014203458f321
+/deepseek-ai-dsh-client-ui-brand-game-operation/model-experience:
+  en: 618008c7641070e7
+  zh: 1f2edab0db218ef7
+/deepseek-ai-dsh-client-ui-brand-game-operation/model-experience/kv-cache-effect:
+  en: ca75c51c89c2c9b0
+  zh: 74bc34223dc73799
+/deepseek-ai-dsh-client-ui-brand-game-operation/known-limitations-and-deferred-work:
+  en: e22eee411b38ac15
+  zh: b95fad801dadd5ba
+/deepseek-ai-dsh-client-ui-brand-game-operation/known-limitations-and-deferred-work/dev-note:
+  en: e67f633dc6fe7773
+  zh: e88aeb617ffb74ea

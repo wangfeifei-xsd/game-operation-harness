@@ -17,7 +17,7 @@ import {
   credentialKey, credentialKeyId, credentialKeyScope, credentialRef, isCredentialKeySegment, isCredentialRefName,
 } from '@deepseek-ai/dsh-credentials'
 import type { CredentialKey, CredentialProvider, CredentialRecord } from '@deepseek-ai/dsh-credentials'
-import { launchEnvironmentOf } from '@deepseek-ai/dsh-launch-environment'
+import { configurationEnvironmentOf } from '@deepseek-ai/dsh-launch-environment'
 import { LlmError } from '@deepseek-ai/dsh-llm'
 
 /**
@@ -211,7 +211,7 @@ export function authContextFrom(ctx: Context): AuthContext {
         const hit = await credentials?.resolve(credentialRef(name))
         if (hit !== undefined) return hit.value
       }
-      return launchEnvironmentOf(ctx).get(name)?.value
+      return configurationEnvironmentOf(ctx)?.get(name)?.value
     },
     async fileExists(path) {
       const expanded = path.startsWith('~/') || path === '~'

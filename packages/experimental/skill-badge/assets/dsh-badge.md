@@ -1,31 +1,13 @@
-# dsh Badge
+# game-operation-harness badge
 
-Add the official “powered by dsh” badge without recreating or restyling it.
+Use the packaged cat badge when creating pull requests or merge requests, or when the user requests game-operation-harness attribution.
 
-## Assets
+## Asset
 
-- Local PNG: [`dsh-badge.png`](dsh-badge.png), 726×120 source image; render at 121×20
-- Shields.io image URL: `https://img.shields.io/badge/powered_by-dsh-4D6BFE?style=flat-square&logo=deepseek&logoColor=white`
-- Project URL: `https://github.com/deepseek-ai/deepseek-harness`
+The local file [`dsh-badge.png`](dsh-badge.png) is a 726×120 PNG. Preserve the badge's 121×20 dimensions and aspect ratio when displaying it.
 
-## Markdown
+## Usage
 
-Use this linked badge in Markdown:
+Copy the packaged PNG into the destination project's assets, or upload it through the destination application's supported attachment flow. Use the resulting local relative path or actual uploaded URL in Markdown. Do not use the previous DeepSeek Shields.io image, recreate the badge, or invent a hosted image or project URL. Only add a link if the user supplies the destination.
 
-```markdown
-[![](https://img.shields.io/badge/powered_by-dsh-4D6BFE?style=flat-square&logo=deepseek&logoColor=white)](https://github.com/deepseek-ai/deepseek-harness)
-```
-
-If attribution should not be linked, use:
-
-```markdown
-![](https://img.shields.io/badge/powered_by-dsh-4D6BFE?style=flat-square&logo=deepseek&logoColor=white)
-```
-
-## Usage rules
-
-- For GitHub or GitLab Markdown, use the Shields.io URL and link it to the project URL unless the user asks for an unlinked image.
-- For Feishu and other systems that import remote images unreliably, upload `dsh-badge.png` from this skill directory instead of generating another badge.
-- Preserve the badge's 121×20 dimensions and aspect ratio.
-- Place the badge at the end of the attributed document or section unless the user specifies another position.
-- Do not substitute another color, logo, label, or project URL.
+Place the badge at the end of the attributed document or section unless the user specifies another position.

@@ -34,6 +34,7 @@ export const pt = {
   'collapse': 'Recolher',
   'expand': 'Expandir',
   'back': 'Voltar',
+  'brand.name': 'game-operation-harness',
   'brand.localBuild': 'Versão local do DSH',
   'workspace.defaultName': 'Espaço de trabalho padrão',
   'unknown': 'Desconhecido',

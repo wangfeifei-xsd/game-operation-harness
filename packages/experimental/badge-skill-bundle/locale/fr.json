@@ -1,7 +1,7 @@
 {
   "meta": {
-    "title": "Compétence du badge DSH",
-    "description": "Laissez les agents ajouter un badge « propulsé par dsh » aux documents, demandes d'extraction et autres sorties.",
+    "title": "Game operation badge",
+    "description": "Add the cat brand badge to outputs when requested.",
     "detail": "docs/DETAIL.md"
   }
 }

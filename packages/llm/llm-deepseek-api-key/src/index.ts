@@ -3,7 +3,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { APP_IDENTITY, LlmError } from '@deepseek-ai/dsh-llm'
 import type { LlmModelBadge } from '@deepseek-ai/dsh-llm'
 import type {} from '@deepseek-ai/cordis-plugin-loader'
-import { launchEnvironmentOf } from '@deepseek-ai/dsh-launch-environment'
+import { configurationEnvironmentOf } from '@deepseek-ai/dsh-launch-environment'
 import {
   catalogModelInfo, createModelListingCache, refuseListedModel, registerDeepSeekProvider, requestModelListing, resolveListedCatalog,
   resolveDeepSeekApiKey,
@@ -32,7 +32,7 @@ interface OfficialConnection extends ResolvedDeepSeekOptions {
 }
 
 export function apply(ctx: Context, config: Config): void {
-  const options = () => resolveAdapterOptions(plainOptions(config), launchEnvironmentOf(ctx))
+  const options = () => resolveAdapterOptions(plainOptions(config), configurationEnvironmentOf(ctx))
   options()
   const resolveApiKey = async (connection: ResolvedDeepSeekOptions): Promise<string> => {
     const ref = connection.apiKeyEnv

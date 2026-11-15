@@ -1,6 +1,6 @@
 {
-  "name": "DeepSeek Harness",
-  "short_name": "DSH",
+  "name": "game-operation-harness",
+  "short_name": "游戏运营 Agent",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

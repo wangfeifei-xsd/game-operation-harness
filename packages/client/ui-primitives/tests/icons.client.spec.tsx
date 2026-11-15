@@ -277,28 +277,30 @@ describe('product icon set', () => {
   })
 })
 
-describe('FishLogo', () => {
-  it('renders the fish path in currentColor at the native ratio', () => {
-    const { container } = render(<primitives.FishLogo />)
-    const svg = container.querySelector('svg')!
-    expect(svg.getAttribute('width')).toBe('24')
-    expect(Number(svg.getAttribute('height'))).toBeCloseTo(17.66, 1)
-    expect(svg.getAttribute('viewBox')).toBe('0 0 23.16 17.04')
-    expect(container.querySelectorAll('path')).toHaveLength(1)
-    expect(container.innerHTML).toContain('currentColor')
-    expect(container.innerHTML).not.toContain('M0 0L23.16')
+describe('CatLogo', () => {
+  it('keeps square geometry and two eyes at both optical sizes', () => {
+    const view = render(<primitives.CatLogo />)
+    const svg = view.container.querySelector('svg')!
+    expect([svg.getAttribute('width'), svg.getAttribute('height')]).toEqual(['24', '24'])
+    expect(svg.getAttribute('viewBox')).toBe('0 0 100 100')
+    expect(svg.getAttribute('aria-hidden')).toBe('true')
+    expect(svg.querySelectorAll('circle')).toHaveLength(2)
+    const standard = svg.querySelector('path')!.getAttribute('d')
+    view.rerender(<primitives.CatLogo size={16} className="compact" />)
+    expect(svg.getAttribute('width')).toBe('16')
+    expect(svg.querySelector('path')!.getAttribute('d')).not.toBe(standard)
+    expect(svg.querySelector('path')!.getAttribute('stroke')).toBe('currentColor')
   })
 })
 
 describe('BrandWordmark', () => {
-  it('can render the name artwork with or without its leading mark', () => {
-    const view = render(<primitives.BrandWordmark />)
-    const svg = view.container.querySelector('svg')!
-    expect(svg.getAttribute('width')).toBe('182')
-    expect(svg.getAttribute('viewBox')).toBe('0 0 182 24')
-
-    view.rerender(<primitives.BrandWordmark includeMark={false} />)
-    expect(svg.getAttribute('width')).toBe('156')
-    expect(svg.getAttribute('viewBox')).toBe('26 0 156 24')
+  it('keeps the localized name complete and includes exactly the requested mark', () => {
+    const view = render(<primitives.BrandWordmark label="游戏运营 Agent" />)
+    expect(view.container.textContent).toBe('游戏运营 Agent')
+    expect(view.container.querySelectorAll('[data-brand-cat]')).toHaveLength(1)
+    view.rerender(<primitives.BrandWordmark label="game-operation-harness" includeMark={false} />)
+    expect(view.container.textContent).toBe('game-operation-harness')
+    expect(view.container.querySelector('svg')).toBeNull()
+    expect(view.container.querySelector('[data-brand-wide]')).not.toBeNull()
   })
 })

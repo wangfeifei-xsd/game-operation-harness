@@ -1,5 +1,5 @@
 ---
-description: "随包附带的「powered by dsh」徽章 skill（技能），供启用、使用或排查该可选徽章提供方的用户与维护者阅读。"
+description: "随包附带的「game-operation-harness」徽章 skill（技能），供启用、使用或排查该可选徽章提供方的用户与维护者阅读。"
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-agent（智能体）可以通过该内置提供方加载官方「powered by dsh」徽章 skill，并遵循其指令，给文档、PR（Pull Request）以及其他用 DeepSeek Harness 生成的内容添加署名徽章。该提供方没有配置；部署方需要显式安装并插入插件行。该 skill 同时提供 Markdown 片段和随包分发的 PNG，供无法可靠导入远程图片的系统使用。
+agent（智能体）可以通过该内置提供方加载官方「game-operation-harness」徽章 skill，并遵循其指令，给文档、PR（Pull Request）以及其他用 game-operation-harness 生成的内容添加署名徽章。该提供方没有配置；部署方需要显式安装并插入插件行。该 skill 提供随包分发的 PNG，以及复制到目标或作为附件上传的说明。
 
 ## 目录
 
@@ -25,13 +25,13 @@ agent（智能体）可以通过该内置提供方加载官方「powered by dsh�
 <a id="use-this-package"></a>
 ## 使用本包
 
-启用插件即可让 `dsh-badge` skill 出现在会话 skill 目录中；随后模型可以像加载任何其他 skill 一样加载它，并遵循其指令添加「powered by dsh」徽章。
+启用插件即可让 `dsh-badge` skill 出现在会话 skill 目录中；随后模型可以像加载任何其他 skill 一样加载它，并遵循其指令添加「game-operation-harness」徽章。
 
-在插件页面中，此组件显示为 **DSH**，并使用 DSH 标签图标。它提供的 skill 名称为 `dsh-badge`。
+在插件页面中，此组件显示为 **游戏运营徽章**，并使用 猫头图标。它提供的 skill 名称为 `dsh-badge`。
 
 ### 何时选择
 
-当用 DeepSeek Harness 生成的内容应携带官方署名徽章、且部署方希望该徽章 skill 对 agent 可用而无需存入本地 skill 目录时，选择此提供方。当徽章与部署无关时，请跳过。默认组合省略此插件；使用它需要安装包并显式插入活动行。
+当用 game-operation-harness 生成的内容应携带产品署名徽章、且部署方希望该徽章 skill 对 agent 可用而无需存入本地 skill 目录时，选择此提供方。当徽章与部署无关时，请跳过。默认组合省略此插件；使用它需要安装包并显式插入活动行。
 
 ### 启用插件
 
@@ -43,7 +43,7 @@ agent（智能体）可以通过该内置提供方加载官方「powered by dsh�
       name: '@deepseek-ai/dsh-skill-badge'
 ```
 
-启用后，`dsh-badge` 会出现在会话目录的可用 skill 中。该 skill 覆盖远程 Markdown 徽章（基于 Shields.io）和随包分发的 PNG 徽章资源，后者用于无法可靠获取远程图片的目标环境。
+启用后，`dsh-badge` 会出现在会话目录的可用 skill 中。该 skill 使用随包分发的 PNG；嵌入实际复制路径或上传 URL，不提供公共图片托管或默认项目链接。
 
 ### 徽章 skill 提供什么
 
@@ -107,7 +107,7 @@ agent（智能体）可以通过该内置提供方加载官方「powered by dsh�
 这些限制说明内置提供方不做什么。它们是当前包约束，不是任务积压。
 
 - **固定一个 skill，无运行时自定义**——提供方恰好贡献 `dsh-badge` 这一个 skill；需要其他徽章变体的部署请自行编写 skill。
-- **远程 Markdown 依赖 Shields.io**——远程徽章标记内嵌 Shields.io 图片；目标环境无法可靠获取远程图片时，请使用随包分发的 PNG。
+- **没有公共图片托管**——嵌入前复制或上传随包 PNG；项目链接仅使用用户提供的地址。
 
 <a id="dev-note"></a>
 ### 开发备注

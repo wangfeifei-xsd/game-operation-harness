@@ -394,6 +394,7 @@ export class TypertGatewayService extends Service implements TypertGateway {
   }
 
   private async invokePrepared(prepared: PreparedInvocation): Promise<unknown> {
+    await this.ctx.waterfall('connection/authorize-operation', () => Promise.resolve())
     if (prepared.descriptor.mode !== undefined) {
       throw new TypertGatewayError(
         'gateway/signature-invalid',
@@ -427,6 +428,7 @@ export class TypertGatewayService extends Service implements TypertGateway {
    * with the Remote failure as the reason so the carrier delivers that failure.
    */
   private async openStream(request: InvokeRemoteRequest, control: AbortController): Promise<AsyncIterable<unknown>> {
+    await this.ctx.waterfall('connection/authorize-operation', () => Promise.resolve())
     const prepared = await this.prepareInvocation(request, control)
     if (prepared.descriptor.mode === undefined) {
       await prepared.invocation.close()
@@ -464,6 +466,7 @@ export class TypertGatewayService extends Service implements TypertGateway {
   ): Promise<ConnectionRpcResult> {
     if (endpoint === REMOTE_EVENT_RESULT_ENDPOINT) {
       try {
+        await this.ctx.waterfall('connection/authorize-operation', async () => {})
         assertPeerLive(peer, endpoint)
         requireInteractions(peer, endpoint)
         // oxlint-disable-next-line typescript/no-unnecessary-condition -- other packages merge non-owner kinds into PrincipalMap.
@@ -500,6 +503,7 @@ export class TypertGatewayService extends Service implements TypertGateway {
     uplinkWindow?: RemoteInvocation['uplinkWindow'],
   ): Promise<AsyncIterable<unknown>> {
     if (endpoint === REMOTE_EVENT_STREAM_ENDPOINT) {
+      await this.ctx.waterfall('connection/authorize-operation', async () => {})
       // A Gateway-owned stream reads no uplink: releasing it now keeps its items out of the bounded inbox.
       releaseUplink(uplink)
       assertPeerLive(peer, endpoint)

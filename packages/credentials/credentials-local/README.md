@@ -22,6 +22,8 @@ English | [中文](README.zh.md)
 
 -----
 
+With the product's `fileDeployment` service present, credential lookup uses only the explicit account home and `deploymentCredentials`: the account's saved file wins, followed by the configured deployment values. It does not read process variables or shared/project `.env` files. Generic profiles retain the normal precedence described below.
+
 <a id="use-this-package"></a>
 ## Use this package
 

@@ -76,7 +76,7 @@ describe('web e2e: settings modal and General preferences', () => {
       if (await dialog.isVisible()) await page.keyboard.press('Escape')
       await dialog.waitFor({ state: 'hidden' })
     })
-    const trigger = page.getByRole('button', { name: '账号菜单', exact: true })
+    const trigger = page.getByRole('button', { name: '模型供应商菜单', exact: true })
     expect(await trigger.getAttribute('aria-haspopup')).toBe('menu')
     expect(await trigger.getAttribute('aria-expanded')).toBe('false')
     await trigger.click()
@@ -358,7 +358,7 @@ describe('web e2e: settings modal and General preferences', () => {
     expect(closeBox!.y + closeBox!.height).toBeLessThanOrEqual(844)
     await close.click()
     await dialog.waitFor({ state: 'hidden' })
-    const trigger = phone.getByRole('button', { name: '账号菜单', exact: true })
+    const trigger = phone.getByRole('button', { name: '模型供应商菜单', exact: true })
     await expect.poll(() => trigger.evaluate(el => el === document.activeElement)).toBe(true)
 
     expect(console.pageErrors).toEqual([])
@@ -902,7 +902,7 @@ describe('web e2e: settings modal and General preferences', () => {
     await page.reload({ waitUntil: 'load' })
     await page.waitForSelector('[class*="frame"]', { timeout: 30_000 })
     acknowledgeReloadConnectionLoss(tripwire, warningStart)
-    const enTrigger = page.getByRole('button', { name: 'Account menu' })
+    const enTrigger = page.getByRole('button', { name: 'Model provider menu' })
     await enTrigger.waitFor({ timeout: 10_000 })
 
     // A Chinese browser on another port still receives the explicit English

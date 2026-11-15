@@ -1,7 +1,7 @@
 {
   "meta": {
-    "title": "Habilidad de insignia DSH",
-    "description": "Permita que los agentes agreguen una insignia \"con tecnología de dsh\" a documentos, solicitudes de extracción y otros resultados.",
+    "title": "Game operation badge",
+    "description": "Add the cat brand badge to outputs when requested.",
     "detail": "docs/DETAIL.md"
   }
 }

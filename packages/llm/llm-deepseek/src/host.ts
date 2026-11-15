@@ -1,4 +1,8 @@
 /** Shared Host wiring for the DeepSeek protocol adapter. */
+import { join } from 'node:path'
+import { DeepSeekFileStore } from './file-store.ts'
+import { DeepSeekUploadIndex } from './upload-index.ts'
+import type {} from '@deepseek-ai/dsh-launch-environment'
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-settings'
 import type {} from '@deepseek-ai/cordis-plugin-loader'
@@ -52,7 +56,10 @@ export function registerDeepSeekProvider<C extends DeepSeekConnectionOptions>(
   const unacceptedRoutes = new Set<string>()
   const adapter = new DeepSeekAdapter({
     ...dependencies,
-    resolveUserId: () => userId ??= getOrCreateAnonymousUserId(),
+    resolveUserId: () => userId ??= getOrCreateAnonymousUserId({ dshHome: ctx.get('fileDeploymentHome') }),
+    ...(ctx.get('fileDeploymentHome') === undefined ? {} : {
+      resolveFiles: () => new DeepSeekFileStore({ index: new DeepSeekUploadIndex(join(ctx.get('fileDeploymentHome')!, 'llm-deepseek', 'files-v3.json')) }),
+    }),
     onReplayDegrade: ({ provider, model, reason }) => {
       const key = `${provider}/${model}\u0000${reason}`
       if (degradedReplays.has(key)) return

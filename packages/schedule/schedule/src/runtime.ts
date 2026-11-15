@@ -308,6 +308,7 @@ export class ScheduleRuntime {
    * @returns Whether the task holds its slot for that delivery; a woken reminder of a `new` target holds none.
    */
   private async recoverOutstandingExecution(task: ScheduleTask): Promise<boolean> {
+    await this.ctx.waterfall('schedule/before-deliver', async () => {})
     if (this.executing.has(task.record.id)) return true
     const receipt = task.lastDelivery
     // The archived-Session gate blocks the turn that a requeued reminder would wake.
@@ -351,6 +352,7 @@ export class ScheduleRuntime {
    * The held tasks hold their slots from the enqueue; a failure releases them.
    */
   private async send(agent: Agent, text: string, held: readonly ScheduleId[]): Promise<SentReminder> {
+    await this.ctx.waterfall('schedule/before-deliver', async () => {})
     const message = createUserMessage({ content: [{ type: 'text', text }], source: { kind: 'schedule' } })
     for (const id of held) this.executing.add(id)
     try {

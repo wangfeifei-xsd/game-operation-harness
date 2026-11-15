@@ -57,6 +57,13 @@ export const name = 'client-connection'
 declare module '@deepseek-ai/cordis' {
   interface Events {
     /**
+     * 每次远程调用执行前进行异步认证，不复用握手或先前请求结果。
+     * @param next - 委托到下一个认证检查。
+     * @mode waterfall
+     */
+    'connection/authorize-operation'(next: () => Promise<void>): Promise<void>
+
+    /**
      * Admit or wrap an authenticated shared API request, including body transfer.
      * Existing requests continue when a listener refuses subsequent requests.
      * @param request - Authenticated incoming HTTP request.

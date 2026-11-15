@@ -83,6 +83,8 @@ function sharingStatusFor(mode: SessionTelemetryMode): SessionTelemetrySharingSt
  * and shutdown deadline at plugin load; `DISABLED` reads neither.
  */
 export interface Config {
+  /** 显式账号数据目录；未提供时沿用传统目录规则。 */
+  dshHome?: string
   /** Defaults to `FEEDBACK_ONLY`: capture session history only when feedback is explicitly submitted. */
   mode?: SessionTelemetryMode
   /**
@@ -114,6 +116,7 @@ export interface Config {
  * self-observability metering.
  */
 export const Config: z<Config> = z.object({
+  dshHome: z.string(),
   mode: z.union(Object.values(SessionTelemetryMode)).default(DEFAULT_TELEMETRY_MODE),
   exporter: z.any(),
   processor: z.any(),
@@ -195,7 +198,7 @@ export class OpenTelemetrySessionBackend extends SessionTelemetryBackend {
       resourceAttributes: {
         'service.name': APP_IDENTITY.product,
         'service.version': APP_IDENTITY.version,
-        'user.id': getOrCreateAnonymousUserId(),
+        'user.id': getOrCreateAnonymousUserId({ dshHome: config.dshHome }),
       },
       onFailure: (message, error) => { ctx.logger.warn(message, error) },
     })

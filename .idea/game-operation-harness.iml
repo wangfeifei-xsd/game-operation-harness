@@ -2,7 +2,23 @@
 <module type="JAVA_MODULE" version="4">
   <component name="NewModuleRootManager" inherit-compiler-output="true">
     <exclude-output />
-    <content url="file://$MODULE_DIR$" />
+    <content url="file://$MODULE_DIR$">
+      <excludeFolder url="file://$MODULE_DIR$/.dsh-build" />
+      <excludeFolder url="file://$MODULE_DIR$/output" />
+      <excludeFolder url="file://$MODULE_DIR$/website/.vitepress/cache" />
+      <excludeFolder url="file://$MODULE_DIR$/website/.vitepress/dist" />
+      <excludeFolder url="file://$MODULE_DIR$/.agents/worktrees" />
+      <excludeFolder url="file://$MODULE_DIR$/.worktrees" />
+      <excludePattern pattern="node_modules" />
+      <excludePattern pattern="lib" />
+      <excludePattern pattern=".pnpm-store" />
+      <excludePattern pattern=".cache" />
+      <excludePattern pattern=".typecheck" />
+      <excludePattern pattern="__pycache__" />
+      <excludePattern pattern=".pytest_cache" />
+      <excludePattern pattern=".venv" />
+      <excludePattern pattern="venv" />
+    </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>

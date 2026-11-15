@@ -1203,6 +1203,7 @@ export async function auditStartupEntries(
  * @param bareModuleBaseUrl - optional installed-host base for bare package
  * names; use it when the host, rather than the configuration project, owns the
  * complete plugin set.
+ * @param runtime - 显式数据根；提供时路径服务不读取 DSH_HOME。
  * @returns the root context after the initial startup audit, or as soon as a
  * surface disposed the tree while startup was still in flight.
  * @throws {@link StartupError} for an inactive required entry, including all inactive plugins in its message;
@@ -1217,6 +1218,7 @@ export async function boot(
   patches?: PatchOptions[],
   prepare?: (ctx: Context) => Promise<void> | void,
   bareModuleBaseUrl?: string,
+  runtime?: { home: string },
 ): Promise<Context> {
   const ctx = new Context()
   const startupLogs: StartupLogRecord[] = []
@@ -1234,8 +1236,11 @@ export async function boot(
   let stage = 'host preparation failed'
   try {
     ctx.baseUrl = pathToFileURL(dirname(absoluteConfigPath)).href + '/'
-    ctx.provide('dshHomePath', dshHomePath)
-    ctx.provide('dshPath', dshPath)
+    ctx.provide('dshHomePath', runtime === undefined ? dshHomePath : (...segments) => resolve(runtime.home, ...segments))
+    ctx.provide('dshPath', runtime === undefined ? dshPath : (location, ...segments) => {
+      const category = typeof location === 'string' ? location : location.category
+      return dshPath({ category, dshHome: runtime.home }, ...segments)
+    })
     await ctx.plugin(Loader)
     await prepare?.(ctx)
     stage = 'plugin tree failed to load'

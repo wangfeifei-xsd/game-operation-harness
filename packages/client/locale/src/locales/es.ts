@@ -34,6 +34,7 @@ export const es = {
   'collapse': 'Contraer',
   'expand': 'Expandir',
   'back': 'Atrás',
+  'brand.name': 'game-operation-harness',
   'brand.localBuild': 'Compilación local de DSH',
   'workspace.defaultName': 'Espacio de trabajo predeterminado',
   'unknown': 'Desconocido',

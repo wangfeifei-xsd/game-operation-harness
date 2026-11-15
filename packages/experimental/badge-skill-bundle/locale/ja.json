@@ -1,7 +1,7 @@
 {
   "meta": {
-    "title": "DSH バッジスキル",
-    "description": "エージェントが文書や PR などの成果物に「powered by dsh」バッジを追加できます。",
+    "title": "Game operation badge",
+    "description": "Add the cat brand badge to outputs when requested.",
     "detail": "docs/DETAIL.md"
   }
 }

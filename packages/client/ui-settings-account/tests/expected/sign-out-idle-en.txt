@@ -1,1 +1,1 @@
-Sign outSigning out will not delete any data. You can sign in to this account again.CancelSign out
+Remove model authorizationYou can authorize your DeepSeek model account again after removing this credential.CancelRemove model authorization

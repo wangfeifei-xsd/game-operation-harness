@@ -3,7 +3,7 @@ import type {} from '@deepseek-ai/cordis-plugin-loader'
 import type { Context } from '@deepseek-ai/cordis'
 import { ACCOUNT_QUOTA_EXCEEDED_CODE, APP_IDENTITY, LlmError, QUOTA_EXCEEDED_CODE } from '@deepseek-ai/dsh-llm'
 import type {} from '@deepseek-ai/dsh-deepseek-account'
-import { launchEnvironmentOf } from '@deepseek-ai/dsh-launch-environment'
+import { configurationEnvironmentOf } from '@deepseek-ai/dsh-launch-environment'
 import {
   catalogModelInfo, createModelListingCache, refuseListedModel, registerDeepSeekProvider, requestModelListing, resolveAdapterOptions,
   resolveListedCatalog, rejectDeepSeekAccountToken, resolveDeepSeekAccountToken,
@@ -27,7 +27,7 @@ interface AccountConnection extends ResolvedDeepSeekOptions {
 }
 
 export function apply(ctx: Context, config: Config): void {
-  const environment = launchEnvironmentOf(ctx)
+  const environment = configurationEnvironmentOf(ctx)
   const settings = () => resolveAccountOptions(plainAccountOptions(config), environment)
   settings()
   const supported = resolveAdapterOptions({}).models

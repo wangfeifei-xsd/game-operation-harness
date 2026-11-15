@@ -135,3 +135,21 @@ declare module '@deepseek-ai/cordis' {
     launchEnvironment?: LaunchEnvironmentSnapshot
   }
 }
+
+/**
+ * 配置消费者仅在传统启动方式下读取环境；文件部署直接读取插件配置。
+ * @param ctx - 持有启动配置的插件上下文。
+ * @returns 传统启动快照；文件部署返回空值，禁止环境回填。
+ */
+export function configurationEnvironmentOf(ctx: Context): LaunchEnvironmentSnapshot | undefined {
+  return ctx.get('fileDeployment') === true ? undefined : launchEnvironmentOf(ctx)
+}
+
+declare module '@deepseek-ai/cordis' {
+  interface Context {
+    /** 直接读取已验证文件配置的产品进程。 */
+    fileDeployment: boolean
+    /** 文件部署中经过认证的账号数据根目录。 */
+    fileDeploymentHome?: string
+  }
+}

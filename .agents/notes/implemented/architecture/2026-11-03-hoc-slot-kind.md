@@ -50,7 +50,7 @@ Add a fifth kind: `hoc`.
 | Location | Realization |
 |---|---|
 | `ui-conversation` | `conversation.hero.frame` (hoc, root) with owner props `{ hero: boolean }` wraps `.scrollBody` in every phase, so the composer does not remount when the home ends. On the home (`.root[data-phase='hero']`), the Conversation root, which paints the background, sets `isolation: isolate` as part of the frame contract, so layer decorations at negative `z-index` paint above that background and below all Conversation content. The Conversation performs no click classification for its layers |
-| `ui-brand-official` | `PixelWhale` is a frame layer: a React `onClick` on a `display: contents` frame plays the whale for primary clicks on blank space, excluding portaled overlays (`currentTarget.contains(target)`), controls (a selector), and clicks that end a text selection inside the frame. While `hero` is true it paints a canvas at negative `z-index`. The frame atlas loads through the package asset route; the renderer returns `{ play, dispose }` |
+| `ui-brand-game-operation` | `PixelCat` is a frame layer: a React `onClick` on a `display: contents` frame plays the cat for primary clicks on blank space, excluding portaled overlays (`currentTarget.contains(target)`), controls (a selector), and clicks that end a text selection inside the frame. While `hero` is true it paints a canvas at negative `z-index`. The frame atlas loads through the package asset route; the renderer returns `{ play, dispose }` |
 
 ## Alternatives considered
 

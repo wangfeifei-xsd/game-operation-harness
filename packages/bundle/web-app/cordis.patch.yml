@@ -366,8 +366,8 @@
       name: '@deepseek-ai/dsh-client-ui-chat'
 
     # Official occupants for the sidebar brand slots and the home whale frame layer.
-    - id: ui-brand-official
-      name: '@deepseek-ai/dsh-client-ui-brand-official'
+    - id: ui-brand-game-operation
+      name: '@deepseek-ai/dsh-client-ui-brand-game-operation'
 
     - id: ui-attachment
       name: '@deepseek-ai/dsh-client-ui-attachment'

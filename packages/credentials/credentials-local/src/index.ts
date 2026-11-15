@@ -43,7 +43,7 @@ import { dirname, join, resolve } from 'node:path'
 import { Document, isMap, isScalar, parseDocument, type YAMLError } from 'yaml'
 import { withFileLock, writeFileAtomic } from '@deepseek-ai/dsh-atomic-write'
 import { canonicalizeWatchPath, resolveDshHome } from '@deepseek-ai/dsh-home-paths'
-import { launchEnvironmentOf } from '@deepseek-ai/dsh-launch-environment'
+import { configurationEnvironmentOf } from '@deepseek-ai/dsh-launch-environment'
 import { CredentialProvider, credentialRef, parseCredentialKey } from '@deepseek-ai/dsh-credentials'
 import type {
   ApiKeyRecord,
@@ -62,6 +62,8 @@ export const CREDENTIALS_FILENAME = '.credentials.yaml'
 
 /** Plugin config: file location and hot-reload behavior. */
 export interface Config {
+  /** 部署文件的凭据回填，仅在账号独立凭据尚未设置时使用。 */
+  deploymentCredentials?: Record<string, string>
   /** Credentials document path; defaults to `.credentials.yaml` under the harness home. */
   path?: string
   /** Harness home used when `path` is omitted; defaults to `$DSH_HOME` or `~/.dsh`. */
@@ -530,6 +532,7 @@ function maskCredential(value: string): string {
 /** File-backed credentials provider (`$DSH_HOME/.credentials.yaml`). */
 export class LocalCredentialProvider extends CredentialProvider {
   static Config: z<Config> = z.object({
+    deploymentCredentials: z.dict(z.string()).default({}),
     path: z.string(),
     dshHome: z.string(),
     watch: z.boolean().default(true),
@@ -570,7 +573,9 @@ export class LocalCredentialProvider extends CredentialProvider {
 
   /** The inherited-environment value for a reference, or `undefined` when empty or unset. */
   private inherited(ref: CredentialRef): string | undefined {
-    const entry = launchEnvironmentOf(this.ctx).getFrom(ref, ['process'])
+    const configured = this.config.deploymentCredentials?.[ref]
+    if (configured !== undefined) return configured
+    const entry = configurationEnvironmentOf(this.ctx)?.getFrom(ref, ['process'])
     return entry !== undefined && entry.value.length > 0 ? entry.value : undefined
   }
 
@@ -580,7 +585,7 @@ export class LocalCredentialProvider extends CredentialProvider {
    * environment layering: the more specific location wins.
    */
   private dotenvFallback(ref: CredentialRef): LaunchEnvironmentEntry | undefined {
-    const entry = launchEnvironmentOf(this.ctx).getFrom(ref, ['project-env', 'user-env'])
+    const entry = configurationEnvironmentOf(this.ctx)?.getFrom(ref, ['project-env', 'user-env'])
     return entry !== undefined && entry.value.length > 0 ? entry : undefined
   }
 

@@ -22,6 +22,8 @@ Schedule sends instructions at a chosen time or on a repeating schedule. Ask an 
 
 -----
 
+An embedding can await `schedule/before-deliver` before delivery and outstanding-execution recovery. Rejecting the waterfall prevents that attempt; listeners call `next()` to continue. The hook performs no renewal and does not replace the Agent or tool execution checks. Existing storage and delivery failure semantics still apply.
+
 <a id="use-this-package"></a>
 ## Use this package
 

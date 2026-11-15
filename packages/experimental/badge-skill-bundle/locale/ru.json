@@ -1,7 +1,7 @@
 {
   "meta": {
-    "title": "DSH значок навыка",
-    "description": "Позвольте агентам добавлять значок «Powered by dsh» к документам, запросам на включение и другим результатам.",
+    "title": "Game operation badge",
+    "description": "Add the cat brand badge to outputs when requested.",
     "detail": "docs/DETAIL.md"
   }
 }

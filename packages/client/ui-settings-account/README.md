@@ -13,7 +13,7 @@ Server-expired account credentials clear the displayed account details and emit 
 
 ## Summary
 
-The Account settings section displays DeepSeek login state and offers browser sign-in and cancellation; the sidebar account menu provides Platform sign-out. Desktop users also receive a resumable introduction to account credit and presentation preferences.
+The Model authorization settings section displays DeepSeek model credentials and offers browser authorization and cancellation; the sidebar menu removes those provider credentials. These operations are independent of the [Harness product identity](../../../docs/harness-product.md). Desktop users also receive a resumable introduction to account credit and presentation preferences.
 
 The sign-in dialog offers network troubleshooting only for `no-response` failures. HTTP, business, response-validation, storage, and account-stream failures retain the generic retry message.
 
@@ -23,7 +23,7 @@ The sign-in dialog offers network troubleshooting only for `no-response` failure
 - [Model Experience](#model-experience)
 - [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
 
-A new account-model sign-in-required event displays “Model unavailable. Please sign in and try again.” in a toast. The notice is transient: remounting or refreshing does not replay it.
+A new account-model sign-in-required event displays “Model unavailable. Authorize your model provider and try again.” in a toast. The notice is transient: remounting or refreshing does not replay it.
 
 <a id="use-this-package"></a>
 ## Use this package

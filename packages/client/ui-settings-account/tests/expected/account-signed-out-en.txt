@@ -1,1 +1,1 @@
-You are not signed in to DeepSeek HarnessSign in to DeepSeek Harness to get your dedicated API KeySign in
+DeepSeek models are not authorizedAuthorize your DeepSeek model account to get a model API Key.Authorize models

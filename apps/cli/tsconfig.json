@@ -79,6 +79,21 @@
     },
     {
       "path": "../../packages/util/atomic-write"
+    },
+    {
+      "path": "../../packages/core/agent"
+    },
+    {
+      "path": "../../packages/schedule/schedule"
+    },
+    {
+      "path": "../../packages/util/http-proxy"
+    },
+    {
+      "path": "../../packages/util/error"
+    },
+    {
+      "path": "../../packages/subprocess/subprocess-local"
     }
   ]
 }

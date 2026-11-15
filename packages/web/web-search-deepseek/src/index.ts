@@ -15,7 +15,7 @@ import type {} from '@deepseek-ai/dsh-agent'
 import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import type { CredentialRef } from '@deepseek-ai/dsh-credentials'
 import type {} from '@deepseek-ai/dsh-deepseek-account'
-import { launchEnvironmentOf } from '@deepseek-ai/dsh-launch-environment'
+import { configurationEnvironmentOf } from '@deepseek-ai/dsh-launch-environment'
 import {
   deepSeekApiKeyConfigured, rejectDeepSeekAccountToken, resolveDeepSeekAccountToken, resolveDeepSeekApiKey,
 } from '@deepseek-ai/dsh-llm-deepseek'
@@ -124,7 +124,7 @@ function resolveOptions(
     resolveApiKey: () => resolveDeepSeekApiKey(ctx, apiKeyEnv),
     apiKeyEnv,
     baseURL: config.baseURL
-      ?? launchEnvironmentOf(ctx).get(SEARCH_BASE_URL_ENV)?.value
+      ?? configurationEnvironmentOf(ctx)?.get(SEARCH_BASE_URL_ENV)?.value
       ?? DEEPSEEK_DEFAULT_BASE_URL,
     model: config.model,
     apiVersion: config.apiVersion,

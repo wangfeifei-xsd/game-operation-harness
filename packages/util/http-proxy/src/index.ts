@@ -19,6 +19,7 @@ export {
   clearedProxyEnv,
   createRouteDispatcher,
   installProxyFromEnvironment,
+  installProxyFromConfig,
   proxyEnvironmentForChild,
   proxyRouteFor,
   type DispatcherOptions,

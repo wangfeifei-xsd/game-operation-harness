@@ -22,6 +22,8 @@ The package carries browser-to-Host Remote calls, exact Fetch responses, and con
 
 -----
 
+Authentication integrations can await `connection/authorize-operation` before each Gateway invocation, including stream opens and remote-event result submissions. The waterfall must call `next()` to delegate; rejection prevents dispatch. It does not renew an authentication session or reuse handshake approval. HTTP-wide and execution-time checks remain the embedding product's responsibility.
+
 <a id="use-this-package"></a>
 ## Use this package
 

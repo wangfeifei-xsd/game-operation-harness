@@ -54,6 +54,7 @@ apps/cli/docs/
 native/system/test/bin/
 
 # 本地启动、测试和诊断产物。
+/.local/
 /output/
 /.logs/
 /logs/
@@ -114,3 +115,9 @@ Thumbs.db
 
 # Generated company-signed CUA release record.
 /packages/experimental/cua-macos/cua-helper.json
+
+# Harness 独立登录页面的构建产物。
+/apps/web/harness-dist/
+
+# 本地设计交付包，包含源图、导出副本和预览。
+/素材/

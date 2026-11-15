@@ -129,11 +129,11 @@ describe.skipIf(MODE === 'record')('web e2e: DeepSeek account sign-in in a plain
     const console = watchConsole(page)
     onTestFailed(() => saveFailureShot(page, 'web-e2e-account-login'))
     await page.goto(scaffold.authenticatedUrl, { waitUntil: 'load' })
-    const menu = page.getByRole('button', { name: 'Account menu', exact: true })
+    const menu = page.getByRole('button', { name: 'Model provider menu', exact: true })
     await menu.click()
     const tab = context.waitForEvent('page')
     const callback = context.waitForEvent('request', request => new URL(request.url()).pathname === '/oauth/callback')
-    await page.getByRole('menuitem', { name: 'Sign in', exact: true }).click()
+    await page.getByRole('menuitem', { name: 'Authorize models', exact: true }).click()
     const authorization = await tab
     expect((await (await callback).allHeaders())['sec-fetch-site']).toBe('cross-site')
     await authorization.waitForURL(url => url.pathname === '/dsh/authorized', { timeout: 30_000 })
@@ -154,7 +154,7 @@ describe.skipIf(MODE === 'record')('web e2e: DeepSeek account sign-in in a plain
     const capture = async (stage: string): Promise<void> => {
       await expect.poll(platform.notificationLists).toBe(expectedLists)
       const sidebar = menu.locator('[data-avatar-status]')
-      const account = page.getByRole('region', { name: 'Account', exact: true })
+      const account = page.getByRole('region', { name: 'Model authorization', exact: true })
       const mounted = await account.count() > 0
       const settingsStatus = mounted
         ? await account.locator('[data-avatar-status]').getAttribute('data-avatar-status') : 'unmounted'
@@ -167,7 +167,7 @@ describe.skipIf(MODE === 'record')('web e2e: DeepSeek account sign-in in a plain
     expectedLists++
     await page.getByRole('menuitem', { name: 'Settings', exact: true }).click()
     const settings = page.getByRole('dialog', { name: 'Settings', exact: true })
-    const account = settings.getByRole('region', { name: 'Account', exact: true })
+    const account = settings.getByRole('region', { name: 'Model authorization', exact: true })
     await expect.poll(platform.avatarRequests).toBe(2)
     await account.locator('[data-avatar-status="failed"]').waitFor()
     expect(await menu.locator('img').count()).toBe(0)

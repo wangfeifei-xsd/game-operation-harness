@@ -307,6 +307,23 @@ Source: [`packages/host/webserver/src/index.ts`](../../packages/host/webserver/s
 
 ### `connection/*` events
 
+<a id="connectionauthorize-operation--waterfall"></a>
+
+#### `connection/authorize-operation` — waterfall
+
+每次远程调用执行前进行异步认证，不复用握手或先前请求结果。
+
+```ts cordis-catalog
+/**
+ * 每次远程调用执行前进行异步认证，不复用握手或先前请求结果。
+ * @param next - 委托到下一个认证检查。
+ * @mode waterfall
+ */
+'connection/authorize-operation'(next: () => Promise<void>): Promise<void>
+```
+
+Source: [`packages/client/connection/src/index.ts`](../../packages/client/connection/src/index.ts)
+
 <a id="connectionrequest--waterfall"></a>
 
 #### `connection/request` — waterfall

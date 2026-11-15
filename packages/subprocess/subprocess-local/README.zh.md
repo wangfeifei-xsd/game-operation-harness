@@ -22,6 +22,8 @@ kind: "package-reference"
 
 -----
 
+`createProcessInspector()` 为嵌入监督器提供进程快照与带身份校验的终止操作。发送信号和确认退出时，PID 必须与观察到的启动身份保持配对；仅成功发送信号不能确认停止。Harness 产品协调器在 Host 与捕获的后代停止前保留账号锁。
+
 <a id="use-this-package"></a>
 ## 使用本包
 

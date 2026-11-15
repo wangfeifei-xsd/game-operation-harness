@@ -30,6 +30,12 @@ export async function runCli(options: RunCliOptions = {}): Promise<void> {
 
   switch (invocation.mode) {
     case 'profile': {
+      if (invocation.profile === 'harness' || invocation.profile === 'harness-runtime') {
+        if (invocation.patches.length || invocation.fromDefaultProfile !== undefined) throw new Error('Harness 产品入口不接受覆盖补丁')
+        const { runHarnessProfile } = await import('./harness-profile.ts')
+        await runHarnessProfile(invocation.profile, invocation.args)
+        break
+      }
       const { runProfile } = await import('./profile-boot.ts')
       try {
         await runProfile({
@@ -48,6 +54,7 @@ export async function runCli(options: RunCliOptions = {}): Promise<void> {
       break
     }
     case 'plugin': {
+      if (invocation.profile === 'harness' || invocation.profile === 'harness-runtime') throw new Error('Harness 产品装配由安装包维护')
       const { runPlugin } = await import('./plugin.ts')
       process.exit(await runPlugin(invocation.profile, invocation.args, options.packageManager))
       break

@@ -22,6 +22,8 @@ kind: "package-library"
 
 -----
 
+`boot()` 接受显式 `runtime.home`，`createRuntimeResolution()` 接受 `home`。两者把路径服务绑定到该目录，不修改 `process.env.DSH_HOME`。产品调用方须向两者传递同一个已验证账号 home；未传入的通用调用方沿用原 home 解析。
+
 <a id="use-this-package"></a>
 ## 使用本包
 

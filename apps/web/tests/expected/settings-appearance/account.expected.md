@@ -1,4 +1,4 @@
-- region "账号与余额":
+- region "模型授权与余额":
   - text: Radius example
   - status: r***@example.com
   - link "更多账号信息":

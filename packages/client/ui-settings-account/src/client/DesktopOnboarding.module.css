@@ -5,7 +5,7 @@
   height: 100%;
   min-height: 480px;
   color: var(--dsw-alias-label-primary);
-  overflow: hidden;
+  overflow: auto;
   animation: pageEnter 100ms ease-out;
 }
 
@@ -65,36 +65,38 @@
 }
 
 .welcome {
-  max-width: 2200px;
+  position: relative;
+  top: auto;
+  left: auto;
+  transform: none;
+  padding: 40px var(--page-padding);
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: minmax(0, 520px) minmax(0, 800px);
+  gap: 32px;
+  align-items: center;
+  justify-content: center;
   width: 100%;
-  height: 100%;
+  min-height: 100%;
 }
 
-.welcome .copy {
-  position: absolute;
-  top: 50%;
-  left: clamp(64px, calc(41.667vw - 300px), 200px);
-  width: 520px;
-  transform: translateY(-50%);
-  z-index: 1;
-}
+.welcome .copy { min-width: 0; }
+.welcome .brand { white-space: normal; }
 
 .start {
   display: flex;
   width: 240px;
-  margin: 60px 0 0;
+  max-width: 100%;
+  margin: 40px 0 0;
 }
 
-.welcomeIllustration {
-  position: absolute;
-  left: min(calc(41.667vw + 112.5px), 712.5px);
-  top: clamp(32px, calc(31.608vh - 157.65px), 133.145px);
-  width: 1247px;
-  height: 822px;
-  pointer-events: none;
-}
+.welcomeIllustration { min-width: 0; pointer-events: none; }
+.welcomeArtwork { width: 100%; height: auto; }
 
-.welcomeArtwork { position: absolute; left: -67px; top: -40px; width: 1331px; height: auto; }
+@media (max-width: 900px) {
+  .welcome { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+  .welcomeIllustration { width: min(100%, 594px); justify-self: center; }
+}
 
 .illustration img { display: block; width: 100%; height: auto; }
 .illustration .darkIllustration { display: none; }
@@ -279,13 +281,9 @@
   .creditActions { margin-top: 32px; }
 }
 
-@media (max-width: 1200px) {
-  .welcomeIllustration { left: calc(73.333vw - 267.5px); }
-}
 
-@media (min-height: 920px) {
-  .welcomeIllustration { top: calc(50% - 326.855px); }
-}
+
+
 
 @media (max-width: 1100px) {
   .page { --page-padding: 40px; }

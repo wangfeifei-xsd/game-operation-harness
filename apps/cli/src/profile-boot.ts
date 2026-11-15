@@ -18,6 +18,7 @@ import type { PatchOptions } from '@deepseek-ai/cordis-plugin-include'
 import {
   boot,
   readProfilePatches,
+  readBundlePatches,
   createRuntimeResolution,
   initProfile,
   installFailLoud,
@@ -226,10 +227,11 @@ async function composeProfile(
   patchFiles: readonly string[],
   fromDefaultProfile?: string,
   resolvedProfile?: ResolvedProfileRuntime,
+  home?: string,
 ): Promise<ComposedProfile> {
   const profile = resolvedProfile?.profile ?? prepareProfile(name, true, fromDefaultProfile)
   if (resolvedProfile !== undefined) writeFileSync(join(profile.dir, PROFILE_ROOT_FILENAME), PROFILE_ROOT_CONFIG)
-  const resolutionOptions = { installAnchor: resolvedProfile?.installAnchor ?? INSTALL_ANCHOR, profile }
+  const resolutionOptions = { installAnchor: resolvedProfile?.installAnchor ?? INSTALL_ANCHOR, profile, ...(home === undefined ? {} : { home }) }
   const resolution = await createRuntimeResolution(resolutionOptions)
   const overlays = patchFiles.flatMap(file => loadOverlayPatches(NAME, resolve(file)))
   return { profile, resolution, overlays }
@@ -246,7 +248,26 @@ export interface ResolvedProfileRuntime {
 /** Options for {@link runProfile}. */
 export interface RunProfileOptions {
   /** This run's frozen environment snapshot, provided before any entry mounts. */
-  environment: LaunchEnvironmentSnapshot
+  environment?: LaunchEnvironmentSnapshot
+  /** 文件配置的产品装配；调用方拥有固定补丁、数据根及认证插件。 */
+  product?: {
+    /** 本账号的数据根，绑定到路径服务。 */
+    home: string
+    /** 产品自有固定补丁，不读取用户覆盖。 */
+    patches: PatchOptions[]
+    /**
+     * 将已安装组合包转换为固定产品树。
+     * @param patches - 组合包补丁。
+     * @returns 产品最终补丁。
+     */
+    transform?(patches: PatchOptions[]): PatchOptions[]
+    /**
+     * 业务插件挂载前安装身份检查。
+     * @param ctx - 根上下文。
+     * @returns 准备完成。
+     */
+    prepare(ctx: Context): Promise<void>
+  }
   /** The profile name to boot. */
   profile: string
   /** Loaded application profile; bypasses named profile initialization when supplied. */
@@ -281,12 +302,12 @@ export function userAgentProfile(name: string): string {
  */
 export async function runProfile(options: RunProfileOptions): Promise<{ ctx: Context; shutdown: ProcessShutdown }> {
   // Model providers see which profile sent a request.
-  process.env.DSH_USER_AGENT_SUFFIX = `dsh-profile/${userAgentProfile(options.profile)}`
+  if (options.product === undefined) process.env.DSH_USER_AGENT_SUFFIX = `dsh-profile/${userAgentProfile(options.profile)}`
   // Before the first plugin mounts and before anything can issue a request: Node's fetch ignores the
   // proxy environment on its own, so every profile would otherwise connect directly. Resolving from
   // the launcher's snapshot — not `process.env` — is what lets a proxy declared in a `.env` layer
   // work, which the NODE_USE_ENV_PROXY flag cannot do because Node samples the environment at start.
-  const disposeProxy = await installProxyFromEnvironment(
+  const disposeProxy = options.environment === undefined ? async () => {} : await installProxyFromEnvironment(
     options.environment,
     (message) => { process.stderr.write(`${NAME}: ${message}\n`) },
   )
@@ -303,7 +324,7 @@ export async function runProfile(options: RunProfileOptions): Promise<{ ctx: Con
   })()
   try {
     const composed = await composeProfile(
-      options.profile, options.patchFiles, options.fromDefaultProfile, options.resolvedProfile,
+      options.profile, options.patchFiles, options.fromDefaultProfile, options.resolvedProfile, options.product?.home,
     )
     const appReady = createAppReady()
     const shutdown = createProcessShutdown(dispose)
@@ -330,15 +351,20 @@ export async function runProfile(options: RunProfileOptions): Promise<{ ctx: Con
       dir: composed.profile.dir, patchPath: composed.profile.patchPath,
       installAnchor: options.resolvedProfile?.installAnchor ?? INSTALL_ANCHOR,
       startedBundles: composed.profile.layers.map(layer => layer.packageName),
-      cwd: process.cwd(), home: resolveDshHome(),
-      overlays: composed.overlays, telemetryDisabledEnv: process.env.DSH_TELEMETRY_DISABLED,
+      cwd: process.cwd(), home: options.product?.home ?? resolveDshHome(),
+      overlays: composed.overlays, telemetryDisabledEnv: options.product === undefined ? process.env.DSH_TELEMETRY_DISABLED : undefined,
     }
-    const ctx = await boot(NAME, rootConfig, readProfilePatches(NAME, profileContext, composed.profile), async (hostCtx) => {
+    const patches = options.product === undefined
+      ? readProfilePatches(NAME, profileContext, composed.profile)
+      : [...(options.product.transform?.(readBundlePatches(NAME, profileContext, composed.profile))
+        ?? readBundlePatches(NAME, profileContext, composed.profile)), ...options.product.patches]
+    const ctx = await boot(NAME, rootConfig, patches, async (hostCtx) => {
       app.current = hostCtx
       hostCtx.provide('profileContext', profileContext)
       // Before any config-tree entry mounts, so plugins resolve all launch-time
       // environment values from the same immutable launch snapshot.
-      hostCtx.provide(DSH_LAUNCH_ENVIRONMENT_KEY, options.environment)
+      if (options.environment !== undefined) hostCtx.provide(DSH_LAUNCH_ENVIRONMENT_KEY, options.environment)
+      await options.product?.prepare(hostCtx)
       await hostCtx.plugin(PluginPackages, {
         resolution: composed.resolution,
       })
@@ -349,7 +375,7 @@ export async function runProfile(options: RunProfileOptions): Promise<{ ctx: Con
         exit: code => void shutdown.shutdown(code),
         ready: appReady.service,
       })
-    })
+    }, undefined, options.product === undefined ? undefined : { home: options.product.home })
     app.current = ctx
     if (!signalShutdown.signal.aborted
       && ctx.fiber.state === FiberState.ACTIVE

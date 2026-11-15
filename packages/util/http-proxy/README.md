@@ -22,6 +22,8 @@ Use this package to apply one outbound HTTP proxy policy to Harness requests tha
 
 -----
 
+`installProxyFromConfig()` installs a validated file-owned policy for the current process, restores the previous dispatcher on disposal, and does not write process environment variables. File deployments use this entry instead of launch-environment routing; explicit null proxy values select direct traffic. Consumers continue to use the same route and child-environment helpers.
+
 <a id="use-this-package"></a>
 ## Use this package
 

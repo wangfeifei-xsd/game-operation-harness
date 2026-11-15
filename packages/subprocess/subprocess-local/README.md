@@ -22,6 +22,8 @@ Mount `dsh-subprocess-local` in any composition that runs child processes on the
 
 -----
 
+`createProcessInspector()` exposes process snapshots and identity-fenced termination for embedding supervisors. A PID must remain paired with its observed start identity when signaling or confirming exit; a successful signal alone does not establish quiescence. The Harness product coordinator retains its account lock until its Host and captured descendants have stopped.
+
 <a id="use-this-package"></a>
 ## Use this package
 

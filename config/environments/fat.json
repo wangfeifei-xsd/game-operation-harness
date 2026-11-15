@@ -1,0 +1,39 @@
+{
+  "environment": "fat",
+  "server": {
+    "host": "127.0.0.1",
+    "port": 3082
+  },
+  "creativity": {
+    "baseUrl": null,
+    "deploymentId": "harness-fat",
+    "requestTimeoutMs": 5000
+  },
+  "auth": {
+    "heartbeatIntervalMs": 10000,
+    "shutdownGraceMs": 5000
+  },
+  "storage": {
+    "root": "~/.game-operation-harness/fat"
+  },
+  "proxy": {
+    "http": null,
+    "https": null,
+    "noProxy": "localhost,127.0.0.1,::1"
+  },
+  "providers": {
+    "deepseekBaseUrl": "https://api.deepseek.com/anthropic",
+    "accountBaseUrl": "https://api.deepseek.com/anthropic",
+    "searchBaseUrl": "https://api.deepseek.com/anthropic",
+    "credentials": {}
+  },
+  "telemetry": {
+    "enabled": false,
+    "mode": "FEEDBACK_ONLY",
+    "url": "https://dsh-otel-collector.deepseeksvc.com/v1/logs"
+  },
+  "sandbox": {
+    "mode": "workspace-write",
+    "approval": "ask"
+  }
+}

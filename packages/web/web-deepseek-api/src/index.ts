@@ -20,7 +20,7 @@ import type {} from '@deepseek-ai/cordis-plugin-loader'
 import z from '@deepseek-ai/schemastery'
 import type {} from '@deepseek-ai/dsh-agent'
 import { credentialRef, type CredentialRef } from '@deepseek-ai/dsh-credentials'
-import { launchEnvironmentOf } from '@deepseek-ai/dsh-launch-environment'
+import { configurationEnvironmentOf } from '@deepseek-ai/dsh-launch-environment'
 import type {} from '@deepseek-ai/dsh-llm'
 import {
   deepSeekApiKeyConfigured, rejectDeepSeekAccountToken, resolveDeepSeekAccountToken, resolveDeepSeekApiKey,
@@ -267,7 +267,7 @@ function officialSource(ctx: Context, capability: Capability): DeepSeekWebAuthSo
   const config = routeConfig(ctx, OFFICIAL_PROVIDER) as OfficialRouteConfig | undefined
   if (config === undefined) return apiKeySource(ctx, DEEPSEEK_WEB_API_BASE_URL, DEEPSEEK_API_KEY)
   let resolved: { baseURL: string; apiKeyEnv: CredentialRef }
-  try { resolved = resolveOfficialOptions(plainOfficialOptions(config), launchEnvironmentOf(ctx)) }
+  try { resolved = resolveOfficialOptions(plainOfficialOptions(config), configurationEnvironmentOf(ctx)) }
   catch (error: unknown) { return misconfigured(capability, OFFICIAL_PROVIDER, error) }
   return apiKeySource(ctx, toolsBase(resolved.baseURL), resolved.apiKeyEnv)
 }
@@ -281,7 +281,7 @@ function officialSource(ctx: Context, capability: Capability): DeepSeekWebAuthSo
 function accountSource(ctx: Context, capability: Capability, config: AccountRouteConfig | undefined): DeepSeekWebAuthSource {
   let baseURL: string
   try {
-    baseURL = resolveAccountOptions(config === undefined ? {} : plainAccountOptions(config), launchEnvironmentOf(ctx)).protocol.baseURL
+    baseURL = resolveAccountOptions(config === undefined ? {} : plainAccountOptions(config), configurationEnvironmentOf(ctx)).protocol.baseURL
   } catch (error: unknown) { return misconfigured(capability, ACCOUNT_PROVIDER, error) }
   return {
     kind: 'account', baseURL: toolsBase(baseURL),

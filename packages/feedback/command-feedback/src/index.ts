@@ -41,6 +41,12 @@ export const FEEDBACK_CATEGORIES = [
 export const name = 'command-feedback'
 export const inject = ['commands']
 
+/** 反馈所属账号的数据目录。 */
+export interface Config {
+  /** 账号独占目录，未指定时沿用传统启动目录。 */
+  dshHome?: string
+}
+
 const USAGE = 'Usage: /feedback <text>'
 
 declare module '@deepseek-ai/cordis' {
@@ -71,14 +77,14 @@ export function recordFeedback(session: Session, entry: FeedbackRecord): void {
  * @returns an acknowledgement containing the receiving session and anonymous
  * user ids, or a usage error when no feedback text was supplied.
  */
-function executeFeedbackCommand(invocation: CommandInvocation): CommandResult {
+function executeFeedbackCommand(invocation: CommandInvocation, dshHome?: string): CommandResult {
   if (invocation.rawInput.trim().length === 0) {
     return { kind: 'error', text: `Feedback text is required. ${USAGE}` }
   }
   recordFeedback(invocation.agent.session, { text: invocation.rawInput })
   return {
     kind: 'success',
-    text: `Feedback recorded for session ${invocation.agent.session.id}\nAnonymous user: ${getOrCreateAnonymousUserId()}.`,
+    text: `Feedback recorded for session ${invocation.agent.session.id}\nAnonymous user: ${getOrCreateAnonymousUserId({ dshHome })}.`,
   }
 }
 
@@ -114,8 +120,9 @@ export class SessionFeedbackService extends TypertRemoteService {
  * Register the global `/feedback` command for every composed command adapter
  * and mount the `sessionFeedback` Remote.
  * @param ctx - Host context.
+ * @param config - 反馈匿名身份所属的账号目录。
  */
-export function apply(ctx: Context): void {
+export function apply(ctx: Context, config: Config = {}): void {
   ctx.plugin(SessionFeedbackService)
   ctx.commands.register({
     definitionId: brandString<CommandDefinitionId>('@deepseek-ai/dsh-command-feedback'),
@@ -123,6 +130,6 @@ export function apply(ctx: Context): void {
     description: 'Record feedback about this session',
     input: { hint: '<text>' },
     recordInput: false,
-    handler: executeFeedbackCommand,
+    handler: invocation => executeFeedbackCommand(invocation, config.dshHome),
   })
 }

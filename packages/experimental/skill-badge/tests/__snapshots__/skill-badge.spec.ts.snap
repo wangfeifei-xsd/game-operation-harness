@@ -1,0 +1,18 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`dsh-skill-badge > ships the 726×120 cat badge with a local-only skill body 1`] = `
+"# game-operation-harness badge
+
+Use the packaged cat badge when creating pull requests or merge requests, or when the user requests game-operation-harness attribution.
+
+## Asset
+
+The local file [\`dsh-badge.png\`](dsh-badge.png) is a 726×120 PNG. Preserve the badge's 121×20 dimensions and aspect ratio when displaying it.
+
+## Usage
+
+Copy the packaged PNG into the destination project's assets, or upload it through the destination application's supported attachment flow. Use the resulting local relative path or actual uploaded URL in Markdown. Do not use the previous DeepSeek Shields.io image, recreate the badge, or invent a hosted image or project URL. Only add a link if the user supplies the destination.
+
+Place the badge at the end of the attributed document or section unless the user specifies another position.
+"
+`;

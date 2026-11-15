@@ -1,7 +1,7 @@
 {
   "meta": {
-    "title": "DSH-Abzeichen-Fertigkeit",
-    "description": "Lassen Sie Agenten Dokumente, Pull-Requests und andere Ausgaben mit einem „powered by dsh“-Badge versehen.",
+    "title": "Game operation badge",
+    "description": "Add the cat brand badge to outputs when requested.",
     "detail": "docs/DETAIL.md"
   }
 }

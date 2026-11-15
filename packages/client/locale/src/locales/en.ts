@@ -33,6 +33,7 @@ export const en = {
   'collapse': 'Collapse',
   'expand': 'Expand',
   'back': 'Back',
+  'brand.name': 'game-operation-harness',
   'brand.localBuild': 'DSH Local Build',
   'workspace.defaultName': 'Default workspace',
   'unknown': 'Unknown',

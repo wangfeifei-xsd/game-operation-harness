@@ -22,6 +22,8 @@ DeepSeek Harness 为每个 harness home 使用一个匿名标识符，以关联�
 
 -----
 
+`getOrCreateAnonymousUserId(dshHome)` 与 `anonymousUserIdFilePath(dshHome)` 接受显式 home。文件部署传入已验证账号 home，使匿名标识归属该账号目录；省略参数时沿用原 home 解析。
+
 <a id="use-this-package"></a>
 ## 使用本包
 

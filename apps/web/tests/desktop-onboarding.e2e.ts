@@ -153,7 +153,7 @@ describe.skipIf(MODE === 'record')('web e2e: App-only desktop onboarding', () =>
     for (const viewport of [
       { width: 880, height: 600 }, { width: 960, height: 600 }, { width: 1000, height: 780 }, { width: 1200, height: 920 },
       { width: 1440, height: 920 }, { width: 2200, height: 1200 },
-    ]) {
+    ].concat(name.startsWith('welcome') ? [{ width: 390, height: 844 }] : [])) {
       await page.setViewportSize(viewport)
       await page.evaluate(async () => { await document.fonts.ready })
       const geometry = await page.locator('[data-desktop-onboarding]').evaluate(region => ({

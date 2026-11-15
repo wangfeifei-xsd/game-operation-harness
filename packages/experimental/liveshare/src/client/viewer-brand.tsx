@@ -12,7 +12,7 @@
 
 import { useSyncExternalStore, type ReactNode } from 'react'
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
-import { FishLogo } from '@deepseek-ai/dsh-client-ui-primitives'
+import { CatLogo } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { SidebarBrandMarkOwnerProps } from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type { PropsLocale } from '@deepseek-ai/dsh-client-ui-slots'
 import { NS } from './locales.ts'
@@ -26,7 +26,7 @@ export const name = 'liveshare-viewer-brand'
  * Registration rank for the viewer's brand seats.
  *
  * `sidebar.brand.mark` and `sidebar.brand.name` are single slots, and a served viewer page mounts the
- * owner's own plugins, so the shipped brand (including `ui-brand-official`, which registers both at
+ * owner's own plugins, so the shipped brand (including `ui-brand-game-operation`, which registers both at
  * the default rank on official builds) is already registered at rank 0. A second registration at that
  * rank fails, so the viewer entry registers below it and shadows the shipped one.
  */
@@ -58,7 +58,7 @@ function useViewerContextFacts(): ReturnType<typeof viewerContextFacts.getSnapsh
  * @returns the Harness mark.
  */
 export function ViewerBrandMark({ size }: SidebarBrandMarkOwnerProps): ReactNode {
-  return <FishLogo size={size} />
+  return <CatLogo size={size} />
 }
 
 /**

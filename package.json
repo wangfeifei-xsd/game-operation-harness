@@ -214,7 +214,7 @@
     "demo:ptc": "node scripts/demo-ptc.mjs",
     "demo:inspector": "node --import tsx/esm apps/cli/src/bin.ts web --patch ./packages/experimental/inspector/cordis.source.patch.yml",
     "mock:llm": "node --import tsx packages/test-support/llm-mock-server/src/bin.ts",
-    "start:web": "node --import tsx/esm apps/cli/src/bin.ts web",
+    "start:web": "node --import tsx/esm apps/cli/src/bin.ts harness --environment dev",
     "dev:web": "tsx scripts/dev-web.ts --poll",
     "dev:bundle-registry": "tsx scripts/dev-bundle-registry.ts",
     "postinstall": "node scripts/install-lefthook.mjs",
@@ -222,7 +222,11 @@
     "verify-official-bundle-catalog": "tsx scripts/gen-official-bundle-catalog.ts --check",
     "gen-provider-data": "tsx packages/llm/llm-pi-ai/scripts/gen-provider-data.ts",
     "verify-provider-data": "tsx packages/llm/llm-pi-ai/scripts/gen-provider-data.ts --check",
-    "verify-product-use": "tsx scripts/verify-product-use.ts"
+    "verify-product-use": "tsx scripts/verify-product-use.ts",
+    "start:web:dev": "node --import tsx/esm apps/cli/src/bin.ts harness --environment dev",
+    "start:web:test": "node --import tsx/esm apps/cli/src/bin.ts harness --environment test",
+    "start:web:fat": "node --import tsx/esm apps/cli/src/bin.ts harness --environment fat",
+    "start:web:master": "node --import tsx/esm apps/cli/src/bin.ts harness --environment master"
   },
   "devDependencies": {
     "@deepseek-ai/dsh-hooks-claude-code": "workspace:*",

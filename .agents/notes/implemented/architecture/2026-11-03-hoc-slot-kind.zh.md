@@ -50,7 +50,7 @@ Status: implemented
 | 位置 | 实现 |
 |---|---|
 | `ui-conversation` | `conversation.hero.frame`（hoc，root），owner props 为 `{ hero: boolean }`，在所有阶段包裹 `.scrollBody`，首页结束时输入框不重新挂载。首页阶段（`.root[data-phase='hero']`），绘制背景的 Conversation 根元素设置 `isolation: isolate`，这是 frame 契约的一部分：层中负 `z-index` 的装饰画在该背景之上、所有 Conversation 内容之下。Conversation 不为层做任何点击判定 |
-| `ui-brand-official` | `PixelWhale` 是 frame 层：`display: contents` 外框上的 React `onClick` 在主按钮点击留白时播放，排除 portal 浮层（`currentTarget.contains(target)`）、控件（选择器）和结束外框内文字选择的点击。`hero` 为 true 时以负 `z-index` 绘制 canvas。帧图经包 asset 路由加载；渲染器返回 `{ play, dispose }` |
+| `ui-brand-game-operation` | `PixelCat` 是 frame 层：`display: contents` 外框上的 React `onClick` 在主按钮点击留白时播放，排除 portal 浮层（`currentTarget.contains(target)`）、控件（选择器）和结束外框内文字选择的点击。`hero` 为 true 时以负 `z-index` 绘制 canvas。帧图经包 asset 路由加载；渲染器返回 `{ play, dispose }` |
 
 ## Alternatives considered
 

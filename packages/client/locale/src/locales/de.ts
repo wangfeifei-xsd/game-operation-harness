@@ -34,6 +34,7 @@ export const de = {
   'collapse': 'Einklappen',
   'expand': 'Ausklappen',
   'back': 'Zurück',
+  'brand.name': 'game-operation-harness',
   'brand.localBuild': 'Lokaler DSH-Build',
   'workspace.defaultName': 'Standardarbeitsbereich',
   'unknown': 'Unbekannt',

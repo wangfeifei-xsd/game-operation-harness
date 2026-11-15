@@ -1,5 +1,5 @@
-DeepSeek Harness
-DeepSeek Harness
+game-operation-harness
+game-operation-harness
 Browser didn’t open automatically?
 Copy sign-in link
 Completing sign in… [disabled]

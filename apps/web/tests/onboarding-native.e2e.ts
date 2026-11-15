@@ -57,7 +57,7 @@ describe.skipIf(MODE === 'record').each([false, true])('web e2e: native credenti
         await page.reload({ waitUntil: 'load' })
         acknowledgeReloadConnectionLoss(tripwire, warningsBefore)
       }
-      const accountMenu = page.getByRole('button', { name: '账号菜单', exact: true })
+      const accountMenu = page.getByRole('button', { name: '模型供应商菜单', exact: true })
       await accountMenu.waitFor()
       expect(await accountMenu.textContent()).toBe('更多')
       const triggerBox = (await accountMenu.boundingBox())!

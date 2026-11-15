@@ -1,0 +1,16 @@
+# Bilingual-pair consistency record for guide.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/upgrade-guide/v0.2.2-rc.3/harness-authentication/guide.md
+/:
+  en: 9192c423d4108aab
+  zh: 4b434442e31a2eb6
+/harness-web-authentication:
+  en: 8ce25438a14c316a
+  zh: 237cfe8d1a8757c6
+/harness-web-authentication/change:
+  en: b6a2451d06867b4d
+  zh: a36a51a43b1a8bef
+/harness-web-authentication/migration:
+  en: 3fd72c633f7b78a8
+  zh: 98cb5a97917f22fe

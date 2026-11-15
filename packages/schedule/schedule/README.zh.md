@@ -22,6 +22,8 @@ Schedule 在指定时间或按重复计划发送指令。可以请 Agent 创建�
 
 -----
 
+嵌入产品可在 `schedule/before-deliver` 中对投递和未完成执行恢复进行异步检查。拒绝 waterfall 会阻止本次尝试，监听器调用 `next()` 才继续。该扩展点不续期，也不替代 Agent 或工具执行检查；已有存储和投递失败语义继续适用。
+
 <a id="use-this-package"></a>
 ## 使用本包
 

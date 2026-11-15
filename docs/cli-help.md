@@ -12,6 +12,8 @@ Run `pnpm run gen-cli-help` to regenerate; run `pnpm run verify-cli-help` to che
 - [`dsh`](#dsh)
 - [`dsh plugin`](#dsh-plugin)
 - [`dsh acp`](#dsh-acp)
+- [`dsh harness`](#dsh-harness)
+- [`dsh harness-runtime`](#dsh-harness-runtime)
 - [`dsh headless`](#dsh-headless)
 - [`dsh sdk`](#dsh-sdk)
 - [`dsh sdk-minimal`](#dsh-sdk-minimal)
@@ -95,6 +97,34 @@ Options:
 Example:
   dsh --profile acp     serve ACP until the client disconnects
 
+```
+
+<a id="dsh-harness"></a>
+## `dsh harness`
+
+Invocations: `dsh harness --help`, `dsh --profile harness --help`
+
+```text
+Usage: dsh --profile harness [options]
+
+Options:
+  --environment <name>  dev、test、fat 或 master
+  --no-open             不自动打开浏览器
+  -h, --help            display help for command
+```
+
+<a id="dsh-harness-runtime"></a>
+## `dsh harness-runtime`
+
+Invocations: `dsh harness-runtime --help`, `dsh --profile harness-runtime --help`
+
+```text
+Usage: dsh --profile harness-runtime [options]
+
+Options:
+  --environment <name>  dev、test、fat 或 master
+  --no-open             不自动打开浏览器
+  -h, --help            display help for command
 ```
 
 <a id="dsh-headless"></a>

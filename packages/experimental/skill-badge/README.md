@@ -1,5 +1,5 @@
 ---
-description: "The bundled 'powered by dsh' badge skill for users and maintainers enabling, using, or debugging the optional badge provider."
+description: "The bundled 'game-operation-harness' badge skill for users and maintainers enabling, using, or debugging the optional badge provider."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Agents can load the official "powered by dsh" badge skill from this bundled provider and follow its instructions for adding attribution badges to documents, PRs, and other content produced with DeepSeek Harness. The provider has no configuration; deployments install it and insert its plugin row explicitly. The skill ships both Markdown snippets and a packaged PNG for systems that cannot reliably import remote images.
+Agents can load the official "game-operation-harness" badge skill from this bundled provider and follow its instructions for adding attribution badges to documents, PRs, and other content produced with game-operation-harness. The provider has no configuration; deployments install it and insert its plugin row explicitly. The skill ships a packaged PNG and instructions for copying it into the target or uploading it as an attachment.
 
 ## Table of Contents
 
@@ -25,13 +25,13 @@ Agents can load the official "powered by dsh" badge skill from this bundled prov
 <a id="use-this-package"></a>
 ## Use this package
 
-Enable the plugin to make the `dsh-badge` skill available in the session skill catalog; the model can then load it like any other skill and follow its instructions for adding a "powered by dsh" badge.
+Enable the plugin to make the `dsh-badge` skill available in the session skill catalog; the model can then load it like any other skill and follow its instructions for adding a "game-operation-harness" badge.
 
-In Plugins, this component is named **DSH** and uses the DSH tag icon. Its skill is named `dsh-badge`.
+In Plugins, this component is named **Game operation badge** and uses the cat icon. Its skill is named `dsh-badge`.
 
 ### When to choose it
 
-Choose this provider when content produced with DeepSeek Harness should carry official attribution badges, and the deployment wants the badge skill available to agents without storing it in a local skill directory. Skip it when the badge is irrelevant to the deployment. The default composition omits the plugin; installation and an explicit active row are required.
+Choose this provider when content produced with game-operation-harness should carry product attribution badges, and the deployment wants the badge skill available to agents without storing it in a local skill directory. Skip it when the badge is irrelevant to the deployment. The default composition omits the plugin; installation and an explicit active row are required.
 
 ### Enable the plugin
 
@@ -43,7 +43,7 @@ Install `@deepseek-ai/dsh-skill-badge` into the profile and insert its plugin ro
       name: '@deepseek-ai/dsh-skill-badge'
 ```
 
-After enabling, `dsh-badge` appears in the available skills of the session catalog. The skill covers remote Markdown badges (Shields.io-based) and a packaged PNG badge asset for targets that cannot fetch remote images reliably.
+After enabling, `dsh-badge` appears in the available skills of the session catalog. The skill uses its packaged PNG; embed the actual copied path or uploaded URL. It provides no public image host or default project link.
 
 ### What the badge skill provides
 
@@ -107,7 +107,7 @@ An omitted plugin adds no request content. When its inserted row is active, its 
 These limits define what the bundled provider does not do. They are current package constraints, not a task backlog.
 
 - **One fixed skill, no runtime customization** — the provider contributes exactly the `dsh-badge` skill; deployments that need another badge variant author their own skill instead.
-- **Remote Markdown relies on Shields.io** — the remote badge markup embeds a Shields.io image; use the packaged PNG when the target cannot fetch remote images reliably.
+- **No public image host** — copy or upload the packaged PNG before embedding it; use only a user-supplied project link.
 
 <a id="dev-note"></a>
 ### Dev Note

@@ -64,6 +64,13 @@ export {
 declare module '@deepseek-ai/cordis' {
   interface Events {
     /**
+     * 投递或恢复任务前异步验证当前运行身份。
+     * @mode waterfall
+     * @param next - 继续投递检查。
+     */
+    'schedule/before-deliver'(next: () => Promise<void>): Promise<void>
+
+    /**
      * Restore a reminder's Session through its embedding's owning controller.
      * Call next() to use the Web Session controller.
      * @param sessionId - Original Session receiving the reminder.

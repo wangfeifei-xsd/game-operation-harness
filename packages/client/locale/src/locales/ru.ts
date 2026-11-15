@@ -34,6 +34,7 @@ export const ru = {
   'collapse': 'Свернуть',
   'expand': 'Развернуть',
   'back': 'Назад',
+  'brand.name': 'game-operation-harness',
   'brand.localBuild': 'Локальная сборка DSH',
   'workspace.defaultName': 'Рабочая область по умолчанию',
   'unknown': 'Неизвестно',

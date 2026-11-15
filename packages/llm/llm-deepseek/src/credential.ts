@@ -2,7 +2,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type { CredentialRef } from '@deepseek-ai/dsh-credentials'
 import type {} from '@deepseek-ai/dsh-deepseek-account'
-import { launchEnvironmentOf } from '@deepseek-ai/dsh-launch-environment'
+import { configurationEnvironmentOf } from '@deepseek-ai/dsh-launch-environment'
 import { assertUsableApiKey } from '@deepseek-ai/dsh-llm'
 
 /**
@@ -18,7 +18,7 @@ export async function resolveDeepSeekApiKey(ctx: Context, ref: CredentialRef): P
     const hit = await credentials.resolve(ref)
     return hit === undefined ? undefined : assertUsableApiKey(hit.value, 'llm-deepseek', ref)
   }
-  const ambient = launchEnvironmentOf(ctx).get(ref)
+  const ambient = configurationEnvironmentOf(ctx)?.get(ref)
   return ambient === undefined || ambient.value.length === 0 ? undefined : assertUsableApiKey(ambient.value, 'llm-deepseek', ref)
 }
 
@@ -31,7 +31,7 @@ export async function resolveDeepSeekApiKey(ctx: Context, ref: CredentialRef): P
 export async function deepSeekApiKeyConfigured(ctx: Context, ref: CredentialRef): Promise<boolean> {
   const credentials = ctx.get('credentials')
   return credentials === undefined
-    ? (launchEnvironmentOf(ctx).get(ref)?.value.length ?? 0) > 0
+    ? (configurationEnvironmentOf(ctx)?.get(ref)?.value.length ?? 0) > 0
     : (await credentials.describe(ref)).configured
 }
 

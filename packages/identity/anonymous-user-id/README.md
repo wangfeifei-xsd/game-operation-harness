@@ -22,6 +22,8 @@ DeepSeek Harness uses one anonymous identifier per harness home to correlate tel
 
 -----
 
+`getOrCreateAnonymousUserId(dshHome)` and `anonymousUserIdFilePath(dshHome)` accept an explicit home. File deployments pass the verified account home, so the anonymous identifier is scoped to that account directory. Omitting the argument retains the normal home resolution.
+
 <a id="use-this-package"></a>
 ## Use this package
 

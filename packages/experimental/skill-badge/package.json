@@ -1,6 +1,6 @@
 {
   "name": "@deepseek-ai/dsh-skill-badge",
-  "description": "Bundled dsh badge skill provider for DeepSeek Harness",
+  "description": "Add the game-operation-harness cat badge to outputs when requested.",
   "version": "0.2.2-rc.3",
   "publishConfig": {
     "access": "public"

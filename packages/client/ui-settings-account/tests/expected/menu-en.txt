@@ -1,1 +1,1 @@
-SettingsFeedbackSign out
+SettingsFeedbackRemove model authorization

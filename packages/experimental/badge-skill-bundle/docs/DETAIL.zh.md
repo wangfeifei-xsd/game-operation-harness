@@ -1,1 +1,1 @@
-![DSH 徽章技能功能预览](preview.zh.svg)
+![游戏运营徽章技能功能预览](preview.zh.svg)

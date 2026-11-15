@@ -22,6 +22,8 @@ kind: "package-reference"
 
 -----
 
+`installProxyFromConfig()` 为当前进程安装已校验的文件代理策略，释放时恢复之前的 dispatcher，不写入进程环境变量。文件部署使用此入口取代启动环境代理解析，显式 null 代理值表示直连；消费者继续使用相同的路由与子进程环境 helper。
+
 <a id="use-this-package"></a>
 ## 使用本包
 

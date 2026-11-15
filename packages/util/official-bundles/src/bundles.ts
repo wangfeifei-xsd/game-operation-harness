@@ -8,6 +8,8 @@ export interface ProfileTemplate {
 
 /** The shipped profile templates auto-initialized on first use, by name. */
 export const PROFILE_TEMPLATES: Record<string, ProfileTemplate> = {
+  harness: { bundles: [] },
+  'harness-runtime': { bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app'] },
   acp: {
     bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-acp-app'],
   },

@@ -20,7 +20,8 @@
     "lib/types/*.d.ts",
     "lib/types/*.d.ts.map",
     "docs",
-    "src"
+    "src",
+    "lib/resources"
   ],
   "scripts": {
     "prepack": "tsx ../../scripts/stage-dsh-docs.ts",
@@ -120,7 +121,16 @@
     "@deepseek-ai/dsh-experimental-plugin-market-bundle": "workspace:*",
     "@deepseek-ai/dsh-personalized-recommendations": "workspace:*",
     "@deepseek-ai/dsh-experimental-forge-bundle": "workspace:*",
-    "@deepseek-ai/dsh-deepseek-chat-import": "workspace:*"
+    "@deepseek-ai/dsh-deepseek-chat-import": "workspace:*",
+    "http-proxy": "^1.18.1",
+    "@deepseek-ai/dsh-agent": "workspace:*",
+    "@deepseek-ai/dsh-tools": "workspace:*",
+    "@deepseek-ai/dsh-client-connection": "workspace:*",
+    "@deepseek-ai/dsh-host-webserver": "workspace:*",
+    "proper-lockfile": "^4.1.2",
+    "@deepseek-ai/dsh-error": "workspace:*",
+    "@deepseek-ai/dsh-subprocess-local": "workspace:*",
+    "open": "^11.0.2"
   },
   "devDependencies": {
     "@deepseek-ai/dsh-brand": "workspace:*",
@@ -132,7 +142,6 @@
     "@deepseek-ai/dsh-hooks-claude-code": "workspace:*",
     "@agentclientprotocol/sdk": "1.4.0",
     "@deepseek-ai/dsh-acp": "workspace:*",
-    "@deepseek-ai/dsh-agent": "workspace:*",
     "@deepseek-ai/dsh-agent-loop": "workspace:*",
     "@deepseek-ai/dsh-agent-loop-testkit": "workspace:*",
     "@deepseek-ai/dsh-attachment-local": "workspace:*",
@@ -144,7 +153,6 @@
     "@deepseek-ai/dsh-fs-observation-policy": "workspace:*",
     "@deepseek-ai/dsh-fs-sandbox": "workspace:*",
     "@deepseek-ai/dsh-host-frontend-static": "workspace:*",
-    "@deepseek-ai/dsh-host-webserver": "workspace:*",
     "@deepseek-ai/dsh-llm": "workspace:*",
     "@deepseek-ai/dsh-llm-deepseek": "workspace:*",
     "@deepseek-ai/dsh-llm-deepseek-api-key": "workspace:*",
@@ -167,16 +175,16 @@
     "@deepseek-ai/dsh-subagent": "workspace:*",
     "@deepseek-ai/dsh-subagent-fork-in-process": "workspace:*",
     "@deepseek-ai/dsh-subagent-spawn-in-process": "workspace:*",
-    "@deepseek-ai/dsh-subprocess-local": "workspace:*",
     "@deepseek-ai/dsh-system-prompt": "workspace:*",
     "@deepseek-ai/dsh-tool-testkit": "workspace:*",
-    "@deepseek-ai/dsh-tools": "workspace:*",
     "@deepseek-ai/dsh-user-approval": "workspace:*",
     "@types/js-yaml": "^4.0.9",
     "@types/ws": "8.18.1",
     "ajv": "^8.20.0",
     "execa": "^10.0.1",
-    "ws": "8.21.3"
+    "ws": "8.21.3",
+    "@types/http-proxy": "^1.17.17",
+    "@types/proper-lockfile": "^4.1.4"
   },
   "exports": {
     "./profile-boot": {

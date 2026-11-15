@@ -1150,9 +1150,9 @@ describe('web e2e: plugin manager', () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-plugin-manager-preview'))
     const panel = await openPluginsPanel()
     await panel.getByRole('button', { name: '更多', exact: true }).click()
-    await panel.getByRole('button', { name: '查看 DSH 徽章技能', exact: true }).click()
+    await panel.getByRole('button', { name: '查看 游戏运营徽章', exact: true }).click()
     const detail = panel.locator('[data-plugin-detail]')
-    const preview = detail.locator('[data-detail-document]').getByRole('img', { name: 'DSH 徽章技能功能预览', exact: true })
+    const preview = detail.locator('[data-detail-document]').getByRole('img', { name: '游戏运营徽章技能功能预览', exact: true })
     await preview.waitFor()
     await preview.evaluate(async (image: HTMLImageElement) => { await image.decode() })
     expect(await preview.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBe(640)
@@ -1169,15 +1169,23 @@ describe('web e2e: plugin manager', () => {
       await captureStableAria(page, '[data-plugin-panel]', scaffold.workspaceCwd, {
         replacements: [[badgeVersion, '{{version}}']],
       }), MODE)
+    if (MODE === 'refresh') {
+      for (const colorScheme of ['light', 'dark'] as const) {
+        await page.emulateMedia({ colorScheme })
+        await page.screenshot({ path: fileURLToPath(new URL(`../../../.artifacts/plugin-cat-${process.pid}-zh-${colorScheme}.png`, import.meta.url)) })
+      }
+      await page.emulateMedia({ colorScheme: null })
+    }
     const chineseSource = await preview.getAttribute('src')
     try {
       await setLanguage('en')
       const englishPreview = detail.locator('[data-detail-document]')
-        .getByRole('img', { name: 'DSH badge skill feature preview', exact: true })
+        .getByRole('img', { name: 'Game operation badge feature preview', exact: true })
       await englishPreview.waitFor()
       await englishPreview.evaluate(async (image: HTMLImageElement) => { await image.decode() })
       expect(await englishPreview.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBe(640)
       expect(await englishPreview.getAttribute('src')).not.toBe(chineseSource)
+      if (MODE === 'refresh') await page.screenshot({ path: fileURLToPath(new URL(`../../../.artifacts/plugin-cat-${process.pid}-en.png`, import.meta.url)) })
     } finally {
       await setLanguage('zh')
     }

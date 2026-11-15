@@ -1,1 +1,1 @@
-![DSH badge skill feature preview](preview.svg)
+![Game operation badge feature preview](preview.svg)

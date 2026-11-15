@@ -1,0 +1,9 @@
+body:has(.harness-auth-page){margin:0}
+.harness-auth-page{min-height:100vh;display:grid;place-items:center;background:#f6f8fc;color:#182033;font-family:system-ui,-apple-system,sans-serif;padding:24px;box-sizing:border-box}
+.harness-auth-card{width:min(100%,400px);box-shadow:0 12px 40px #27365b0b;border-color:#e4e9f2}
+.harness-auth-card h2{margin-top:0}.harness-auth-card .ant-alert{margin-bottom:20px}.harness-submit{margin:16px 0}
+.harness-captcha{position:relative;min-height:150px;border-radius:6px;overflow:hidden;background:#f5f6f8}.harness-captcha>img{width:100%;display:block}.harness-captcha>img.harness-captcha-piece{position:absolute}.harness-captcha .ant-spin{position:absolute;inset:40% 0;text-align:center}
+body:has(#harness-user-panel){box-sizing:border-box;padding-top:44px}
+body:has(#harness-user-panel)>#root{height:calc(100dvh - 44px)}
+#harness-user-panel{position:fixed;inset:0 0 auto;z-index:1100;height:44px;box-sizing:border-box;background:var(--dsw-alias-bg-base,#fff);border-bottom:1px solid var(--dsw-alias-border-l3,#dce2ec);padding:5px 12px}
+.harness-user-panel{display:flex;justify-content:flex-end;height:100%;min-width:0}.harness-user-panel .ant-typography{max-width:min(45vw,240px)}

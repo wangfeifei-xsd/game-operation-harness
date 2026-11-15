@@ -5239,6 +5239,14 @@ export const EVENT_API: readonly EventApiEntry[] = [
     parameters: [{ name: 'payload', description: '.signal - optional compaction cancellation signal.' }, { name: 'next', description: 'delegate to the next recovery listener.' }],
   },
   {
+    name: 'connection/authorize-operation',
+    mode: 'waterfall',
+    signature: '\'connection/authorize-operation\'(next: () => Promise<void>): Promise<void>',
+    summary: '每次远程调用执行前进行异步认证，不复用握手或先前请求结果。',
+    description: '每次远程调用执行前进行异步认证，不复用握手或先前请求结果。',
+    parameters: [{ name: 'next', description: '委托到下一个认证检查。' }],
+  },
+  {
     name: 'connection/request',
     mode: 'waterfall',
     signature: '\'connection/request\'(request: IncomingMessage, response: ServerResponse, next: () => Promise<void>): Promise<void>',
@@ -5525,6 +5533,14 @@ export const EVENT_API: readonly EventApiEntry[] = [
     summary: 'The configured index sources changed.',
     description: 'The configured index sources changed.',
     parameters: [],
+  },
+  {
+    name: 'schedule/before-deliver',
+    mode: 'waterfall',
+    signature: '\'schedule/before-deliver\'(next: () => Promise<void>): Promise<void>',
+    summary: '投递或恢复任务前异步验证当前运行身份。',
+    description: '投递或恢复任务前异步验证当前运行身份。',
+    parameters: [{ name: 'next', description: '继续投递检查。' }],
   },
   {
     name: 'schedule/changed',

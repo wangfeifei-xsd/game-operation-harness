@@ -366,3 +366,31 @@ export async function createRouteDispatcher(
 export function clearedProxyEnv(): Record<string, undefined> {
   return Object.fromEntries(PROXY_ENV_NAMES.map(name => [name, undefined]))
 }
+
+/**
+ * 安装文件配置的代理策略，始终不修改进程环境。
+ * @param config - 已校验的代理地址与绕过主机。
+ * @returns 恢复此前传输设置的释放函数。
+ */
+export async function installProxyFromConfig(config: { http: string | null; https: string | null; noProxy: string }): Promise<() => Promise<void>> {
+  const policy: ProxyPolicy = {
+    ...(config.http === null ? {} : { httpProxy: config.http }),
+    ...(config.https === null ? {} : { httpsProxy: config.https }),
+    noProxy: config.noProxy,
+    source: config.http === null && config.https === null ? 'none' : 'config',
+  }
+  const undici = await import('undici')
+  const previous = undici.getGlobalDispatcher()
+  const previousPolicy = active
+  const previousInstalled = installed
+  const agent = await createPolicyDispatcher(policy, {})
+  undici.setGlobalDispatcher(agent)
+  active = policy
+  installed = agent
+  return async () => {
+    undici.setGlobalDispatcher(previous)
+    active = previousPolicy
+    installed = previousInstalled
+    await agent.close()
+  }
+}

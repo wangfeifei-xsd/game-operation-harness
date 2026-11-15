@@ -4,6 +4,8 @@
 
 `dsh` 是唯一受支持的 Node 应用启动器；profile 由多个插件组合包 patch 层按顺序叠加而成，其上再应用用户自己的覆盖配置。SDK 与 ACP（Agent Client Protocol）都是 profile，而不是独立的公开可执行命令。Python 运行时 wheel 包中也包含同一个命令；SDK 默认使用 `sdk`，极简示例选择 `sdk-minimal`。[`src/args.ts`](src/args.ts) 负责命令语法，[`src/bin.ts`](src/bin.ts) 只加载选中的运行器。无效命令、来自其他模式的选项，以及致命的配置或启动错误都会以非零状态退出。
 
+Web/PWA 产品通过 `dsh harness --environment dev` 或 `pnpm start:web` 启动。固定文件配置和账号所属运行进程见 [Harness 产品参考](../../docs/harness-product.zh.md)。下文通用工程 profile 行为适用于这两个产品 profile 之外；`harness-runtime` 是私有入口，必须接收所属父进程的 IPC 身份。
+
 ## 入口模式
 
 | 命令 | 用途 |
