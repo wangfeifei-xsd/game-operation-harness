@@ -6,6 +6,8 @@
 
 `harness` profile 通过 Creativity 认证提供 Web/PWA 产品服务，登录后才启动会话运行服务，同一实例同时运行一个账号。上游 `web`、headless、SDK 和 Electron profile 保留各自认证方式，不实现 Creativity 账号停用控制。
 
+公开登录、注册页采用蓝色品牌区与白色表单区的分栏布局，窄屏下品牌区置于表单上方。两种模式均保留密码显隐、字段反馈和滑块验证弹窗。
+
 ## 目录
 
 - [启动产品](#start-the-product)
@@ -22,10 +24,10 @@
 pnpm run build:artifacts
 pnpm start:web --no-open
 # Installed CLI:
-dsh harness --environment dev --no-open
+dsh harness --environment test --no-open
 ```
 
-仓库默认 Web 脚本选择 `dev`。`start:web:test`、`start:web:fat` 和 `start:web:master` 分别选择同名文件。使用一个环境前，先部署 Creativity 迁移 `0060_harness_identity` 和认证 API，配置匹配的部署标识，再启动服务。默认 dev 地址为 `http://127.0.0.1:8000`，Harness 公开地址为 `http://127.0.0.1:3080`。
+仓库默认 Web 脚本及 `use-scripts/start.sh` 选择 `test`，连接 `https://catdev.g-buddy.com`；Harness 公开地址为 `http://127.0.0.1:3081`。`start:web:dev/test/fat/master` 分别选择同名文件。使用一个环境前，先部署与当前版本匹配的 Creativity 数据库迁移和认证 API，再配置匹配的部署标识。显式选择 `dev` 时连接本机 `http://127.0.0.1:8000`，Harness 监听 `http://127.0.0.1:3080`。
 
 <a id="configuration"></a>
 ## 配置
@@ -36,7 +38,7 @@ dsh harness --environment dev --no-open
 
 Harness 账号属于平台终端身份；注册、登录与启停不依赖普通业务渠道，接口不暴露渠道标识。
 
-test、fat、master 的服务地址目前为 `null`。只有把真实地址写入文件后才能启动，否则明确报配置错误。部署标识为 `harness-dev`、`harness-test`、`harness-fat` 和 `harness-master`；各部署使用独立的 Creativity 数据库与 Redis 命名空间。心跳间隔最多 10 秒，中央请求超时最多 5 秒，本地优雅停止最多 5 秒。
+fat、master 的服务地址目前为 `null`，填入真实地址后才能启动。`creativity.deploymentId` 必须与所选服务 `/api/v1/harness/bootstrap` 返回的标识完全一致，不从本机环境名推导；当前 test 站点返回 `harness-dev`，test 配置据此填写。本机账号目录仍按所选环境隔离；独立服务部署各自隔离数据库与 Redis 命名空间。心跳间隔最多 10 秒，中央请求超时最多 5 秒，本地优雅停止最多 5 秒。
 
 <a id="runtime-and-data"></a>
 ## 运行与数据

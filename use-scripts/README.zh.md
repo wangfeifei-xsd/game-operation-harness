@@ -15,12 +15,12 @@
 
 macOS 也可以双击 `start.command` 启动、双击 `stop.command` 关闭。脚本可以从任意工作目录执行。
 
-启动脚本在首次运行或根目录依赖配置、锁文件变化后执行 `pnpm install --frozen-lockfile`，校验选中的部署文件，再运行 `pnpm run dev:web --environment <environment>`，自动构建、启动并监听客户端源码变化。默认环境为 `dev`，其配置监听地址为 `http://127.0.0.1:3080`。公开的 `/harness/login` 页面响应后，脚本报告启动成功并打印登录地址。服务继续在后台运行，关闭启动终端不影响服务。
+启动脚本在首次运行或根目录依赖配置、锁文件变化后执行 `pnpm install --frozen-lockfile`，校验选中的部署文件，再运行 `pnpm run dev:web --environment <environment>`，自动构建、启动并监听客户端源码变化。默认环境为 `test`，其配置监听地址为 `http://127.0.0.1:3081`。公开的 `/harness/login` 页面响应后，脚本报告启动成功并打印登录地址。服务继续在后台运行，关闭启动终端不影响服务。
 
 选择环境并禁止自动打开浏览器：
 
 ```sh
-./use-scripts/start.sh --environment dev --no-open
+./use-scripts/start.sh --environment test --no-open
 ```
 
 支持 `dev`、`test`、`fat`、`master` 四个环境。监听地址和端口在 `config/environments/<environment>.json` 的 `server.host`、`server.port` 中设置，脚本不接受 `--port` 覆盖。重复启动会复用本项目同一环境的服务，切换环境前须先关闭；重复关闭也可安全执行。关闭脚本核对启动记录、进程组及启动标记，仅终止这套脚本管理的进程；安装和构建过程中也可以关闭。端口被其他服务占用时，启动失败并提示需要修改的配置文件。

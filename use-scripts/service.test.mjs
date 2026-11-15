@@ -141,7 +141,7 @@ test('支持中文空格路径、重复启停、依赖复用，并关闭服务�
   assert.equal(started.code, 0, started.stderr)
   assert.match(started.stdout, /启动成功/)
   assert.equal(await (await fetch(`http://127.0.0.1:${port}/harness/login`)).text(), 'fixture login')
-  assert.deepEqual(JSON.parse(readFileSync(join(root, 'launch.json'), 'utf8')), { environment: 'dev', 'no-open': true })
+  assert.deepEqual(JSON.parse(readFileSync(join(root, 'launch.json'), 'utf8')), { environment: 'test', 'no-open': true })
   const record = JSON.parse(readFileSync(recordPath, 'utf8'))
   const descendant = Number(readFileSync(join(root, 'descendant.pid'), 'utf8'))
   const duplicate = await run('start.sh', ['--no-open']).done
@@ -230,11 +230,11 @@ test('端口参数提示改用部署文件，未知环境直接失败', { timeou
 
 test('显式选择部署环境，拒绝复用另一个环境的服务', { timeout: 15000 }, async context => {
   const { root, recordPath, run } = await fixture(context)
-  const started = await run('start.sh', ['--environment', 'test', '--no-open']).done
+  const started = await run('start.sh', ['--environment', 'dev', '--no-open']).done
   assert.equal(started.code, 0, started.stderr)
-  assert.deepEqual(JSON.parse(readFileSync(join(root, 'launch.json'), 'utf8')), { environment: 'test', 'no-open': true })
+  assert.deepEqual(JSON.parse(readFileSync(join(root, 'launch.json'), 'utf8')), { environment: 'dev', 'no-open': true })
   const record = JSON.parse(readFileSync(recordPath, 'utf8'))
-  assert.equal(record.environment, 'test')
+  assert.equal(record.environment, 'dev')
   const different = await run('start.sh', ['--no-open']).done
   assert.equal(different.code, 1)
   assert.match(different.stderr, /stop.sh/)

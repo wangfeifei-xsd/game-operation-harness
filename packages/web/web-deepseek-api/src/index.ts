@@ -281,7 +281,10 @@ function officialSource(ctx: Context, capability: Capability): DeepSeekWebAuthSo
 function accountSource(ctx: Context, capability: Capability, config: AccountRouteConfig | undefined): DeepSeekWebAuthSource {
   let baseURL: string
   try {
-    baseURL = resolveAccountOptions(config === undefined ? {} : plainAccountOptions(config), configurationEnvironmentOf(ctx)).protocol.baseURL
+    baseURL = resolveAccountOptions(
+      config === undefined ? {} : plainAccountOptions(config),
+      configurationEnvironmentOf(ctx),
+    ).protocol.baseURL
   } catch (error: unknown) { return misconfigured(capability, ACCOUNT_PROVIDER, error) }
   return {
     kind: 'account', baseURL: toolsBase(baseURL),

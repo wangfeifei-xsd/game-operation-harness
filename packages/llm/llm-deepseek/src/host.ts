@@ -54,11 +54,14 @@ export function registerDeepSeekProvider<C extends DeepSeekConnectionOptions>(
   const degradedReplays = new Set<string>()
   const omittedRoutes = new Set<string>()
   const unacceptedRoutes = new Set<string>()
+  const fileDeploymentHome = ctx.get('fileDeploymentHome')
   const adapter = new DeepSeekAdapter({
     ...dependencies,
     resolveUserId: () => userId ??= getOrCreateAnonymousUserId({ dshHome: ctx.get('fileDeploymentHome') }),
-    ...(ctx.get('fileDeploymentHome') === undefined ? {} : {
-      resolveFiles: () => new DeepSeekFileStore({ index: new DeepSeekUploadIndex(join(ctx.get('fileDeploymentHome')!, 'llm-deepseek', 'files-v3.json')) }),
+    ...(fileDeploymentHome === undefined ? {} : {
+      resolveFiles: () => new DeepSeekFileStore({
+        index: new DeepSeekUploadIndex(join(fileDeploymentHome, 'llm-deepseek', 'files-v3.json')),
+      }),
     }),
     onReplayDegrade: ({ provider, model, reason }) => {
       const key = `${provider}/${model}\u0000${reason}`

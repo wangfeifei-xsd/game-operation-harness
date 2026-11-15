@@ -5,8 +5,8 @@
     "port": 3081
   },
   "creativity": {
-    "baseUrl": null,
-    "deploymentId": "harness-test",
+    "baseUrl": "https://catdev.g-buddy.com",
+    "deploymentId": "harness-dev",
     "requestTimeoutMs": 5000
   },
   "auth": {

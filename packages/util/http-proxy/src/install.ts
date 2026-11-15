@@ -372,7 +372,9 @@ export function clearedProxyEnv(): Record<string, undefined> {
  * @param config - 已校验的代理地址与绕过主机。
  * @returns 恢复此前传输设置的释放函数。
  */
-export async function installProxyFromConfig(config: { http: string | null; https: string | null; noProxy: string }): Promise<() => Promise<void>> {
+export async function installProxyFromConfig(
+  config: { http: string | null; https: string | null; noProxy: string },
+): Promise<() => Promise<void>> {
   const policy: ProxyPolicy = {
     ...(config.http === null ? {} : { httpProxy: config.http }),
     ...(config.https === null ? {} : { httpsProxy: config.https }),

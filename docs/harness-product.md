@@ -6,6 +6,8 @@ English | [中文](harness-product.zh.md)
 
 The `harness` profile serves the Web/PWA product through Creativity authentication. It starts the conversation runtime only after login and runs one account at a time. The upstream `web`, headless, SDK and Electron profiles retain their own authentication and do not implement Creativity account disablement.
 
+The public login and registration page pairs a blue brand panel with a white form panel. Narrow screens stack the brand above the form; both modes retain password visibility, field feedback and the slider verification dialog.
+
 ## Contents
 
 - [Start the product](#start-the-product)
@@ -22,10 +24,10 @@ Build the repository artifacts, then run the public profile with an explicit env
 pnpm run build:artifacts
 pnpm start:web --no-open
 # Installed CLI:
-dsh harness --environment dev --no-open
+dsh harness --environment test --no-open
 ```
 
-The default repository Web scripts select `dev`. `start:web:test`, `start:web:fat` and `start:web:master` select their named files. Before using an environment, deploy Creativity migration `0060_harness_identity` and its authentication API, configure its matching deployment identifier, and start the service. The default dev address is `http://127.0.0.1:8000`; the public Harness address is `http://127.0.0.1:3080`.
+The default repository Web scripts and `use-scripts/start.sh` select `test`, connect to `https://catdev.g-buddy.com`, and expose Harness at `http://127.0.0.1:3081`. `start:web:dev/test/fat/master` select their named files. Before using an environment, deploy the Creativity database migrations and authentication API matching the current version, then configure the matching deployment identifier. Selecting `dev` explicitly connects to local `http://127.0.0.1:8000` and exposes Harness at `http://127.0.0.1:3080`.
 
 <a id="configuration"></a>
 ## Configuration
@@ -36,7 +38,7 @@ Edit the actual `config/environments/dev.json`, `test.json`, `fat.json` or `mast
 
 Harness identities are platform-level accounts; registration, login and disablement do not use an ordinary business channel. The API exposes no channel identifier.
 
-The service root is currently `null` in test, fat and master. Starting those environments fails with an explicit configuration error until their real addresses are written to the files. Deployment identifiers are `harness-dev`, `harness-test`, `harness-fat` and `harness-master`; deployments use independent Creativity databases and Redis namespaces. Heartbeats are at most 10 seconds, central request timeouts at most 5 seconds and local shutdown grace at most 5 seconds.
+The service root remains `null` in fat and master; configure their real addresses before startup. `creativity.deploymentId` must exactly match the selected service's `/api/v1/harness/bootstrap` response rather than derive from the local environment name. The current test service returns `harness-dev`, which the test configuration uses. Local account homes remain isolated by the selected environment; independent service deployments isolate their databases and Redis namespaces. Heartbeats are at most 10 seconds, central request timeouts at most 5 seconds and local shutdown grace at most 5 seconds.
 
 <a id="runtime-and-data"></a>
 ## Runtime and data

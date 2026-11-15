@@ -52,7 +52,7 @@ export function parseHarnessConfig(raw: unknown, environment: HarnessEnvironment
   object(creativity, ['baseUrl','deploymentId','requestTimeoutMs'])
   if (creativity.baseUrl === null) throw new Error(`${environment} 的 Creativity 地址尚未配置`)
   url(creativity.baseUrl); string(creativity.deploymentId); integer(creativity.requestTimeoutMs, 1, 5000)
-  if (new URL(creativity.baseUrl).pathname !== '/' || creativity.deploymentId !== `harness-${environment}`) throw new Error('Creativity 根地址或部署标识无效')
+  if (new URL(creativity.baseUrl).pathname !== '/' || !/^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/u.test(creativity.deploymentId)) throw new Error('Creativity 根地址或部署标识无效')
   object(auth, ['heartbeatIntervalMs','shutdownGraceMs']); integer(auth.heartbeatIntervalMs, 1, 10000); integer(auth.shutdownGraceMs, 1, 5000)
   object(storage, ['root']); string(storage.root)
   const root = resolve(expandHomePath(storage.root))

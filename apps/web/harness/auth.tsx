@@ -1,9 +1,23 @@
 /** Harness 独立登录、注册和用途绑定的滑块验证码页面。 */
 import React, { useEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
-import { Alert, Button, Card, ConfigProvider, Form, Input, Modal, Slider, Space, Spin, Tabs, Typography } from 'antd'
+import { Alert, Button, Card, ConfigProvider, Form, Input, Modal, Slider, Space, Spin, Tabs, Typography, type ThemeConfig } from 'antd'
+import { CatLogo } from '@deepseek-ai/dsh-client-ui-primitives/src/CatLogo.tsx'
 import { api, copy, errorText, type LocalSession } from './shared.ts'
 import './style.css'
+
+const authTheme: ThemeConfig = {
+  token: {
+    colorPrimary: '#2454f3', colorText: '#23242c', colorTextSecondary: '#66676d',
+    colorBorder: '#c6c8cf', borderRadius: 8, controlHeight: 40, fontSize: 18, fontWeightStrong: 500,
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif',
+  },
+  components: {
+    Button: { primaryShadow: 'none', defaultShadow: 'none' },
+    Form: { labelFontSize: 18, labelColor: '#23242c' },
+    Tabs: { titleFontSize: 20, horizontalItemGutter: 14, inkBarColor: '#2454f3', itemColor: '#66676d' },
+  },
+}
 
 interface Challenge {
   challenge_id: string
@@ -83,24 +97,31 @@ function AuthPage(): React.ReactElement {
     try { await api('logout', {}) } catch (error) { setError(errorText(error)) }
     finally { setBusy(false); clearCaptcha() }
   }
-  return <ConfigProvider theme={{ token: { colorPrimary: '#325ee8', borderRadius: 8 } }}><main className="harness-auth-page">
-    <Card className="harness-auth-card"><Typography.Title level={2}>Harness</Typography.Title>
-      <Tabs activeKey={mode} onChange={(key) => { setMode(key as 'login' | 'register'); setError(''); setNotice('') }} items={[
-        { key: 'login', label: copy.login, disabled: busy }, { key: 'register', label: copy.register, disabled: busy },
-      ]} />
-      {error && <Alert type="error" title={error} showIcon />}{notice && <Alert type="success" title={notice} showIcon />}
-      <Form form={form} layout="vertical" onFinish={fields => void submit(fields)} disabled={busy} autoComplete="on">
-        <Form.Item name="login_name" label={copy.account} rules={[{ required: true, whitespace: true, message: copy.required }, { min: 3, max: 128, message: copy.required }]}>
-          <Input autoComplete="username" maxLength={128} />
-        </Form.Item>
-        {mode === 'register' && <Form.Item name="display_name" label={copy.name} rules={[{ required: true, whitespace: true, message: copy.required }]}><Input maxLength={128} autoComplete="nickname" /></Form.Item>}
-        <Form.Item name="password" label={copy.password} rules={[{ required: true, message: copy.required }, { min: 12, max: 256, message: copy.passwordLength }]}>
-          <Input.Password autoComplete={mode === 'login' ? 'current-password' : 'new-password'} maxLength={256} />
-        </Form.Item>
-        <Button block onClick={() => void loadCaptcha()} disabled={busy}>{proof ? copy.verified : copy.verify}</Button>
-        <Button className="harness-submit" block type="primary" htmlType="submit" loading={busy}>{copy[mode]}</Button>
-      </Form>
-      {busy && <Button block onClick={() => void cancel()}>{copy.cancelLogin}</Button>}
+  return <ConfigProvider theme={authTheme}><main className="harness-auth-page">
+    <Card className={`harness-auth-card harness-auth-card-${mode}`}>
+      <aside className="harness-auth-brand-panel" aria-hidden="true">
+        <div className="harness-auth-brand"><CatLogo size={72} /><span>Harness</span></div>
+        <CatLogo size={380} className="harness-auth-watermark" />
+      </aside>
+      <section className="harness-auth-panel" aria-labelledby="harness-auth-title"><div className="harness-auth-content">
+        <Typography.Title id="harness-auth-title" level={2}>Harness</Typography.Title>
+        <Tabs activeKey={mode} onChange={(key) => { setMode(key as 'login' | 'register'); setError(''); setNotice('') }} items={[
+          { key: 'login', label: copy.login, disabled: busy }, { key: 'register', label: copy.register, disabled: busy },
+        ]} />
+        {error && <Alert type="error" title={error} showIcon />}{notice && <Alert type="success" title={notice} showIcon />}
+        <Form form={form} layout="vertical" onFinish={fields => void submit(fields)} disabled={busy} autoComplete="on">
+          <Form.Item name="login_name" label={copy.account} rules={[{ required: true, whitespace: true, message: copy.required }, { min: 3, max: 128, message: copy.required }]}>
+            <Input autoComplete="username" maxLength={128} />
+          </Form.Item>
+          {mode === 'register' && <Form.Item name="display_name" label={copy.name} rules={[{ required: true, whitespace: true, message: copy.required }]}><Input maxLength={128} autoComplete="nickname" /></Form.Item>}
+          <Form.Item name="password" label={copy.password} rules={[{ required: true, message: copy.required }, { min: 12, max: 256, message: copy.passwordLength }]}>
+            <Input.Password autoComplete={mode === 'login' ? 'current-password' : 'new-password'} maxLength={256} />
+          </Form.Item>
+          <Button className="harness-auth-verify" block onClick={() => void loadCaptcha()} disabled={busy}>{proof ? copy.verified : copy.verify}</Button>
+          <Button className="harness-submit" block type="primary" htmlType="submit" loading={busy}>{copy[mode]}</Button>
+        </Form>
+        {busy && <Button block onClick={() => void cancel()}>{copy.cancelLogin}</Button>}
+      </div></section>
     </Card>
     <Modal title={copy.captcha} open={captchaOpen} onCancel={clearCaptcha} footer={null} width={388} destroyOnHidden>
       <p>{copy.drag}</p><div className="harness-captcha">

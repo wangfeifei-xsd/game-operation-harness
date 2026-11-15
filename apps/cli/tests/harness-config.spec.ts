@@ -2,6 +2,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
+import { HarnessAuthClient } from '../src/harness-auth-client.ts'
 import { harnessUserHome, parseHarnessConfig, readHarnessConfig, type HarnessEnvironment } from '../src/harness-config.ts'
 
 function file(environment: HarnessEnvironment): Record<string, unknown> {
@@ -24,7 +25,22 @@ describe('Harness file deployment', () => {
     } finally { vi.unstubAllEnvs() }
   })
 
-  it.each(['test', 'fat', 'master'] as const)('requires the actual %s service address', (environment) => {
+  it('connects the test environment to its configured remote deployment', async () => {
+    const config = readHarnessConfig('test')
+    expect(config.creativity.baseUrl).toBe('https://catdev.g-buddy.com')
+    expect(config.creativity.deploymentId).toBe('harness-dev')
+    expect(config.storage.root).toMatch(/game-operation-harness\/test$/u)
+    const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({ deployment_id: 'harness-dev' }))
+    try {
+      const client = new HarnessAuthClient(config)
+      await expect(client.bootstrap()).resolves.toBeUndefined()
+      expect(fetch.mock.calls[0]?.[0]).toBe('https://catdev.g-buddy.com/api/v1/harness/bootstrap')
+      fetch.mockResolvedValueOnce(Response.json({ deployment_id: 'another-deployment' }))
+      await expect(client.bootstrap()).rejects.toThrow('认证部署标识不匹配')
+    } finally { fetch.mockRestore() }
+  })
+
+  it.each(['fat', 'master'] as const)('requires the actual %s service address', (environment) => {
     expect(() => readHarnessConfig(environment)).toThrow('Creativity 地址尚未配置')
     const raw = file(environment)
     const configured = { ...raw, creativity: { baseUrl: 'https://creativity.example', deploymentId: `harness-${environment}`, requestTimeoutMs: 5000 } }
@@ -38,5 +54,10 @@ describe('Harness file deployment', () => {
     expect(() => parseHarnessConfig({ ...file('dev'), extra: true }, 'dev')).toThrow('未声明字段')
     expect(() => parseHarnessConfig({ ...file('dev'), storage: { root: '/tmp/test' } }, 'dev')).toThrow('数据根必须')
     expect(() => parseHarnessConfig({ ...file('dev'), creativity: { baseUrl: 'http://localhost:8000/api', deploymentId: 'harness-master', requestTimeoutMs: 5000 } }, 'dev')).toThrow('根地址或部署标识无效')
+    expect(() => parseHarnessConfig({ ...file('test'), creativity: { baseUrl: null, deploymentId: 'harness-dev', requestTimeoutMs: 5000 } }, 'test')).toThrow('Creativity 地址尚未配置')
+  })
+
+  it.each(['../deployment', 'deployment with spaces', 'a'.repeat(129)])('rejects invalid deployment identifier %s', (deploymentId) => {
+    expect(() => parseHarnessConfig({ ...file('test'), creativity: { baseUrl: 'https://catdev.g-buddy.com', deploymentId, requestTimeoutMs: 5000 } }, 'test')).toThrow('根地址或部署标识无效')
   })
 })

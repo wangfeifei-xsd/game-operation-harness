@@ -100,7 +100,7 @@ async function assertFreePort({ host, port }, environmentName) {
 }
 
 function parseStart(args) {
-  let environmentName = 'dev'
+  let environmentName = 'test'
   let noOpen = false
   for (let index = 0; index < args.length; index += 1) {
     if (args[index] === '--no-open') noOpen = true
@@ -303,7 +303,7 @@ async function runWorker(token, environmentName, noOpen) {
 async function main() {
   const [action, ...args] = process.argv.slice(2)
   if (args.includes('--help') || args.includes('-h')) {
-    console.log('启动：./use-scripts/start.sh [--environment dev|test|fat|master] [--no-open]\n关闭：./use-scripts/stop.sh\n默认环境为 dev，监听地址和端口读取 config/environments/<环境>.json。\n首次启动安装依赖，每次启动构建并监听源码变化；日志保存在 output/local-service/web.log。')
+    console.log('启动：./use-scripts/start.sh [--environment dev|test|fat|master] [--no-open]\n关闭：./use-scripts/stop.sh\n默认环境为 test，监听地址和端口读取 config/environments/<环境>.json。\n首次启动安装依赖，每次启动构建并监听源码变化；日志保存在 output/local-service/web.log。')
     return
   }
   if (action === '_run') await runWorker(args[0], args[1], args[2] === 'true')
