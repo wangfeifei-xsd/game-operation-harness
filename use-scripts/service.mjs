@@ -88,61 +88,57 @@ async function withLock(operation) {
   }
 }
 
-async function assertFreePort(port) {
+async function assertFreePort({ host, port }, environmentName) {
   const server = createServer()
-  server.listen(port, '127.0.0.1')
+  server.listen(port, host)
   try {
     await once(server, 'listening')
   } catch (error) {
-    throw new Error(`无法使用端口 ${port}：${error.message}。可通过 --port 指定其他端口。`)
+    throw new Error(`无法使用 ${host}:${port}：${error.message}。请修改 config/environments/${environmentName}.json 的 server.port 后重试。`)
   }
   await new Promise((resolve, reject) => server.close(error => error ? reject(error) : resolve()))
 }
 
 function parseStart(args) {
-  let port = 3080
+  let environmentName = 'dev'
   let noOpen = false
   for (let index = 0; index < args.length; index += 1) {
     if (args[index] === '--no-open') noOpen = true
-    else if (args[index] === '--port') {
+    else if (args[index] === '--environment') {
       const value = args[++index]
-      if (!/^\d+$/.test(value ?? '') || Number(value) < 1 || Number(value) > 65535) {
-        throw new Error('--port 需要填写 1 到 65535 之间的整数。')
+      if (!['dev', 'test', 'fat', 'master'].includes(value)) {
+        throw new Error('--environment 需要填写 dev、test、fat 或 master。')
       }
-      port = Number(value)
+      environmentName = value
+    } else if (args[index] === '--port') {
+      throw new Error('监听端口请在 config/environments/<环境>.json 的 server.port 中配置，启动参数不覆盖部署文件。')
     } else throw new Error(`不支持的参数：${args[index]}。使用 --help 查看用法。`)
   }
-  return { port, noOpen }
+  return { environmentName, noOpen }
 }
 
-/** 按应用公开的入口换取 Cookie，再确认页面就绪；不将未认证的 401 当作启动失败。 */
+/** 只探测公开登录页；根页面和业务接口在未登录时拒绝访问属于正常行为。 */
 async function pageReady(entryUrl) {
   const response = await fetch(entryUrl, { redirect: 'manual', signal: AbortSignal.timeout(1000) })
   await response.body?.cancel()
-  if (response.status === 200) return true
-  if (response.status !== 302 && response.status !== 303) return false
-  const cookies = response.headers.getSetCookie().map(value => value.split(';')[0]).join('; ')
-  if (!cookies) return false
-  const page = await fetch(new URL('/', entryUrl), {
-    headers: { cookie: cookies }, redirect: 'manual', signal: AbortSignal.timeout(1000),
-  })
-  await page.body?.cancel()
-  return page.status === 200
+  return response.status === 200
 }
 
 async function start(options) {
   const record = await withLock(async () => {
     const previous = readJson(recordPath)
     if (ownsProcess(previous)) {
-      console.log(`服务已在运行或启动中，使用本地端口 ${previous.port}。`)
+      if (previous.environment !== options.environmentName) {
+        throw new Error('本项目已在运行其他环境或旧版服务，请先执行 ./use-scripts/stop.sh 再切换环境。')
+      }
+      console.log(`服务已在运行或启动中（${previous.environment}）。`)
       return previous
     }
-    await assertFreePort(options.port)
     const token = randomUUID()
     const descriptor = openSync(logPath, 'w', 0o600)
     let child
     try {
-      child = spawn(process.execPath, [script, '_run', token, String(options.port), String(options.noOpen)], {
+      child = spawn(process.execPath, [script, '_run', token, options.environmentName, String(options.noOpen)], {
         cwd: root, env: environment, detached: true, stdio: ['ignore', descriptor, descriptor],
       })
       await once(child, 'spawn')
@@ -150,7 +146,7 @@ async function start(options) {
       closeSync(descriptor)
     }
     child.unref()
-    const created = { pid: child.pid, token, port: options.port, phase: 'starting' }
+    const created = { pid: child.pid, token, environment: options.environmentName, phase: 'starting' }
     writeRecord(created)
     return created
   })
@@ -212,7 +208,7 @@ async function stop() {
 }
 
 /** 每个子命令退出后再推进阶段；关闭信号同时传到本次启动的整个进程组。 */
-async function runWorker(token, port, noOpen) {
+async function runWorker(token, environmentName, noOpen) {
   let stopping = false
   const onSignal = () => { stopping = true }
   process.on('SIGTERM', onSignal)
@@ -240,10 +236,10 @@ async function runWorker(token, port, noOpen) {
       while ((end = pending.indexOf('\n')) !== -1) {
         const line = pending.slice(0, end).trim()
         pending = pending.slice(end + 1)
-        const match = line.match(/^dsh web: (http:\/\/127\.0\.0\.1:\d+\/\S*)$/)
-        // 就绪链接只取自本次子进程，并限定在脚本指定的本机端口。
-        if (record.phase === 'serving' && match?.[1].startsWith(`http://127.0.0.1:${port}/`)) {
-          record = { ...record, entryUrl: match[1] }
+        const match = line.match(/^Harness: (http:\/\/\S+)$/)
+        // 仅接受本次产品入口实际监听、且与所选部署配置一致的地址。
+        if (record.phase === 'serving' && match?.[1] === `${record.origin}/`) {
+          record = { ...record, entryUrl: new URL('/harness/login', record.origin).href }
           if (readJson(recordPath)?.token === token) writeRecord(record)
         }
       }
@@ -282,9 +278,15 @@ async function runWorker(token, port, noOpen) {
       await run(command, [...prefix, 'install', '--frozen-lockfile'])
       writeFileSync(installStamp, fingerprint, { mode: 0o600 })
     }
-    await assertFreePort(port)
+    // 安装依赖后复用产品配置校验器，避免脚本另行解析或覆盖部署设置。
+    const { tsImport } = await import('tsx/esm/api')
+    const { readHarnessConfig } = await tsImport('../apps/cli/src/harness-config.ts', import.meta.url)
+    const { server } = readHarnessConfig(environmentName)
+    await assertFreePort(server, environmentName)
+    const host = server.host === '::1' ? '[::1]' : server.host
+    record = { ...record, host: server.host, port: server.port, origin: `http://${host}:${server.port}` }
     phase('serving')
-    const args = [...prefix, 'run', 'dev:web', '--host', '127.0.0.1', '--port', String(port)]
+    const args = [...prefix, 'run', 'dev:web', '--environment', environmentName]
     if (noOpen) args.push('--no-open')
     await run(command, args)
     throw new Error('Web 服务已退出。')
@@ -301,10 +303,10 @@ async function runWorker(token, port, noOpen) {
 async function main() {
   const [action, ...args] = process.argv.slice(2)
   if (args.includes('--help') || args.includes('-h')) {
-    console.log('启动：./use-scripts/start.sh [--port 3080] [--no-open]\n关闭：./use-scripts/stop.sh\n首次启动安装依赖，每次启动构建并监听源码变化；日志保存在 output/local-service/web.log。')
+    console.log('启动：./use-scripts/start.sh [--environment dev|test|fat|master] [--no-open]\n关闭：./use-scripts/stop.sh\n默认环境为 dev，监听地址和端口读取 config/environments/<环境>.json。\n首次启动安装依赖，每次启动构建并监听源码变化；日志保存在 output/local-service/web.log。')
     return
   }
-  if (action === '_run') await runWorker(args[0], Number(args[1]), args[2] === 'true')
+  if (action === '_run') await runWorker(args[0], args[1], args[2] === 'true')
   else if (action === 'start') await start(parseStart(args))
   else if (action === 'stop' && args.length === 0) await stop()
   else throw new Error('请使用 start.sh 或 stop.sh；使用 --help 查看用法。')
