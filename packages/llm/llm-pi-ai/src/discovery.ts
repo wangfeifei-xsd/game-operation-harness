@@ -388,12 +388,13 @@ export async function discoverModels(
     if (request.signal?.aborted) {
       throw new LlmError('model discovery aborted by caller', 'ABORTED', { cause: error })
     }
-    throw new LlmError(`could not reach ${url}`, 'DISCOVERY_FAILED', { cause: error })
+    throw new LlmError(`could not reach ${url}`, 'TRANSPORT', { cause: error })
   }
   if (!response.ok) {
     throw new LlmError(
       `${url} answered ${response.status}${response.status === 401 || response.status === 403 ? '; check the API key' : ''}`,
-      'DISCOVERY_FAILED',
+      response.status === 404 || response.status === 405 ? 'DISCOVERY_UNSUPPORTED'
+        : response.status === 401 || response.status === 403 ? `HTTP_${response.status}` : 'DISCOVERY_FAILED',
     )
   }
   let text: string

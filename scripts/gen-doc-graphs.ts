@@ -724,7 +724,22 @@ const SERVICE_ROLES: ServiceRole[] = [
     title: 'Default Agent model selection',
     mode: 'core',
     consumers: ['api-session-controller', 'headless'],
-    note: 'Reads the default ModelSelection from volatile Config and saves selections through the profile editor.',
+    note: '读取唯一默认模型来源；产品来源允许空值并独立持久化，上游配置使用 profile 编辑器。',
+  },
+  {
+    key: 'harnessModelConfig',
+    pkg: 'harness-model-config',
+    title: 'Product model configuration',
+    mode: 'core',
+    consumers: ['api-model-config-controller', 'agent-default-model'],
+    note: '管理独立模型记录、条件修订、只写凭据和进程生命周期文件锁，并向 LLM 注册精确配置。',
+  },
+  {
+    key: 'modelConfigController',
+    pkg: 'api-model-config-controller',
+    title: 'Product model configuration Remote',
+    mode: 'core',
+    note: '向当前已认证 Host 提供模型配置操作，业务校验与存储由模型服务负责。',
   },
   {
     key: 'agentLoop',

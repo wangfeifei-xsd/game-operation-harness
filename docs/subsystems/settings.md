@@ -2,7 +2,7 @@
 
 English | [中文](settings.zh.md)
 
-The [settings service](../../packages/settings/settings/README.md) projects volatile Config fields from active profile entries. The [configuration editor](../../packages/boot/config-editor/README.md) persists edits through Cordis patches. Business consumers read `.get()` on their own Config references.
+The [settings service](../../packages/settings/settings/README.md) projects volatile Config fields from active profile entries. The optional [configuration editor](../../packages/boot/config-editor/README.md) persists edits through Cordis patches. Without it, descriptors remain readable, but writes and document access are unavailable. Business consumers read `.get()` on their own Config references.
 
 ## Identity and values
 
@@ -37,8 +37,8 @@ Project Config schemas into forms and own optional instance-level UI policy.
  */
 configure(presentation: { auto?: boolean }, owner: Fiber = this.ctx.fiber): () => void
 
-/** Locate the profile patch for native editing.
- * @returns The existing profile patch path.
+/** 查找原生编辑器使用的配置文件；只读 Host 通过拒绝 Promise 报错。
+ * @returns 当前配置文件路径。
  */
 prepareDocument(): Promise<string>
 

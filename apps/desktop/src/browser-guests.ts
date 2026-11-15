@@ -16,6 +16,8 @@ interface GuestLease {
 export class DesktopBrowserGuests {
   private readonly partitions = new Map<string, string>()
   private readonly leases = new Map<DesktopBrowserLeaseId, GuestLease>()
+  private readonly closing = new Map<WebContents, Promise<void>>()
+  private readonly guests = new Set<WebContents>()
 
   /** @param hostUrl - current authenticated DSH Host, which guests cannot request. */
   constructor(private readonly hostUrl: () => string | undefined) {}
@@ -53,13 +55,26 @@ export class DesktopBrowserGuests {
     if (lease === undefined) return
     if (lease.owner !== owner) throw new Error('desktop browser: guest belongs to another window')
     lease.releaseInput?.()
-    this.leases.delete(key)
+    delete lease.releaseInput
     const guest = lease.guest
-    if (guest !== undefined && !guest.isDestroyed()) {
-      const destroyed = new Promise<void>((resolve) => { guest.once('destroyed', resolve) })
-      guest.close({ waitForBeforeUnload: false })
-      await destroyed
-    }
+    if (guest !== undefined) await this.closeGuest(guest)
+    this.leases.delete(key)
+  }
+
+  private closeGuest(guest: WebContents): Promise<void> {
+    if (guest.isDestroyed()) return Promise.resolve()
+    const existing = this.closing.get(guest)
+    if (existing !== undefined) return existing
+    const stopped = Promise.withResolvers<void>()
+    const timer = setTimeout(() => { stopped.reject(new Error('浏览器窗口未能确认关闭')) }, 5000)
+    const onDestroyed = (): void => { stopped.resolve() }
+    guest.once('destroyed', onDestroyed)
+    const result = stopped.promise.finally(() => {
+      clearTimeout(timer); guest.off('destroyed', onDestroyed); this.closing.delete(guest)
+    })
+    this.closing.set(guest, result)
+    try { guest.close({ waitForBeforeUnload: false }) } catch (error) { stopped.reject(error) }
+    return result
   }
 
   /**
@@ -92,6 +107,8 @@ export class DesktopBrowserGuests {
       params.httpreferrer = ''
     })
     owner.on('did-attach-webview', (_event, guest) => {
+      this.guests.add(guest)
+      guest.once('destroyed', () => { this.guests.delete(guest) })
       let attachedLease: DesktopBrowserLeaseId | undefined
       // The first document is an inert about:blank carrying the approved lease.
       // Bind on the main-process event before the renderer can navigate the ready guest.
@@ -136,6 +153,18 @@ export class DesktopBrowserGuests {
     })
     owner.on('render-process-gone', releaseAll)
     owner.once('destroyed', releaseAll)
+  }
+
+  /** 退出账号时销毁所有租约和内存 partition，账号切换不复用浏览器状态。 */
+  async retire(): Promise<void> {
+    const releases = [...this.leases].map(([id, lease]) => this.release(lease.owner, id))
+    await Promise.all([...releases, ...[...this.guests].map(guest => this.closeGuest(guest))])
+    if ([...this.guests].some(guest => !guest.isDestroyed())) throw new Error('浏览器窗口未能确认关闭')
+    await Promise.all([...this.partitions.values()].map(async (partition) => {
+      const previous = session.fromPartition(partition)
+      await Promise.all([previous.closeAllConnections(), previous.clearStorageData(), previous.clearCache()])
+    }))
+    this.partitions.clear()
   }
 
   private configureSession(browserSession: Session): void {

@@ -15,6 +15,7 @@ vi.mock('node:child_process', async (importOriginal) => {
 
 const roots: string[] = []
 const hosts: DesktopHostProcess[] = []
+const product = { version: 1 as const, generation: 1, environment: 'test' as const, configDirectory: '/private/config', token: 'a'.repeat(43), sessionId: 'host_session', user: { user_id: 'host_user', login_name: 'account', display_name: '账号', status: 'ACTIVE' as const } }
 
 const HTTP_HOST = `
 import { createServer } from 'node:http'
@@ -27,7 +28,7 @@ let published = false
 const publishReady = () => {
   if (!authenticationReceived || !listening || published) return
   published = true
-  process.send({ type: 'ready', url: 'http://127.0.0.1:' + server.address().port + '/' })
+  process.send({ type: 'ready', generation: 1, url: 'http://127.0.0.1:' + server.address().port + '/' })
 }
 const server = createServer((request, response) => {
   if (request.url === '/fatal') {
@@ -101,7 +102,7 @@ function projectWithHost(source = HTTP_HOST): string {
 function hostProcess(
   runtime: string, profile = runtime, onFailure?: (error: Error) => void, environment = process.env,
 ): DesktopHostProcess {
-  const host = new DesktopHostProcess(process.execPath, runtime, profile, undefined, environment, onFailure)
+  const host = new DesktopHostProcess(process.execPath, runtime, profile, undefined, environment, onFailure, undefined, undefined, undefined, { version: 1, generation: 1, environment: 'test', configDirectory: '/private/config', token: 'a'.repeat(43), sessionId: 'host_session', user: { user_id: 'host_user', login_name: 'account', display_name: '账号', status: 'ACTIVE' } })
   hosts.push(host)
   return host
 }
@@ -137,7 +138,7 @@ process.send({ type: 'starting', runId: 'c254ab28-97c9-4382-95e6-2db9c66f98c8' }
 process.send({ type: 'starting', runId: 'c254ab28-97c9-4382-95e6-2db9c66f98c8' })
 process.once('message', message => {
   if (message.type !== 'desktop-auth') throw new Error('expected authentication')
-  process.send({ type: 'ready', url: 'http://127.0.0.1:3080/' }, () => { ${trigger} })
+  process.send({ type: 'ready', generation: 1, url: 'http://127.0.0.1:3080/' }, () => { ${trigger} })
 })
 `)
     const host = hostProcess(runtime, runtime, failed.resolve)
@@ -174,7 +175,7 @@ ${HTTP_HOST}`)
     onTestFinished(async () => { await journal.close() })
     const sink = vi.fn(value => journal.enqueue(JSON.stringify(value)))
     const first = new DesktopHostProcess(process.execPath, runtime, runtime, undefined, process.env,
-      undefined, undefined, undefined, undefined, sink)
+      undefined, undefined, undefined, sink, product)
     hosts.push(first)
     await first.start()
     await first.stop()
@@ -187,7 +188,7 @@ ${HTTP_HOST}`)
     try {
       const failure = vi.fn()
       const second = new DesktopHostProcess(process.execPath, runtime, runtime, undefined, process.env,
-        failure, undefined, undefined, undefined, () => { throw new Error('sink unavailable') })
+        failure, undefined, undefined, () => { throw new Error('sink unavailable') }, product)
       hosts.push(second)
       await second.start()
       expect(await second.updateTasks('inspect')).toBe(false)
@@ -253,21 +254,21 @@ ${HTTP_HOST}`)
     const host = hostProcess(projectWithHost(`
       process.send({ type: 'starting', runId: 'c254ab28-97c9-4382-95e6-2db9c66f98c8' })
       process.on('message', message => {
-        if (message.type === 'desktop-auth') process.send({ type: 'ready', url: 'http://127.0.0.1:3080/' })
+        if (message.type === 'desktop-auth') process.send({ type: 'ready', generation: 1, url: 'http://127.0.0.1:3080/' })
         if (message.type === 'shutdown') process.stderr.write('token=fixture-secret', () => { ${exit} })
       })
     `))
     await host.start()
     const error = await host.stop(true).then(() => undefined, (error: unknown) => error)
     expect(error).toBeInstanceOf(DesktopHostUncleanExitError)
-    expect(String(error)).toContain('shutdown acknowledged false')
-    expect(String(error)).toContain('graceful deadline exceeded false')
+    expect(error).toHaveProperty('shutdownAcknowledged', false)
+    expect(error).toHaveProperty('gracefulDeadlineExceeded', false)
     expect(String(error)).not.toContain('fixture-secret')
     await expect(host.stop()).resolves.toBeUndefined()
   })
 
   it('rejects readiness before the private authentication handoff', async () => {
-    const host = hostProcess(projectWithHost("process.send({ type: 'ready', url: 'http://127.0.0.1:3080/' })"))
+    const host = hostProcess(projectWithHost("process.send({ type: 'ready', generation: 1, url: 'http://127.0.0.1:3080/' })"))
     await expect(host.start()).rejects.toThrow('authentication handoff')
   })
 
@@ -279,7 +280,7 @@ ${HTTP_HOST}`)
   ])('rejects an unexpected ready address before using a credential: %s', async (url) => {
     const host = hostProcess(projectWithHost(`
 process.on('message', message => {
-  if (message.type === 'desktop-auth') process.send({ type: 'ready', url: ${JSON.stringify(url)} })
+  if (message.type === 'desktop-auth') process.send({ type: 'ready', generation: 1, url: ${JSON.stringify(url)} })
 })
 process.send({ type: 'starting', runId: 'c254ab28-97c9-4382-95e6-2db9c66f98c8' })
 `))
@@ -292,7 +293,7 @@ import { randomUUID } from 'node:crypto'
 process.on('message', message => {
   if (message.type === 'desktop-auth') {
     if (!/^[A-Za-z0-9_-]{43}$/.test(message.secret)) throw new Error('invalid credential')
-    process.send({ type: 'ready', url: 'http://127.0.0.1:3080/', injections: [] })
+    process.send({ type: 'ready', generation: 1, url: 'http://127.0.0.1:3080/', injections: [] })
   }
   if (message.type === 'shutdown') process.send({ type: 'shutdown-complete' }, () => process.disconnect())
 })
@@ -363,7 +364,7 @@ process.send({ type: 'starting', runId: randomUUID() })
       'pnpm: process.argv[5], nodeBin: process.argv[6], primaryRuntime: process.argv[4], runtime: process.argv[2]'))
     const primaryRuntime = join(runtime, 'external-primary-runtime')
     const host = new DesktopHostProcess(process.execPath, runtime, runtime, undefined, process.env,
-      undefined, primaryRuntime, { pnpm: join(runtime, 'pnpm.mjs'), nodeBin: join(runtime, 'bin') })
+      undefined, primaryRuntime, { pnpm: join(runtime, 'pnpm.mjs'), nodeBin: join(runtime, 'bin') }, undefined, product)
     hosts.push(host)
     const { url } = await host.start()
     expect(await (await fetch(url)).json()).toMatchObject({ primaryRuntime, pnpm: join(runtime, 'pnpm.mjs'), nodeBin: join(runtime, 'bin') })
@@ -423,7 +424,7 @@ process.send({ type: 'starting', runId: randomUUID() })
 
   it.each([
     ["process.send({ type: 'fatal', message: 'startup failed' }); process.disconnect()", 'startup failed'],
-    ["process.send({ type: 'ready', url: 4 })", 'invalid IPC event'],
+    ["process.send({ type: 'ready', generation: 1, url: 4 })", 'invalid IPC event'],
     ["process.send({ type: 'fatal', message: 'startup failed', diagnostic: 42 })", 'invalid IPC event'],
     ['process.exit(0)', 'host stopped'],
   ])('rejects startup when the child fails before readiness: %s', async (source, message) => {
@@ -445,25 +446,9 @@ process.send({ type: 'starting', runId: randomUUID() })
   })
 })
 
-it.each([null, 'stable-account'])('carries Platform identity %s over private IPC and clears credentials on shutdown', async (userId) => {
-  const runtime = projectWithHost(HTTP_HOST.replace("process.send({ type: 'ready'", "process.send({ type: 'platform-session', session: { origin: 'https://platform.deepseek.com', userId: " + JSON.stringify(userId) + ", token: 'fixture-secret', embeddedPageDist: 'feat/test' } }); process.send({ type: 'ready'"))
-  const changed = vi.fn()
-  const host = new DesktopHostProcess(process.execPath, runtime, runtime, undefined, process.env, undefined, undefined, undefined, changed)
-  hosts.push(host)
-  await host.start()
-  expect(changed).toHaveBeenCalledWith({ origin: 'https://platform.deepseek.com', userId, token: 'fixture-secret', embeddedPageDist: 'feat/test' })
-  await host.stop()
-  expect(changed).toHaveBeenLastCalledWith(null)
-})
-
-it.each([undefined, '', 7])('rejects malformed Platform account identity %s on private IPC', async (userId) => {
-  const session = { origin: 'https://platform.deepseek.com', token: 'fixture-secret', userId }
-  const runtime = projectWithHost(HTTP_HOST.replace("process.send({ type: 'ready'",
-    `process.send({ type: 'platform-session', session: ${JSON.stringify(session)} }); process.send({ type: 'ready'`))
-  const changed = vi.fn()
-  const host = new DesktopHostProcess(process.execPath, runtime, runtime, undefined, process.env, undefined, undefined, undefined, changed)
-  hosts.push(host)
+it('rejects removed provider session IPC', async () => {
+  const runtime = projectWithHost("process.send({ type: 'platform-session', session: null })")
+  const host = hostProcess(runtime)
   await expect(host.start()).rejects.toThrow('invalid IPC event')
-  expect(changed.mock.calls).toEqual([[null]])
   await host.stop()
 })

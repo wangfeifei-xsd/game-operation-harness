@@ -165,6 +165,21 @@ function profileOptions(
   }
 }
 
+/** 未显式限制输出时，移除 SDK 按目录容量补入的可选协议参数。 */
+function omitImplicitOutputLimit(payload: unknown, api: Api): unknown {
+  if (typeof payload !== 'object' || payload === null) return payload
+  const request = payload as Record<string, unknown>
+  if (api === 'openai-completions') {
+    delete request.max_tokens
+    delete request.max_completion_tokens
+  } else if (api === 'openai-responses') {
+    delete request.max_output_tokens
+  } else if (api === 'google-generative-ai' && typeof request.config === 'object' && request.config !== null) {
+    delete (request.config as Record<string, unknown>).maxOutputTokens
+  }
+  return payload
+}
+
 /**
  * The profile default this exact model can actually take, for DESCRIBING it.
  * A configured level the model does not support yields none rather than
@@ -476,6 +491,7 @@ export class PiAiAdapter extends LlmAdapter {
         ...profileOptions(profile, reasoning, apiKey),
         ...options.temperature === undefined ? {} : { temperature: options.temperature },
         ...options.maxTokens === undefined ? {} : { maxTokens: options.maxTokens },
+        ...options.maxTokens !== undefined ? {} : { onPayload: (payload: unknown) => omitImplicitOutputLimit(payload, model.api) },
         ...options.sessionId === undefined ? {} : { sessionId: String(options.sessionId) },
         signal: watchdog.signal,
         headers: requestHeaders(profile.headers, options, model.baseUrl, this.config.prepareHeaders),

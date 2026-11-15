@@ -13,7 +13,7 @@ function applicationFrame(url: string): boolean {
  * @param session - application's browser session.
  * @param primary - current primary window contents, absent while no window is open.
  */
-export function installMicrophonePermissions(session: Pick<Session, 'setPermissionCheckHandler' | 'setPermissionRequestHandler'>, primary: () => WebContents | undefined): void {
+export function installMicrophonePermissions(session: Pick<Session, 'setPermissionCheckHandler' | 'setPermissionRequestHandler'>, primary: () => WebContents | undefined, authorize: () => Promise<void> = () => Promise.resolve()): void {
   session.setPermissionCheckHandler((contents, permission, origin, details) => {
     if (permission !== 'media') return true
     return contents != null && contents === primary() && details.isMainFrame
@@ -25,7 +25,11 @@ export function installMicrophonePermissions(session: Pick<Session, 'setPermissi
     const allowed = contents === primary() && details.isMainFrame && applicationFrame(details.requestingUrl)
       && 'mediaTypes' in details && details.mediaTypes.length === 1 && details.mediaTypes[0] === 'audio'
     if (!allowed) { callback(false); return }
-    if (process.platform !== 'darwin') { callback(true); return }
-    void systemPreferences.askForMediaAccess('microphone').then(callback, () => { callback(false) })
+    void (async () => {
+      await authorize()
+      if (contents !== primary() || contents.isDestroyed()) return false
+      const granted = process.platform !== 'darwin' || await systemPreferences.askForMediaAccess('microphone')
+      return granted && contents === primary() && !contents.isDestroyed()
+    })().then(callback, () => { callback(false) })
   })
 }

@@ -9,6 +9,7 @@ import { desktopUpdateMetadataFilename, resolveDesktopUploadConfig } from './des
 import type { DesktopRetainedManifest } from './desktop-release-store.ts'
 import type { DesktopSingleUploadPlan } from './desktop-upload-types.ts'
 import { desktopArtifactDigest, type DesktopPublishOperations, type DesktopRemoteObject } from './desktop-publish.ts'
+import { desktopRetainedDeployment } from './product-deployment.mjs'
 
 const percentage = z.number().int().min(0).max(100)
 const metadataSchema = z.object({
@@ -40,10 +41,12 @@ export interface DesktopRolloutPlan {
 export async function prepareDesktopRollout(directory: string, manifest: DesktopRetainedManifest,
   environment: NodeJS.ProcessEnv): Promise<DesktopRolloutPlan> {
   const source = manifest.source
+  const deployment = desktopRetainedDeployment(source)
   const windows = source.target === 'win-x64'
   const platform = windows ? 'win32' : 'darwin'
-  const update = resolveDesktopUploadConfig({ ...environment, DSH_DESKTOP_UPDATE_CHANNEL: source.channel },
-    platform, source.target === 'mac-arm64' ? 'arm64' : 'x64')
+  const update = resolveDesktopUploadConfig({ ...environment, DSH_DESKTOP_PRODUCT_ENVIRONMENT: deployment.environment,
+    DSH_DESKTOP_UPDATE_CHANNEL: source.channel },
+  platform, source.target === 'mac-arm64' ? 'arm64' : 'x64')
   if (update.environment !== source.preset) throw new Error('desktop rollout: environment differs from original package')
   const filename = desktopUpdateMetadataFilename(source.version, platform, source.channel)
   const item = manifest.files.find(file => file.name === filename)
@@ -54,7 +57,7 @@ export async function prepareDesktopRollout(directory: string, manifest: Desktop
     throw new Error('desktop rollout: retained update metadata differs from manifest')
   }
   const parsed = metadata(contents)
-  const payload = `deepseek-harness-${source.version}-${source.target}.${windows ? 'exe' : 'zip'}`
+  const payload = `agent-assistant-${source.version}-${source.target}.${windows ? 'exe' : 'zip'}`
   const file = manifest.files.find(entry => entry.name === payload)
   const entry = parsed.files[0]
   if (parsed.version !== source.version || entry.url !== payload || !file
@@ -64,8 +67,9 @@ export async function prepareDesktopRollout(directory: string, manifest: Desktop
     throw new Error('desktop rollout: update metadata does not identify the retained payload')
   }
   const url = `${update.origin}/${update.binaryKeyPrefix}/${payload}`
-  const expected = dump({ ...parsed, files: [{ ...entry, url }],
-    ...(parsed.path === undefined ? {} : { path: url }) })
+  const expected = dump({ ...parsed, agentAssistant: { product: 'agent-assistant', appId: deployment.desktop.appId,
+    environment: deployment.environment, channel: update.channel, target: source.target }, files: [{ ...entry, url }],
+  ...(parsed.path === undefined ? {} : { path: url }) })
   return { expected, upload: {
     environment: source.preset, target: source.target, version: source.version, commit: source.commit, dirty: false,
     publicUrl: update.publicUrl, bucket: update.bucket,

@@ -14,6 +14,9 @@ import { discardDesktopUpdate } from './updates/electron-updater/discard.ts'
 
 const { autoUpdater } = electronUpdater
 
+/** 受控环境文件确定当前应用的更新身份与地址。 */
+export interface ProductUpdateSource { appId: string; environment: string; url: string; channel: 'stable' }
+
 /** Owns one updater target until its download and installation settle. */
 export class DesktopUpdateCoordinator {
   private current: DesktopUpdateState = { phase: 'idle' }
@@ -66,6 +69,7 @@ export class DesktopUpdateCoordinator {
     private readonly downloadResult?: (success: boolean, reason?: string) => void,
     private channel: DesktopUpdateChannel = 'nightly',
     private readonly discard: (updater: AppUpdater) => Promise<void> = discardDesktopUpdate,
+    private readonly productSource?: ProductUpdateSource,
   ) {
     if (updater === autoUpdater) {
       // electron-updater omits this internal transport property from its public declarations.
@@ -74,7 +78,13 @@ export class DesktopUpdateCoordinator {
       transportOwner.httpExecutor = new DesktopUpdateHttpExecutor(
         Number(process.env.DSH_DESKTOP_UPDATE_HTTP_IDLE_TIMEOUT_MS ?? 60_000),
         (authInfo, callback) => { updater.emit('login', authInfo, callback) },
+        productSource?.url,
       )
+    }
+    if (productSource !== undefined) {
+      const target = `${process.platform === 'darwin' ? 'mac' : 'win'}-${process.arch}`
+      if (!['mac-arm64', 'mac-x64', 'win-x64'].includes(target)) throw new Error('当前系统或架构不支持桌面更新')
+      updater.setFeedURL({ provider: 'generic', url: new URL(`feeds/${target}/`, productSource.url).href, channel: productSource.channel })
     }
     this.updater.autoDownload = false
     this.updater.autoInstallOnAppQuit = false
@@ -273,6 +283,23 @@ export class DesktopUpdateCoordinator {
       const result = await this.updater.checkForUpdates()
       if (generation !== this.generation || this.disposed) return this.current
       if (result === null) throw new Error('desktop update: no check result was returned')
+      if (this.productSource !== undefined) {
+        const identity: unknown = (result.updateInfo as UpdateInfo & { agentAssistant?: unknown }).agentAssistant
+        const target = `${process.platform === 'darwin' ? 'mac' : 'win'}-${process.arch}`
+        if (typeof identity !== 'object' || identity === null || !('product' in identity) || identity.product !== 'agent-assistant'
+          || !('appId' in identity) || identity.appId !== this.productSource.appId
+          || !('environment' in identity) || identity.environment !== this.productSource.environment
+          || !('channel' in identity) || identity.channel !== this.productSource.channel
+          || !('target' in identity) || identity.target !== target) throw new Error('更新包与当前产品、环境或架构不匹配')
+        if (!Array.isArray(result.updateInfo.files) || result.updateInfo.files.length === 0) throw new Error('更新清单缺少安装文件')
+        for (const file of result.updateInfo.files) {
+          const address = new URL(file.url, this.productSource.url)
+          const source = new URL(this.productSource.url)
+          if (address.origin !== source.origin || !address.pathname.startsWith(`${source.pathname}bin/${target}/`)
+            || !/^[A-Za-z0-9._-]+$/u.test(address.pathname.slice(`${source.pathname}bin/${target}/`.length))
+            || address.username || address.password || address.hash || address.search || !/^[A-Za-z0-9+/]{86}==$/u.test(file.sha512)) throw new Error('更新文件地址或校验值无效')
+        }
+      }
       this.cancellation = result.cancellationToken
       const version = result.updateInfo.version
       if (valid(version) === null) throw new Error('desktop update: feed version is invalid')

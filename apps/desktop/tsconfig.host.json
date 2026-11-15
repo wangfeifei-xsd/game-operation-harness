@@ -46,6 +46,12 @@
     },
     {
       "path": "../../packages/client/ui-file-actions"
+    },
+    {
+      "path": "../../packages/host/harness-product"
+    },
+    {
+      "path": "../../packages/util/http-proxy"
     }
   ],
   "exclude": [

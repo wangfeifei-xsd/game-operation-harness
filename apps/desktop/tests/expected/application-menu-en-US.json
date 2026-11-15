@@ -1,10 +1,14 @@
 [
   {
-    "label": "About game-operation-harness",
+    "label": "About Agent 助手",
     "role": "about"
   },
   {
     "type": "separator"
+  },
+  {
+    "label": "Sign out",
+    "enabled": false
   },
   {
     "label": "Check for Updates…"
@@ -24,7 +28,7 @@
   },
   {
     "role": "hide",
-    "label": "Hide game-operation-harness"
+    "label": "Hide Agent 助手"
   },
   {
     "role": "hideOthers",
@@ -39,6 +43,6 @@
   },
   {
     "role": "quit",
-    "label": "Quit game-operation-harness"
+    "label": "Quit Agent 助手"
   }
 ]

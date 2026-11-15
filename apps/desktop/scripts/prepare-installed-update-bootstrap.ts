@@ -19,7 +19,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { configureInstalledUpdateIdentity } from './installed-update-identity.mjs'
 
-const run = ${JSON.stringify({ id: run.id, versions: run.versions })}
+const run = ${JSON.stringify({ id: run.id, appId: run.appId, versions: run.versions })}
 const metadata = JSON.parse(readFileSync(join(app.getAppPath(), 'package.json'), 'utf8'))
 configureInstalledUpdateIdentity(app, run, metadata, process.env)
 await import('./lib/main.js')

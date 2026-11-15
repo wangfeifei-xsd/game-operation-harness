@@ -103,8 +103,8 @@ describe('game operation browser branding', () => {
   })
 
   it('renders the official name independently from both requested mark sizes', () => {
-    const name = render(<GameOperationBrandName t={() => '游戏运营 Agent'} />)
-    expect(name.container.textContent).toBe('游戏运营 Agent')
+    const name = render(<GameOperationBrandName t={() => 'Agent 助手'} />)
+    expect(name.container.textContent).toBe('Agent 助手')
     expect(name.container.querySelector('svg')).toBeNull()
     name.unmount()
 

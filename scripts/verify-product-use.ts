@@ -202,7 +202,9 @@ export function verifyProductUse(
       return loadOverlayPatches('verify-product-use', path)
     })]
   })
-  const profiles = [...Object.entries(templates).map(([name, value]) => {
+  // harness 只协调中央登录，不装载账号插件；受保护的 harness-runtime 仍参与完整检查。
+  if (isRecord(templates.harness) && stringList(templates.harness.bundles, `${PROFILE_SOURCE} harness`).length !== 0) failures.push(`${PROFILE_SOURCE}: harness must not load bundles before login`)
+  const profiles = [...Object.entries(templates).filter(([name]) => name !== 'harness').map(([name, value]) => {
     if (!isRecord(value)) throw new Error(`${PROFILE_SOURCE}: invalid ${name} profile`)
     return stringList(value.bundles, `${PROFILE_SOURCE} ${name}`)
   }), fallback]

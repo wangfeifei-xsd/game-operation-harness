@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "モデル設定 API",
+    "description": "認証済み Remote 操作で Harness モデル設定を管理します。"
+  }
+}

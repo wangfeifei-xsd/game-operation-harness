@@ -23,7 +23,7 @@ Edit fields that plugins declare with `.volatile()` and inspect their effective 
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount this plugin with Loader and [config-editor](../../boot/config-editor/README.md). The base bundle provides this composition.
+Mount this plugin with Loader and a profile context. Add [config-editor](../../boot/config-editor/README.md) for writes; without it, forms describe live values with `writable: false`, omit editable layers, and refuse mutations and document access. The base bundle includes the editor; protected products can keep it disabled.
 
 ```yaml
 - id: settings
@@ -32,7 +32,7 @@ Mount this plugin with Loader and [config-editor](../../boot/config-editor/READM
 
 This plugin has no configuration fields. Forms expose only volatile fields from active, uniquely addressed profile entries. Ordinary configuration remains editable through Cordis configuration files.
 
-Once the Loader has settled every entry after Settings starts, a `settings.yaml` left in the harness home by earlier releases is imported once: each section is written into the entry of the same id (`ui-developer-tools` → `ui-settings`, `ui-onboarding` → `ui-settings-general`, `shell` → the platform's shell executor entry), the file is renamed to `settings.yaml.imported` before the first write, and a section the running composition rejects is logged and stays only in the renamed file.
+With the editor mounted, once the Loader has settled every entry after Settings starts, a `settings.yaml` left in the harness home by earlier releases is imported once: each section is written into the entry of the same id (`ui-developer-tools` → `ui-settings`, `ui-onboarding` → `ui-settings-general`, `shell` → the platform's shell executor entry), the file is renamed to `settings.yaml.imported` before the first write, and a section the running composition rejects is logged and stays only in the renamed file.
 
 Reset restores the value beneath the profile override, including schema defaults. Home patches and command-line overlays take precedence; a form write that they would override is refused.
 

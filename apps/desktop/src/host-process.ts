@@ -1,15 +1,19 @@
 /** Electron Node-mode child lifecycle for the shared Web application. */
 
+import { HarnessProcessTree } from '@deepseek-ai/dsh-host-harness-product/process-tree'
+import { HarnessAuthError } from '@deepseek-ai/dsh-host-harness-product/auth-client'
+import type { DesktopProductStart } from '@deepseek-ai/dsh-host-harness-product/desktop-start'
 import { spawn, type ChildProcess } from 'node:child_process'
 import { DesktopParentAuthentication } from './parent-authentication.ts'
 import { join } from 'node:path'
 import { z } from 'zod'
-import type { PlatformSession } from '@deepseek-ai/dsh-deepseek-account'
 import { desktopNodeEnvironment } from './node-environment.ts'
-import { parsePluginOperationRecord, type PluginOperationRecord, type PluginOperationRunId } from '@deepseek-ai/dsh-plugin-manager/diagnostic'
+import { parsePluginOperationRecord, type PluginOperationRecord,
+  type PluginOperationRunId } from '@deepseek-ai/dsh-plugin-manager/diagnostic'
 
 interface ReadyEvent {
   readonly type: 'ready'
+  readonly generation: number
   readonly url: string
   readonly injections?: readonly unknown[] | undefined
 }
@@ -21,15 +25,10 @@ interface FatalEvent {
   readonly diagnostic?: string
 }
 
-interface PlatformSessionEvent {
-  readonly type: 'platform-session'
-  readonly session: PlatformSession | null
-}
-
-type DesktopHostEvent = ReadyEvent | FatalEvent | PlatformSessionEvent | {
+type DesktopHostEvent = ReadyEvent | FatalEvent | {
   readonly type: 'starting'
   readonly runId: PluginOperationRunId
-} | { readonly type: 'shutdown-complete' } | {
+} | { readonly type: 'product-failed'; readonly status: number; readonly code: string; readonly message: string } | { readonly type: 'product-resumed'; readonly requestId: number } | { readonly type: 'shutdown-complete' } | {
   readonly type: 'file-drag-resource'
   readonly requestId: number
   readonly resource: { readonly path: string; readonly sha256: string; readonly size: number } | null
@@ -80,29 +79,13 @@ function isDesktopHostEvent(message: unknown): message is DesktopHostEvent {
   switch (candidate.type) {
     case 'starting':
       return runIdSchema.safeParse(candidate.runId).success
+    case 'product-failed': return typeof candidate.status === 'number' && typeof candidate.code === 'string' &&
+      typeof candidate.message === 'string'
+    case 'product-resumed': return Number.isSafeInteger(candidate.requestId)
     case 'shutdown-complete':
       return true
     case 'ready':
-      return isOwnedHostUrl(candidate.url)
-    case 'platform-session': {
-      const session = candidate.session
-      if (session === null) return true
-      if (typeof session !== 'object' || !('origin' in session) || !('token' in session)
-        || typeof session.origin !== 'string' || typeof session.token !== 'string' || session.token.length === 0) return false
-      if (!('userId' in session) || (session.userId !== null
-        && (typeof session.userId !== 'string' || session.userId.length === 0))) return false
-      if ('embeddedPageDist' in session && typeof session.embeddedPageDist !== 'string') return false
-      if ('requestHeaders' in session && (typeof session.requestHeaders !== 'object' || session.requestHeaders === null
-        || Array.isArray(session.requestHeaders)
-        || Object.entries(session.requestHeaders).some(([name, value]) => typeof value !== 'string'
-          || name !== name.toLowerCase() || /[\r\n]/.test(value)
-          || ['authorization', 'x-dsh-auth-token', 'host', 'content-length', 'transfer-encoding', 'connection', 'content-type'].includes(name)))) return false
-      try {
-        const url = new URL(session.origin)
-        return url.origin === session.origin && !url.username && !url.password
-          && (url.protocol === 'https:' || (url.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)))
-      } catch { return false }
-    }
+      return isOwnedHostUrl(candidate.url) && Number.isSafeInteger(candidate.generation)
     case 'fatal':
       return typeof candidate.message === 'string' && (candidate.diagnostic === undefined || typeof candidate.diagnostic === 'string')
     case 'update-tasks':
@@ -120,19 +103,6 @@ function isDesktopHostEvent(message: unknown): message is DesktopHostEvent {
         && typeof candidate.scheduledTasks === 'boolean' && (candidate.error === undefined || typeof candidate.error === 'string')
     default:
       return false
-  }
-}
-
-async function exitsWithin(exit: Promise<void>, milliseconds: number): Promise<boolean> {
-  let timer: ReturnType<typeof setTimeout> | undefined
-  const timeout = new Promise<false>((resolve) => {
-    timer = setTimeout(() => { resolve(false) }, milliseconds)
-    timer.unref()
-  })
-  try {
-    return await Promise.race([exit.then(() => true), timeout])
-  } finally {
-    if (timer !== undefined) clearTimeout(timer)
   }
 }
 
@@ -171,7 +141,9 @@ export class DesktopHostFatalError extends Error {
 
 /** One Web backend running under the Electron executable in Node mode. */
 export class DesktopHostProcess {
-  readonly #authentication = new DesktopParentAuthentication()
+  readonly #authentication: DesktopParentAuthentication
+  private processTree: HarnessProcessTree | undefined
+  private stopOperation: Promise<void> | undefined
   private runId: PluginOperationRunId | undefined
   private child: ChildProcess | undefined
   private readyResolve!: (ready: DesktopHostReady) => void
@@ -180,7 +152,6 @@ export class DesktopHostProcess {
     this.readyResolve = resolve
     this.readyReject = reject
   })
-  private exitPromise: Promise<void> | undefined
   private stderr = ''
   private failureReported = false
   private stopping = false
@@ -200,7 +171,6 @@ export class DesktopHostProcess {
    * @param onFailure - Receives the first unexpected child failure, including after readiness.
    * @param primaryRuntime - Optional bundled dependency payload; the Host exposes it to its profile as `DSH_PRIMARY_RUNTIME`.
    * @param packageManager - Bundled pnpm entry and Node launcher directory, scoped to package operations.
-   * @param onPlatformSession - Private credential updates for embedded Platform views.
    * @param onPluginOperation - Optional diagnostic sink; malformed records are ignored without failing the Host.
    */
   constructor(
@@ -212,10 +182,10 @@ export class DesktopHostProcess {
     private readonly onFailure?: (error: Error) => void,
     private readonly primaryRuntime?: string,
     private readonly packageManager?: { readonly pnpm: string; readonly nodeBin: string },
-
-    private readonly onPlatformSession?: (session: PlatformSession | null) => void,
     private readonly onPluginOperation?: (record: PluginOperationRecord) => void,
-  ) {}
+    private readonly product?: DesktopProductStart,
+    private readonly shutdownGraceMs = 5_000,
+  ) { this.#authentication = new DesktopParentAuthentication(product) }
 
   /**
    * Start this child once and await its Web application URL.
@@ -223,6 +193,7 @@ export class DesktopHostProcess {
    */
   async start(): Promise<DesktopHostReady> {
     if (this.child !== undefined) return this.readyPromise
+    if (this.product === undefined) throw new HarnessAuthError(403, 'HARNESS_PRIVATE_ONLY', '必须先登录产品账号才能启动桌面 Host')
     const entry = join(this.runtimeDir, 'node_modules', '@deepseek-ai', 'dsh-desktop-host', 'lib', 'index.js')
     const child = spawn(this.node, [
       '--expose-internals',
@@ -235,10 +206,14 @@ export class DesktopHostProcess {
       ...this.packageManager === undefined ? [] : [this.packageManager.pnpm, this.packageManager.nodeBin],
     ], {
       cwd: this.projectDir,
-      env: desktopNodeEnvironment(this.node, undefined, this.environment),
+      env: desktopNodeEnvironment(this.node, undefined,
+        Object.fromEntries(Object.entries(this.environment).filter(([key]) =>
+          !/^(DSH_HOME$|DEEPSEEK_|OPENAI_|ANTHROPIC_|HTTP_PROXY$|HTTPS_PROXY$|ALL_PROXY$|NO_PROXY$)/iu.test(key)))),
+      detached: process.platform !== 'win32',
       stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
     })
     this.child = child
+    this.processTree = new HarnessProcessTree(child)
     child.stderr?.setEncoding('utf8')
     child.stderr?.on('data', (chunk: string) => { this.stderr = (this.stderr + chunk).slice(-MAX_HOST_DIAGNOSTIC_CHARS) })
     child.stdout?.pipe(process.stdout)
@@ -269,6 +244,7 @@ export class DesktopHostProcess {
         }
       }
       else if (message.type === 'ready') {
+        if (message.generation !== this.product?.generation) { this.fail(new Error('桌面 Host 返回了过期代次')); return }
         void this.#authentication.readyCookie().then((authenticationCookie) => {
           if (this.failureReported || this.stopping) return
           this.readyResolve({ url: message.url, injections: message.injections, authenticationCookie })
@@ -277,26 +253,23 @@ export class DesktopHostProcess {
           child.kill('SIGTERM')
         })
       }
-      else if (message.type === 'platform-session') this.onPlatformSession?.(message.session)
       else if (message.type === 'shutdown-complete') {
         if (this.stopping) this.shutdownCompleted = true
         else this.fail(new Error('dsh desktop host acknowledged an unrequested shutdown'))
       }
+      else if (message.type === 'product-failed') this.fail(new HarnessAuthError(message.status, message.code, message.message))
       else if (message.type === 'fatal') this.fail(new DesktopHostFatalError(message.message, message.diagnostic))
       else {
         const request = this.controlRequests.get(message.requestId)
-        if (message.error === undefined) request?.resolve(message)
-        else request?.reject(new Error(message.error))
+        if ('error' in message) request?.reject(new Error(message.error))
+        else request?.resolve(message)
       }
     })
     child.once('error', (error) => { this.fail(error) })
-    this.exitPromise = new Promise<void>((resolve) => {
-      child.once('close', (code) => {
-        const suffix = this.stderr.trim() === '' ? '' : `: ${this.stderr.trim()}`
-        if (code !== 0 && code !== null) this.fail(new Error(`dsh desktop host exited with ${String(code)}${suffix}`))
-        else this.fail(new Error(`dsh desktop host stopped${suffix}`))
-        resolve()
-      })
+    child.once('close', (code) => {
+      const suffix = this.stderr.trim() === '' ? '' : `: ${this.stderr.trim()}`
+      if (code !== 0 && code !== null) this.fail(new Error(`dsh desktop host exited with ${String(code)}${suffix}`))
+      else this.fail(new Error(`dsh desktop host stopped${suffix}`))
     })
     return this.readyPromise
   }
@@ -308,7 +281,8 @@ export class DesktopHostProcess {
    * an unanswered drain fails at the control-request deadline without authorizing installation.
    */
   async updateTasks(action: 'inspect' | 'lock' | 'unlock'): Promise<boolean> {
-    const response = await this.control({ type: 'update-tasks', action }, 10_000, 'desktop update: task inspection timed out', 'desktop update')
+    const response = await this.control({ type: 'update-tasks', action }, 10_000,
+      'desktop update: task inspection timed out', 'desktop update')
     if (response.type !== 'update-tasks') throw new Error('desktop update: Host answered with a different control response')
     return response.active
   }
@@ -319,7 +293,8 @@ export class DesktopHostProcess {
    * {@link QUIT_INSPECTION_DEADLINE_MS}, and the shell then asks before quitting.
    */
   async inspectQuit(): Promise<DesktopQuitInspection> {
-    const response = await this.control({ type: 'quit-inspection' }, QUIT_INSPECTION_DEADLINE_MS, 'desktop quit: inspection timed out', 'desktop quit')
+    const response = await this.control({ type: 'quit-inspection' }, QUIT_INSPECTION_DEADLINE_MS,
+      'desktop quit: inspection timed out', 'desktop quit')
     if (response.type !== 'quit-inspection') throw new Error('desktop quit: Host answered with a different control response')
     return { activeTasks: response.activeTasks, scheduledTasks: response.scheduledTasks }
   }
@@ -332,14 +307,15 @@ export class DesktopHostProcess {
   async resolveDragResource(address: string, signal?: AbortSignal): Promise<
     { readonly path: string; readonly sha256: string; readonly size: number } | null
   > {
-    const response = await this.control({ type: 'file-drag-resource', address }, 12_000, 'File drag authorization timed out', 'file drag', signal)
+    const response = await this.control({ type: 'file-drag-resource', address }, 12_000,
+      'File drag authorization timed out', 'file drag', signal)
     if (response.type !== 'file-drag-resource') throw new Error('Host returned a different control response')
     return response.resource
   }
 
   private async control(
     request: { readonly type: 'update-tasks'; readonly action: 'inspect' | 'lock' | 'unlock' } | { readonly type: 'quit-inspection' }
-      | { readonly type: 'file-drag-resource'; readonly address: string },
+      | { readonly type: 'file-drag-resource'; readonly address: string } | { readonly type: 'product-resume' },
     deadlineMs: number, deadlineMessage: string, operation: string, signal?: AbortSignal,
   ): Promise<DesktopHostControlResponse> {
     const child = this.child
@@ -376,31 +352,46 @@ export class DesktopHostProcess {
    * @returns Completion of owned process teardown. DesktopHostUncleanExitError confirms exit but refuses installation;
    * other failures do not confirm exit.
    */
-  async stop(requireGraceful = false): Promise<void> {
+  stop(requireGraceful = false): Promise<void> {
+    if (this.child === undefined) return Promise.resolve()
+    if (this.stopOperation !== undefined) return this.stopOperation
+    const operation = this.stopOwned(requireGraceful).catch((error: unknown) => {
+      if (this.child !== undefined) this.stopOperation = undefined
+      throw error
+    })
+    this.stopOperation = operation
+    return operation
+  }
+
+  private async stopOwned(requireGraceful: boolean): Promise<void> {
     const child = this.child
     if (child === undefined) return
     this.stopping = true
-    this.onPlatformSession?.(null)
-    if (child.connected) child.send({ type: 'shutdown' }, (error) => { if (error !== null) this.fail(error) })
-    const exited = this.exitPromise ?? Promise.resolve()
-    const graceful = await exitsWithin(exited, 10_000)
-    if (!graceful) child.kill('SIGTERM')
-    if (!await exitsWithin(exited, 5_000)) {
-      child.kill('SIGKILL')
-      if (!await exitsWithin(exited, 5_000)) {
-        throw new Error('dsh desktop host did not exit after SIGKILL')
-      }
-    }
+    this.readyReject(new HarnessAuthError(401, 'HARNESS_LOGIN_CANCELLED', '本次启动已停止'))
+    for (const pending of this.controlRequests.values()) pending.reject(new HarnessAuthError(401, 'HARNESS_RUNTIME_CLOSED', '本地会话已结束'))
+    this.controlRequests.clear()
+    if (this.processTree === undefined) throw new HarnessAuthError(503, 'HARNESS_STOP_FAILED', '无法确认运行进程状态')
+    const graceful = await this.processTree.stop(this.shutdownGraceMs, () => {
+      if (child.connected) child.send({ type: 'shutdown' }, () => undefined)
+    })
     this.child = undefined
     if (requireGraceful && (!graceful || child.exitCode !== 0 || !this.shutdownCompleted)) {
-      // This diagnostic reaches expandable UI; arbitrary plugin stderr can contain credentials.
-      throw new DesktopHostUncleanExitError(`desktop update: Host did not complete graceful task teardown (exit ${String(child.exitCode)}, signal ${String(child.signalCode)}, shutdown acknowledged ${String(this.shutdownCompleted)}, graceful deadline exceeded ${String(!graceful)})`)
+      throw Object.assign(new DesktopHostUncleanExitError('运行进程已停止，但未完成正常资源释放'),
+        { shutdownAcknowledged: this.shutdownCompleted, gracefulDeadlineExceeded: !graceful })
     }
   }
 
+  /** 定期记录后代的启动身份，供退出确认使用。 */
+  observe(): void { this.processTree?.observe() }
+  /** 休眠前暂停所有新的 Host 执行边界。 */
+  suspend(): void { if (this.child?.connected) this.child.send({ type: 'product-suspend' }, () => undefined) }
+  /** 唤醒先完成 Host 独立验证，然后允许新操作。 */
+  async resume(): Promise<void> { await this.control({ type: 'product-resume' }, 5_000, '认证服务暂不可用', 'resume') }
+  /** 同步退出只终止仍属于本代的进程。 */
+  terminateOnExit(): void { this.processTree?.terminateOnExit() }
+
   private fail(error: Error): void {
     if (this.runId !== undefined) Object.assign(error, { hostRunId: this.runId })
-    this.onPlatformSession?.(null)
     this.readyReject(error)
     for (const request of this.controlRequests.values()) request.reject(error)
     this.controlRequests.clear()

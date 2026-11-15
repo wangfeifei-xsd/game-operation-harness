@@ -60,7 +60,7 @@ it.skipIf(process.platform !== 'darwin')('prepares private machine directories w
   }
 })
 
-it.each(['arm64', 'x64'])('records %s debugging artifact paths only for an explicit CI selection without notarization credentials', async (arch) => {
+it.each(['arm64', 'x64'])('rejects signed %s CI packaging until its controlled product update source is configured', async (arch) => {
   const root = await mkdtemp(join(tmpdir(), 'macos-ci-settings-'))
   try {
     await mkdir(join(root, 'presets'))
@@ -87,18 +87,14 @@ it.each(['arm64', 'x64'])('records %s debugging artifact paths only for an expli
       } })
     const missingCredentials = run('false')
     expect(missingCredentials.status).toBe(1)
-    expect(missingCredentials.stderr).toContain('macOS packaging requires APPLE_API_KEY')
+    expect(missingCredentials.stderr).toContain('正式发布缺少应用身份、下载索引或普通更新源')
     const invalidSelection = run('yes')
     expect(invalidSelection.status).toBe(1)
     expect(invalidSelection.stderr).toContain('Invalid skip notarization selection')
     const debugging = run('true')
-    expect(debugging.error).toBeUndefined()
-    expect(debugging.signal).toBeNull()
-    expect(debugging.stderr).toBe('')
-    expect(debugging.status).toBe(0)
-    expect(await readFile(output, 'utf8')).toContain('artifacts=unnotarized-artifacts\nmode=unnotarized-debug\n')
-    expect(await readFile(summary, 'utf8')).toContain('Internal debugging only')
-    expect(await readFile(summary, 'utf8')).toContain(`macOS ${arch} signed installer`)
+    expect(debugging.status).toBe(1)
+    expect(debugging.stderr).toContain('正式发布缺少应用身份、下载索引或普通更新源')
+
   } finally {
     await rm(root, { recursive: true, force: true })
   }

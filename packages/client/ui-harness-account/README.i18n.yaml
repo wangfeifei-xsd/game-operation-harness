@@ -1,0 +1,43 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/client/ui-harness-account/README.md
+/:
+  en: 9d69019b1725a427
+  zh: ec1925b682fe7cbf
+/deepseek-ai-dsh-client-ui-harness-account:
+  en: 6f0ee2326a6dfa48
+  zh: 479e616999893b04
+/deepseek-ai-dsh-client-ui-harness-account/summary:
+  en: b790e911e326d432
+  zh: 5e0333e0bea4a422
+/deepseek-ai-dsh-client-ui-harness-account/table-of-contents:
+  en: ece13d4a18088d9d
+  zh: 0a15c15b9ed72090
+/deepseek-ai-dsh-client-ui-harness-account/use-this-package:
+  en: dcad4558b4ad4f9f
+  zh: 6f213a16366683d1
+/deepseek-ai-dsh-client-ui-harness-account/further-exploration:
+  en: 4b03b9ca18673f2b
+  zh: ebd7e471745bb483
+/deepseek-ai-dsh-client-ui-harness-account/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/deepseek-ai-dsh-client-ui-harness-account/model-experience/public-account-controls:
+  en: a35206817932b762
+  zh: 6ce20d6b41cd645b
+/deepseek-ai-dsh-client-ui-harness-account/model-experience/public-account-controls/what-the-model-sees:
+  en: 602e7c30ea3c074d
+  zh: da66cbb808043689
+/deepseek-ai-dsh-client-ui-harness-account/model-experience/public-account-controls/token-effect:
+  en: 7474becb84e3bdd4
+  zh: 15027de889c7f3a4
+/deepseek-ai-dsh-client-ui-harness-account/model-experience/public-account-controls/kv-cache-effect:
+  en: 85ba4cc7b018875c
+  zh: 3502fcc2c5818c08
+/deepseek-ai-dsh-client-ui-harness-account/known-limitations-and-deferred-work:
+  en: a05abd62cb399cd8
+  zh: 34aa928a5558198a
+/deepseek-ai-dsh-client-ui-harness-account/known-limitations-and-deferred-work/dev-note:
+  en: a02c34aa6a92d06b
+  zh: d7e8048f6690f99d

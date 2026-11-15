@@ -1,3 +1,4 @@
+import './installed-update-fixture.ts'
 import { execFile } from 'node:child_process'
 import { mkdtemp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -8,7 +9,7 @@ import { createInstalledUpdateRun, readInstalledUpdateRun } from '../scripts/ins
 import { prepareInstalledUpdateBootstrap } from '../scripts/prepare-installed-update-bootstrap.ts'
 import { configureInstalledUpdateIdentity } from '../scripts/installed-update-identity.mjs'
 
-const versions = ['0.1.6-nightly.20260914.1', '0.1.6-nightly.20260914.2'] as const
+const versions = ['1.0.1', '1.0.2'] as const
 const source = { version: '0.1.5-rc.2', commit: 'a'.repeat(40), dirtyFiles: [] }
 
 async function fixture<T>(body: (directory: string) => Promise<T>): Promise<T> {
@@ -47,10 +48,10 @@ console.log(JSON.stringify({ paths: app.paths, home: process.env.DSH_HOME, journ
         expect(stderr).toBe('')
         results.push(JSON.parse(stdout))
       }
-      const root = join(directory, 'application-data/dsh-update-qualification', run.id)
+      const root = join(directory, 'application-data/agent-assistant-update-qualification', run.id)
       expect(results).toEqual([0, 1].map(() => ({ paths: { userData: join(root, 'user-data'), sessionData: join(root, 'user-data') },
-        home: join(root, 'dsh-home'), journals: join(root, 'journals') })))
-      expect((await readdir(root)).sort()).toEqual(['dsh-home', 'journals', 'user-data'])
+        home: 'must-not-be-used', journals: join(root, 'journals') })))
+      expect((await readdir(root)).sort()).toEqual(['journals', 'user-data'])
       await expect(prepareInstalledUpdateBootstrap(join(run.root, 'run.json'))).rejects.toMatchObject({ code: 'EEXIST' })
     })
   })
@@ -59,7 +60,7 @@ console.log(JSON.stringify({ paths: app.paths, home: process.env.DSH_HOME, journ
     await fixture(async (directory) => {
       const env = { DSH_HOME: 'existing' }
       const app = { getPath: () => directory, setPath: (): never => { throw new Error('unexpected path change') } }
-      expect(() => configureInstalledUpdateIdentity(app, { id: 'a'.repeat(24), versions },
+      expect(() => configureInstalledUpdateIdentity(app, { id: 'a'.repeat(24), appId: `com.example.qualification.q${'a'.repeat(24)}`, versions },
         { version: versions[0], dshDesktopAppId: 'com.deepseek.dsh' }, env)).toThrow('identity')
       expect(await readdir(directory)).toEqual([])
       expect(env).toEqual({ DSH_HOME: 'existing' })

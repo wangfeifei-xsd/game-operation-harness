@@ -23,10 +23,10 @@ async function retainedFixture(target: 'win-x64' | 'mac-x64' | 'mac-arm64', qual
   await mkdir(join(config, 'presets'), { recursive: true })
   await writeFile(join(appRoot, 'package.json'), '{"version":"1.0.0"}')
   await writeFile(join(config, 'presets/test.env'), `DSH_DESKTOP_AUTO_UPDATE_ENV=test\nDOWNLOAD_TEST_RELEASE_ID=${'a'.repeat(32)}\n`)
-  const names = debug ? (target === 'win-x64' ? [`deepseek-harness-1.0.0-win-x64-${qualification}.exe`]
-    : [`deepseek-harness-1.0.0-${target}-${qualification}.dmg`, `deepseek-harness-1.0.0-${target}-${qualification}.zip`]) : target === 'win-x64'
-    ? ['deepseek-harness-1.0.0-win-x64.exe', 'deepseek-harness-1.0.0-win-x64.exe.blockmap', 'win-x64-release.json', 'nightly.yml']
-    : [`deepseek-harness-1.0.0-${target}.dmg`, `deepseek-harness-1.0.0-${target}.zip`, `deepseek-harness-1.0.0-${target}.zip.blockmap`, `${target}-release.json`, 'nightly-mac.yml']
+  const names = debug ? (target === 'win-x64' ? [`agent-assistant-1.0.0-win-x64-${qualification}.exe`]
+    : [`agent-assistant-1.0.0-${target}-${qualification}.dmg`, `agent-assistant-1.0.0-${target}-${qualification}.zip`]) : target === 'win-x64'
+    ? ['agent-assistant-1.0.0-win-x64.exe', 'agent-assistant-1.0.0-win-x64.exe.blockmap', 'win-x64-release.json', 'stable.yml']
+    : [`agent-assistant-1.0.0-${target}.dmg`, `agent-assistant-1.0.0-${target}.zip`, `agent-assistant-1.0.0-${target}.zip.blockmap`, `${target}-release.json`, 'stable-mac.yml']
   await Promise.all(names.map(name => writeFile(join(artifacts, name), `fixture ${name}`)))
   const env = {
     DSH_DESKTOP_RELEASES_DIR: '', DSH_PACKAGING_CONFIG_DIR: config, DSH_PACKAGING_PRESET: 'test', DSH_DESKTOP_TARGET_PLATFORM: target === 'win-x64' ? 'win32' : 'darwin',
@@ -112,7 +112,7 @@ it.each([
     expect(summary).not.toContain('Publish separately')
     await expect(prepareDesktopPublication({ ...env, DESKTOP_PUBLISH_ROUTE: JSON.stringify({
       runId: '123', attempt: '2', commit: env.GITHUB_SHA, runnerName: env.RUNNER_NAME, target, preset: 'test', sourceRef: 'master', channel: 'nightly',
-    }) })).rejects.toThrow('重跑当前发布任务无效')
+    }) })).rejects.toThrow('正式发布缺少应用身份、下载索引或普通更新源')
     await expect(summary).toMatchFileSnapshot(`./expected/retained-${qualification}.md`)
   } else expect(summary).toContain('Publish separately with package_run_id=123 and package_run_attempt=2')
 })

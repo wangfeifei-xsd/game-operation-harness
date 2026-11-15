@@ -169,3 +169,15 @@ export interface SettingsLauncherOwnerProps {
   /** @param id - registered onboarding editor to open explicitly. */
   openOnboarding: (id: string) => void
 }
+
+
+declare module '@deepseek-ai/cordis' {
+  interface Events {
+    /**
+     * 打开设置窗口并定位分区；窗口和状态仍由设置壳唯一持有。
+     * @mode emit
+     * @param sectionId - 目标设置分区。
+     */
+    'settings/open'(sectionId: string): void
+  }
+}

@@ -20,11 +20,16 @@
     },
     "./src/*": "./src/*",
     "./package.json": "./package.json",
-    "./locale/*.json": "./locale/*.json"
+    "./locale/*.json": "./locale/*.json",
+    "./model-config": {
+      "types": "./lib/types/model-config.d.ts",
+      "default": "./lib/model-config.js"
+    }
   },
   "files": [
     "locale/*.json",
     "lib/index.js",
+    "lib/model-config.js",
     "lib/types/**/*.d.ts",
     "lib/types/**/*.d.ts.map",
     "lib/**/*.js.map",

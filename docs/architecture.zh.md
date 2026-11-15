@@ -50,9 +50,9 @@ Python SDK 遵循相同的应用架构。其运行时 wheel 把普通 `dsh` CLI 
 
 ## 桌面应用
 
-[Electron 桌面应用](../apps/desktop/README.zh.md)在签名资源中携带精确匹配的 dsh 生产运行时，并拥有保留的 `$DSH_HOME/profiles/desktop`。共享 helper 初始化 profile 文件、协调 bundle，并解析安装与 bundle 的依赖而不替换 pnpm 拥有的包。Desktop 与 npm CLI 共享产品数据，但包、启用选择与锁文件保持独立。Desktop 内置 CLI 管理其已初始化的插件。
+[Electron 桌面应用](../apps/desktop/README.zh.md)在应用资源中携带生产运行时。主进程先认证 Creativity 账号，再通过保留的 `desktop` profile 启动私有 Host。Web 与 Desktop 使用相同的环境/账号目录及独占目录锁，应用依赖与用户数据分开保存。
 
-Electron 使用 Electron Node 模式启动私有 Desktop Host。Host 调用共享 CLI profile runner 与完整 Web 应用。窗口立即加载打包 Web 资源，等待启动注入后在同一文档中激活客户端插件。Web 负责 RPC 与流；桌面载体将本地页面连接到已认证的 Host。Node IPC 承载启动注入、就绪、致命错误与关闭。Desktop 默认监听系统分配的端口，profile 配置可覆盖。壳拥有的 UI 通过内置 pnpm 执行插件事务，并遵循正常用户与 profile 配置。
+私有 IPC 向 Host 交付产品身份及本次启动的本机凭据。受保护产品装配在恢复账号任务之前安装中央授权检查，并禁止用户配置替换它。打包 Web 资源提供聊天界面；主进程只为当前账号窗口附加本机凭据，Token 仅存于进程内存。退出或认证故障先关闭账号访问，确认受管进程树停止后才释放目录。
 
 ## 核心包
 

@@ -68,6 +68,7 @@ async function cancellable<T>(operation: Promise<T>, signal: AbortSignal): Promi
 export function installDesktopFileDrag(
   owner: (event: IpcMainInvokeEvent) => BrowserWindow,
   resolveResource: (address: string, signal: AbortSignal) => Promise<LocalResource | null>,
+  centralAuthorize: (event: IpcMainInvokeEvent) => Promise<unknown> = () => Promise.resolve(),
 ): () => Promise<void> {
   let disposed = false
   const preparations = new Map<string, AbortController>()
@@ -80,6 +81,8 @@ export function installDesktopFileDrag(
     return owner(event)
   }
   const prepare = async (event: IpcMainInvokeEvent, value: unknown, signal: AbortSignal): Promise<FileDragHandle | undefined> => {
+    authorize(event)
+    await centralAuthorize(event)
     authorize(event)
     const source = requestOf(value)
     let handle: FileDragHandle
@@ -123,7 +126,9 @@ export function installDesktopFileDrag(
     authorize(event)
     if (typeof requestId === 'string') preparations.get(requestId)?.abort(new Error('File preparation cancelled'))
   })
-  ipcMain.handle(DESKTOP_IPC.fileDragStart, (event, handle: unknown) => {
+  ipcMain.handle(DESKTOP_IPC.fileDragStart, async (event, handle: unknown) => {
+    authorize(event)
+    await centralAuthorize(event)
     const window = authorize(event)
     const icon = typeof handle === 'string' ? icons.get(handle) : undefined
     if (icon === undefined || typeof handle !== 'string') return false

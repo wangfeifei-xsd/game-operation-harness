@@ -79,7 +79,7 @@ const localArtifactDirs = new Set(['node_modules'])
 const appPackageFiles: Readonly<Record<string, readonly string[]>> = {
   // Only `prepack` stages `docs`; every other reader of this directory sees
   // whatever the checkout holds.
-  '@deepseek-ai/dsh': ['lib/*.js', 'lib/*.js.map', 'lib/types/*.d.ts', 'lib/types/*.d.ts.map', 'docs', 'src'],
+  '@deepseek-ai/dsh': ['lib/*.js', 'lib/*.js.map', 'lib/types/*.d.ts', 'lib/types/*.d.ts.map', 'lib/resources', 'docs', 'src'],
   '@deepseek-ai/dsh-desktop-host': [
     'lib/index.js', 'lib/cli.js',
   ],
@@ -253,7 +253,10 @@ const packageFileExtras: Readonly<Record<string, readonly string[]>> = {
   ],
   // Ordinary native containment ships a path-loaded runner and its shared
   // runner chunk beside the existing node-pty permission repair.
+  '@deepseek-ai/dsh-host-harness-product': ['lib/*.js'],
+  '@deepseek-ai/dsh-llm-pi-ai': ['lib/model-config.js'],
   '@deepseek-ai/dsh-subprocess-local': [
+    'lib/process-inspector.js', 'lib/process-inspector-*.js',
     'lib/runner.js',
     'lib/runner-*.js',
     'lib/output.js',

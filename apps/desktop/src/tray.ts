@@ -11,6 +11,8 @@ export interface DesktopTrayOptions {
   /** Show and focus the primary window. */
   readonly open: () => void
   /** Request quit through the same confirmation as every other quit entry. */
+  readonly logout?: () => void
+  readonly authenticated?: () => boolean
   readonly quit: () => void
 }
 
@@ -34,6 +36,8 @@ export class DesktopTray {
     tray.setToolTip(messages.aboutProduct)
     tray.setContextMenu(Menu.buildFromTemplate([
       { label: messages.openApplication, click: () => { this.options.open() } },
+      ...(this.options.logout === undefined ? [] : [{ label: messages.productSignOut,
+        enabled: this.options.authenticated?.() === true, click: this.options.logout }]),
       { type: 'separator' },
       { label: messages.quitApplication, click: () => { this.options.quit() } },
     ]))

@@ -1,0 +1,43 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/api/model-config-controller/README.md
+/:
+  en: 04cbf5a45f101688
+  zh: 6f343e2885831bf2
+/deepseek-ai-dsh-api-model-config-controller:
+  en: 9e606d679e257b6f
+  zh: 9cdcf0c9c6c2b446
+/deepseek-ai-dsh-api-model-config-controller/summary:
+  en: 8bc4b8fd26e98cff
+  zh: 6c047fd3a6fdd338
+/deepseek-ai-dsh-api-model-config-controller/table-of-contents:
+  en: 915fd82850e37f7d
+  zh: 900af7047e4e1012
+/deepseek-ai-dsh-api-model-config-controller/use-this-package:
+  en: 7aedeafbe1a698cd
+  zh: 7759f18327b52fa9
+/deepseek-ai-dsh-api-model-config-controller/further-exploration:
+  en: e895cdea95e06989
+  zh: 4a837b1a3585039e
+/deepseek-ai-dsh-api-model-config-controller/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/deepseek-ai-dsh-api-model-config-controller/model-experience/model-configuration-operations:
+  en: 40a1f7baec39af13
+  zh: e30200754ce3f594
+/deepseek-ai-dsh-api-model-config-controller/model-experience/model-configuration-operations/what-the-model-sees:
+  en: f77ad5d4d46f2922
+  zh: 1167e6b640f65921
+/deepseek-ai-dsh-api-model-config-controller/model-experience/model-configuration-operations/token-effect:
+  en: 14fbc561356288c0
+  zh: 5b5bd25f0082a1c2
+/deepseek-ai-dsh-api-model-config-controller/model-experience/model-configuration-operations/kv-cache-effect:
+  en: dfff141d2ca2e8eb
+  zh: 0f97c945b6ad3e8b
+/deepseek-ai-dsh-api-model-config-controller/known-limitations-and-deferred-work:
+  en: b57888b8366f2489
+  zh: a97952440418f287
+/deepseek-ai-dsh-api-model-config-controller/known-limitations-and-deferred-work/dev-note:
+  en: 2b56403f9a948e42
+  zh: d184ef6973e6f02b

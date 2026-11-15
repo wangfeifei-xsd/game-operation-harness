@@ -43,6 +43,18 @@
     },
     {
       "path": "../product-analytics/tsconfig.client.json"
+    },
+    {
+      "path": "../ui-theme/tsconfig.client.json"
+    },
+    {
+      "path": "../ui-model-selection"
+    },
+    {
+      "path": "../../llm/harness-model-config"
+    },
+    {
+      "path": "../../typert/protocol"
     }
   ]
 }

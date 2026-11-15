@@ -295,8 +295,8 @@ describe('CatLogo', () => {
 
 describe('BrandWordmark', () => {
   it('keeps the localized name complete and includes exactly the requested mark', () => {
-    const view = render(<primitives.BrandWordmark label="游戏运营 Agent" />)
-    expect(view.container.textContent).toBe('游戏运营 Agent')
+    const view = render(<primitives.BrandWordmark label="Agent 助手" />)
+    expect(view.container.textContent).toBe('Agent 助手')
     expect(view.container.querySelectorAll('[data-brand-cat]')).toHaveLength(1)
     view.rerender(<primitives.BrandWordmark label="game-operation-harness" includeMark={false} />)
     expect(view.container.textContent).toBe('game-operation-harness')

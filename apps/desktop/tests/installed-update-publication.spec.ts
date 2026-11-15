@@ -1,3 +1,4 @@
+import './installed-update-fixture.ts'
 import { createHash } from 'node:crypto'
 import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -45,18 +46,18 @@ async function fixture(body: (context: {
   const parent = await mkdtemp(join(tmpdir(), 'dsh-publication-'))
   try {
     vi.spyOn(console, 'log').mockImplementation(() => undefined)
-    const run = await createInstalledUpdateRun(parent, ['0.1.6-nightly.20260914.1', '0.1.6-nightly.20260914.2'],
+    const run = await createInstalledUpdateRun(parent, ['1.0.1', '1.0.2'],
       { version: '0.1.5-rc.2', commit: 'a'.repeat(40), dirtyFiles: [] })
     const manifest = join(run.root, 'run.json')
     const receipts: string[] = []
     for (const version of run.versions) {
       const directory = join(run.root, version, 'installer')
       await mkdir(directory, { recursive: true })
-      const name = `deepseek-harness-${version}-win-x64.exe`
+      const name = `agent-assistant-${version}-win-x64.exe`
       const bytes = Buffer.from(`inert installer ${version}`)
       await writeFile(join(directory, name), bytes)
       await writeFile(join(directory, `${name}.blockmap`), 'inert map')
-      await writeFile(join(directory, 'nightly.yml'), JSON.stringify({ version, files: [{ url: name, ...digest(bytes) }] }))
+      await writeFile(join(directory, 'stable.yml'), JSON.stringify({ version, files: [{ url: name, ...digest(bytes) }] }))
       const check = join(run.root, version, 'verification/check-fixture')
       await mkdir(check, { recursive: true })
       const receipt = join(check, 'result.json')
@@ -67,7 +68,7 @@ async function fixture(body: (context: {
       await writeFile(join(check, 'inputs.json'), JSON.stringify({ manifestSha512: await installedUpdateFileHash(manifest), distribution }))
       receipts.push(receipt)
     }
-    const journals = join(parent, 'dsh-update-qualification', run.id, 'journals')
+    const journals = join(parent, 'agent-assistant-update-qualification', run.id, 'journals')
     await mkdir(journals, { recursive: true })
     const time = new Date(Date.now() - 60_000).toISOString()
     await writeFile(join(journals, '1-00000000-0000-0000-0000-000000000000.jsonl'), ['started', 'workspace-ready']
@@ -84,7 +85,7 @@ describe('qualification publication sequencing', () => {
       }
       expect(store.writes).toHaveLength(4)
       expect(store.writes.every(write => write.immutable && write.key.includes('/bin/'))).toBe(true)
-      expect([...store.objects.keys()].some(key => key.endsWith('nightly.yml'))).toBe(false)
+      expect([...store.objects.keys()].some(key => key.endsWith('stable.yml'))).toBe(false)
       const reads = vi.spyOn(store, 'read')
       const publicReads = vi.spyOn(store, 'publicRead')
       const versioning = vi.spyOn(store, 'versioningDisabled')
@@ -96,8 +97,8 @@ describe('qualification publication sequencing', () => {
       const reconciled = await executeInstalledUpdatePublication(manifest, versions[1], receipts[1]!, 'publish-feed', store, journals)
       expect(store.writes).toHaveLength(6)
       expect(JSON.parse(await readFile(reconciled, 'utf8'))).toMatchObject({ success: true, alreadyPublished: true })
-      expect(reads.mock.calls.every(([key]) => key.endsWith('nightly.yml'))).toBe(true)
-      expect(publicReads.mock.calls.every(([url]) => url.endsWith('nightly.yml'))).toBe(true)
+      expect(reads.mock.calls.every(([key]) => key.endsWith('stable.yml'))).toBe(true)
+      expect(publicReads.mock.calls.every(([url]) => url.endsWith('stable.yml'))).toBe(true)
       expect(versioning).not.toHaveBeenCalled()
       const publication = JSON.parse(await readFile(result, 'utf8')) as { binaryUploadReceipt: { sha512: string } }
       expect(publication.binaryUploadReceipt.sha512).toBeTypeOf('string')

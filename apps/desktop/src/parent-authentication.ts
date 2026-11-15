@@ -1,4 +1,5 @@
 /** Parent-process ownership of the private Desktop authentication handshake. */
+import type { DesktopProductStart } from '@deepseek-ai/dsh-host-harness-product/desktop-start'
 import { randomBytes } from 'node:crypto'
 import type { ChildProcess } from 'node:child_process'
 
@@ -6,6 +7,8 @@ import type { ChildProcess } from 'node:child_process'
 export class DesktopParentAuthentication {
   readonly #secret = randomBytes(32).toString('base64url')
   #delivery: Promise<void> | undefined
+
+  constructor(private readonly product?: DesktopProductStart) {}
 
   /**
    * Deliver the private credential once after the Host announces startup.
@@ -16,7 +19,7 @@ export class DesktopParentAuthentication {
     return this.#delivery ??= new Promise<void>((resolve, reject) => {
       const failed = (): void => { reject(new Error('dsh desktop host authentication handoff failed')) }
       try {
-        channel.send({ type: 'desktop-auth', secret: this.#secret }, (error) => {
+        channel.send({ type: 'desktop-auth', secret: this.#secret, product: this.product }, (error) => {
           if (error !== null) failed()
           else resolve()
         })

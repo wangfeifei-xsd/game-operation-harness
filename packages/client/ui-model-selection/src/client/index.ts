@@ -23,6 +23,8 @@ import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import type { TranslateNS } from '@deepseek-ai/dsh-client-ui-slots'
 import { IconDataOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
+import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
+import { DefaultModelToast, type DefaultModelToastFace } from './DefaultModelToast.tsx'
 import type { ModelDirectoryState } from './directory.ts'
 import { ModelDirectoryResolver } from './service.ts'
 import type { ModelSelectInjected } from './slots.ts'
@@ -118,6 +120,16 @@ export function apply(ctx: ClientContext): void {
   // Non-slot faces (the command description, the popup option builder) read
   // through the bound translate; the seat component reads the standard seat.
   const t = ctx.locale.bind(NS)
+
+  const defaultFailure = createSnapshotStore<number | null>(null)
+  let failureSequence = 0
+  ctx.remote.$on('api-session/default-model-save-failed', () => { defaultFailure.set(++failureSequence) })
+  ctx.slots.inject('shell.overlay', () => ctx.slots.register({
+    name: 'shell.overlay', id: 'model.default-save-failed', locale: NS,
+    inject: (): DefaultModelToastFace => ({
+      hooks: { failure: defaultFailure }, dismiss: () => { defaultFailure.set(null) },
+    }),
+  }, DefaultModelToast))
 
   ctx.plugin(ModelDirectoryResolver)
 

@@ -1,6 +1,6 @@
 {
-  "name": "game-operation-harness",
-  "short_name": "游戏运营 Agent",
+  "name": "Agent 助手",
+  "short_name": "Agent 助手",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

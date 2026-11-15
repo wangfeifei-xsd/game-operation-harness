@@ -50,9 +50,9 @@ The Python SDK follows the same application architecture. Its runtime wheel pack
 
 ## Desktop application
 
-The [Electron desktop application](../apps/desktop/README.md) ships its exact dsh production runtime in signed resources and owns the reserved `$DSH_HOME/profiles/desktop`. Shared helpers initialize profile files, reconcile bundles, and resolve installation and bundle dependencies without replacing pnpm-owned packages. Desktop and npm CLI share product data but keep packages, activation, and lockfiles separate. Desktop’s bundled CLI manages its initialized plugins.
+The [Electron desktop application](../apps/desktop/README.md) carries its production runtime in application resources. The main process authenticates the Creativity account before starting the private Host through the reserved `desktop` profile. Web and Desktop use the same environment/account home with an exclusive directory lock; application packages remain separate from user data.
 
-Electron starts the private Desktop Host in Electron Node mode. The Host invokes the shared CLI profile runner and complete Web application. The window immediately loads packaged Web assets and waits for boot injections before activating client plugins in the same document. Web owns RPC and streams; the desktop carrier connects the local page to the authenticated Host. Node IPC carries boot injections, readiness, fatal errors, and shutdown. Desktop listens on an OS-assigned port by default; profile configuration can override it. Shell-owned UI runs plugin transactions through bundled pnpm with normal user and profile configuration.
+Private IPC supplies the Host identity and per-launch local credential. The protected product composition installs central authorization before account tasks restore and forbids user configuration from replacing it. Packaged Web assets provide the chat interface; the main process attaches local credentials only for the current account window. Tokens remain in process memory. Logout or authentication failure closes account access and stops the owned process tree before releasing the home.
 
 ## Core packages
 
@@ -65,6 +65,8 @@ Electron starts the private Desktop Host in Electron Node mode. The Host invokes
 | [`core/agent-loop`](subsystems/core.md) | The default driver implementing that interface | `ctx.agentLoop` |
 | [`core/scope`](subsystems/scope.md) | The per-agent scoped-registration primitive | library, no key |
 | [`llm/llm`](subsystems/llm-streaming.md) | Message and stream vocabulary plus the adapter seam | `ctx.llm` |
+
+<a id="events"></a>
 
 ## Events
 
@@ -79,6 +81,8 @@ Subagent Activations own runtime tree membership.
 AgentLoop rolls back failed initialization and awaits serial `agent/created` before queued work; shutdown cancels and awaits active work despite queue-cleanup failures before releasing resources ([ordering](../packages/core/agent-loop/README.md#understand-the-implementation)).
 
 [Event producers and consumers](event-producer-consumer.md).
+
+<a id="turn-flow"></a>
 
 ## Turn flow
 

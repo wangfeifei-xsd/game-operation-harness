@@ -1,0 +1,43 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/llm/harness-model-config/README.md
+/:
+  en: 77f37f9e509b740b
+  zh: fb828ab676ecf169
+/deepseek-ai-dsh-harness-model-config:
+  en: d304cc67174fa73f
+  zh: d59336aff9b77b02
+/deepseek-ai-dsh-harness-model-config/summary:
+  en: 9b30303e9f276eb8
+  zh: 3d87bdc836132dfc
+/deepseek-ai-dsh-harness-model-config/table-of-contents:
+  en: 915fd82850e37f7d
+  zh: 900af7047e4e1012
+/deepseek-ai-dsh-harness-model-config/use-this-package:
+  en: 04673196828779a0
+  zh: bbb54510431b2ea7
+/deepseek-ai-dsh-harness-model-config/further-exploration:
+  en: 3754e9bb4c1aa5e7
+  zh: c8cff4fb91da8c7d
+/deepseek-ai-dsh-harness-model-config/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/deepseek-ai-dsh-harness-model-config/model-experience/configured-provider-requests:
+  en: a9017eb72cea95a6
+  zh: 90a4849fd370754b
+/deepseek-ai-dsh-harness-model-config/model-experience/configured-provider-requests/what-the-model-sees:
+  en: 27e7e13bfc541e27
+  zh: 1cb718c796aefe72
+/deepseek-ai-dsh-harness-model-config/model-experience/configured-provider-requests/token-effect:
+  en: 2370cdababc5aa27
+  zh: 7495bf3f66ba1871
+/deepseek-ai-dsh-harness-model-config/model-experience/configured-provider-requests/kv-cache-effect:
+  en: 2c3418bb4e097cfb
+  zh: 5a4f935c279f2583
+/deepseek-ai-dsh-harness-model-config/known-limitations-and-deferred-work:
+  en: cf4f6a03f794bfa6
+  zh: dae435becfc9a8fb
+/deepseek-ai-dsh-harness-model-config/known-limitations-and-deferred-work/dev-note:
+  en: 2b56403f9a948e42
+  zh: d184ef6973e6f02b

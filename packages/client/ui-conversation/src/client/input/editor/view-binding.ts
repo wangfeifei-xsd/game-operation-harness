@@ -2,7 +2,7 @@
 import type { MouseEvent, MutableRefObject, RefObject } from 'react'
 import type { LexicalEditor } from 'lexical'
 import { $getRoot } from 'lexical'
-import { focusWithoutRing, isMobileDevice } from '@deepseek-ai/dsh-client-ui-primitives'
+import { focusWithoutRing, isBehindModal, isMobileDevice } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { ComposerKeyboard } from '../../contract/draft-editor.ts'
 import type { BusyEnterBehavior } from '../../contract/composer-submission.ts'
 import { resolveSubmitMode } from '../submission-policy.ts'
@@ -67,14 +67,16 @@ export function revealDraftSelection(scrollRef: RefObject<HTMLDivElement>): void
 }
 
 /**
- * Focus the borrowed editor and reveal its restored selection.
- * @param editor - the Session-owned editor.
- * @param revealSelection - reveal the selection after Lexical restores it.
+ * 聚焦借用的编辑器并恢复选区；前景弹窗持有焦点时不操作。
+ * @param editor - 当前会话持有的编辑器。
+ * @param revealSelection - Lexical 恢复选区后使其可见。
  */
 export function focusDraftEditor(editor: LexicalEditor, revealSelection: () => void): void {
+  const root = editor.getRootElement()
+  if (root === null || isBehindModal(root)) return
   // Lexical's focus() restores the editor selection but never calls the DOM
   // focus itself; preventScroll keeps the conversation scrollport still.
-  editor.getRootElement()?.focus({ preventScroll: true })
+  root.focus({ preventScroll: true })
   editor.focus(() => { revealSelection() })
 }
 

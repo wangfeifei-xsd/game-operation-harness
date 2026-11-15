@@ -226,7 +226,15 @@
     "start:web:dev": "node --import tsx/esm apps/cli/src/bin.ts harness --environment dev",
     "start:web:test": "node --import tsx/esm apps/cli/src/bin.ts harness --environment test",
     "start:web:fat": "node --import tsx/esm apps/cli/src/bin.ts harness --environment fat",
-    "start:web:master": "node --import tsx/esm apps/cli/src/bin.ts harness --environment master"
+    "start:web:master": "node --import tsx/esm apps/cli/src/bin.ts harness --environment master",
+    "dev:desktop:dev": "pnpm run dev:desktop --environment dev",
+    "start:desktop:dev": "pnpm run start:desktop --environment dev",
+    "dev:desktop:test": "pnpm run dev:desktop --environment test",
+    "start:desktop:test": "pnpm run start:desktop --environment test",
+    "dev:desktop:fat": "pnpm run dev:desktop --environment fat",
+    "start:desktop:fat": "pnpm run start:desktop --environment fat",
+    "dev:desktop:master": "pnpm run dev:desktop --environment master",
+    "start:desktop:master": "pnpm run start:desktop --environment master"
   },
   "devDependencies": {
     "@deepseek-ai/dsh-hooks-claude-code": "workspace:*",

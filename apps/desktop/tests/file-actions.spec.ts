@@ -35,7 +35,9 @@ function harness(root: string) {
       (event: IpcMainInvokeEvent, value: unknown) => Promise<unknown>
     return handler(event, value)
   }
-  const item = (mime = 'image/gif', url = owner.webContents.downloadURL.mock.lastCall![0]) => {
+  const item = async (mime = 'image/gif', requestedUrl?: string) => {
+    await vi.waitFor(() => { expect(owner.webContents.downloadURL).toHaveBeenCalled() })
+    const url = requestedUrl ?? owner.webContents.downloadURL.mock.lastCall![0]
     let destination = ''
     const download = Object.assign(new EventEmitter(), {
       getURLChain: () => [url],
@@ -50,7 +52,7 @@ function harness(root: string) {
   }
   const save = async (mode: 'download' | 'saveAs' = 'download') => {
     const pending = invoke(DESKTOP_IPC.fileSave, { url: 'https://images.example/original.gif', name: 'image.gif', mode })
-    const download = item()
+    const download = await item()
     if (mode === 'download') await writeFile(download.getSavePath(), new Uint8Array([0, 128, 255]))
     download.emit('done', {}, 'completed')
     return pending
@@ -82,7 +84,7 @@ it('retains original downloads and reserves distinct paths until Chromium finish
 it.each(['cancelled', 'interrupted'] as const)('reports native %s without a completed path', async (state) => {
   const root = await directory(), f = harness(root)
   const pending = f.invoke(DESKTOP_IPC.fileSave, { url: 'https://images.example/a', name: 'wrong.png', mode: 'download' })
-  const download = f.item('image/webp')
+  const download = await f.item('image/webp')
   expect(download.setSavePath).toHaveBeenCalledWith(join(root, 'wrong.webp'))
   download.emit('done', {}, state)
   if (state === 'cancelled') await expect(pending).resolves.toEqual({ status: 'cancelled' })
@@ -93,7 +95,7 @@ it.each(['cancelled', 'interrupted'] as const)('reports native %s without a comp
 it('uses the native save dialog and waits for completion before reporting success', async () => {
   const root = await directory(), f = harness(root)
   const pending = f.invoke(DESKTOP_IPC.fileSave, { url: 'https://images.example/a', name: 'photo.png', mode: 'saveAs' })
-  const download = f.item('image/jpeg')
+  const download = await f.item('image/jpeg')
   expect(download.setSavePath).not.toHaveBeenCalled()
   expect(download.setSaveDialogOptions).toHaveBeenCalledWith({ defaultPath: join(root, 'photo.jpg'), properties: ['showOverwriteConfirmation', 'createDirectory'] })
   download.emit('done', {}, 'cancelled')
@@ -105,7 +107,7 @@ it('uses the native save dialog and waits for completion before reporting succes
 it('cancels pending downloads when the owning document changes', async () => {
   const f = harness(await directory())
   const pending = f.invoke(DESKTOP_IPC.fileSave, { url: 'https://images.example/a', mode: 'download' })
-  const download = f.item()
+  const download = await f.item()
   f.owner.webContents.emit('did-start-navigation', {}, 'dsh-app://app/', false, true)
   await expect(pending).resolves.toEqual({ status: 'cancelled' })
   expect(download.cancel).toHaveBeenCalledOnce()
@@ -116,10 +118,12 @@ it('cancels pending downloads when the owning document changes', async () => {
 it('matches overlapping downloads of the same source to their captured requests', async () => {
   const root = await directory(), f = harness(root)
   const first = f.invoke(DESKTOP_IPC.fileSave, { url: 'https://images.example/a', name: 'first.gif', mode: 'download' })
+  await vi.waitFor(() => { expect(f.owner.webContents.downloadURL).toHaveBeenCalledTimes(1) })
   const firstUrl = f.owner.webContents.downloadURL.mock.lastCall![0]
   const second = f.invoke(DESKTOP_IPC.fileSave, { url: 'https://images.example/a', name: 'second.gif', mode: 'saveAs' })
-  const secondItem = f.item()
-  const firstItem = f.item('image/gif', firstUrl)
+  await vi.waitFor(() => { expect(f.owner.webContents.downloadURL).toHaveBeenCalledTimes(2) })
+  const secondItem = await f.item()
+  const firstItem = await f.item('image/gif', firstUrl)
   expect(firstItem.setSavePath).toHaveBeenCalledWith(join(root, 'first.gif'))
   expect(secondItem.setSaveDialogOptions.mock.lastCall?.[0]).toMatchObject({ defaultPath: join(root, 'second.gif') })
   secondItem.emit('done', {}, 'cancelled')
@@ -133,9 +137,10 @@ it('retires timed-out downloads and cancels items arriving after their window cl
   const root = await directory(), f = harness(root)
   const pending = f.invoke(DESKTOP_IPC.fileSave, { url: 'https://images.example/a', mode: 'download' })
   const rejected = expect(pending).rejects.toThrow('timed out')
+  await vi.waitFor(() => { expect(f.owner.webContents.downloadURL).toHaveBeenCalledOnce() })
   await vi.advanceTimersByTimeAsync(1000)
   await rejected
-  const download = f.item()
+  const download = await f.item()
   expect(download.cancel).toHaveBeenCalledOnce()
   download.emit('done', {}, 'cancelled')
   expect(await readdir(root)).toEqual([])
@@ -143,9 +148,10 @@ it('retires timed-out downloads and cancels items arriving after their window cl
   expect(f.owner.webContents.listenerCount('did-start-navigation')).toBe(0)
 
   const late = f.invoke(DESKTOP_IPC.fileSave, { url: 'https://images.example/a', mode: 'download' })
+  await vi.waitFor(() => { expect(f.owner.webContents.downloadURL).toHaveBeenCalledTimes(2) })
   f.owner.emit('closed')
   await expect(late).resolves.toEqual({ status: 'cancelled' })
-  const stale = f.item()
+  const stale = await f.item()
   expect(stale.cancel).toHaveBeenCalledOnce()
   expect(stale.setSavePath).not.toHaveBeenCalled()
 })
@@ -154,7 +160,7 @@ it('allows the native save dialog to remain open beyond the download startup dea
   vi.useFakeTimers(); vi.stubEnv('DSH_DESKTOP_FILE_DOWNLOAD_TIMEOUT_MS', '1000')
   const f = harness(await directory())
   const pending = f.invoke(DESKTOP_IPC.fileSave, { url: 'https://images.example/a', mode: 'saveAs' })
-  const download = f.item()
+  const download = await f.item()
   await vi.advanceTimersByTimeAsync(2000)
   expect(download.cancel).not.toHaveBeenCalled()
   download.emit('done', {}, 'completed')
@@ -177,6 +183,7 @@ it('aborts original-image reads on window navigation and releases lifecycle list
     signal.addEventListener('abort', () => { reject(new DOMException('Aborted', 'AbortError')) }, { once: true })
   })))
   const reading = f.invoke(DESKTOP_IPC.clipboardImageRead, 'https://images.example/original.gif')
+  await vi.waitFor(() => { expect(signal).toBeDefined() })
   f.owner.webContents.emit('did-start-navigation', {}, 'dsh-app://app/', false, true)
   await expect(reading).rejects.toThrow('Aborted')
   expect(signal.aborted).toBe(true)
@@ -187,7 +194,7 @@ it('aborts original-image reads on window navigation and releases lifecycle list
 it('preserves pending downloads across iframe and same-document navigation', async () => {
   const root = await directory(), f = harness(root)
   const pending = f.invoke(DESKTOP_IPC.fileSave, { url: 'https://images.example/a', mode: 'saveAs' })
-  const download = f.item()
+  const download = await f.item()
   f.owner.webContents.emit('did-start-navigation', {}, 'https://example.org', false, false)
   f.owner.webContents.emit('did-start-navigation', {}, 'dsh-app://app/#tab', true, true)
   download.setSavePath(join(root, 'chosen.gif'))

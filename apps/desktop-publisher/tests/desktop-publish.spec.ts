@@ -17,7 +17,7 @@ function fixture(environment: 'test' | 'production' = 'test') {
     artifacts: [
       { path: '', filename: 'installer.exe', key: 'bin/installer.exe', contentType: 'application/octet-stream', channelMetadata: false, contents: 'installer' },
       { path: '', filename: 'installer.blockmap', key: 'bin/installer.blockmap', contentType: 'application/octet-stream', channelMetadata: false, contents: 'blockmap' },
-      { path: '', filename: 'nightly.yml', key: 'feed/nightly.yml', contentType: 'application/yaml', channelMetadata: true, contents: 'version: 1.0.0\n' },
+      { path: '', filename: 'stable.yml', key: 'feed/stable.yml', contentType: 'application/yaml', channelMetadata: true, contents: 'version: 1.0.0\n' },
     ],
   }
   const operations: DesktopPublishOperations = {
@@ -38,11 +38,11 @@ function fixture(environment: 'test' | 'production' = 'test') {
 it('uploads files before the feed and skips identical bytes on a repeat invocation', async () => {
   const f = fixture()
   await expect(publishDesktopRelease(f.plan, f.operations)).resolves.toEqual({ status: 'complete' })
-  expect(f.writes).toEqual(['bin/installer.exe', 'bin/installer.blockmap', 'feed/nightly.yml'])
+  expect(f.writes).toEqual(['bin/installer.exe', 'bin/installer.blockmap', 'feed/stable.yml'])
   await publishDesktopRelease(f.plan, f.operations)
   expect(f.writes).toHaveLength(3)
   expect(f.tags()).toBe(0)
-  expect(f.events.find(event => event.key === 'feed/nightly.yml' && event.type === 'put-intent'))
+  expect(f.events.find(event => event.key === 'feed/stable.yml' && event.type === 'put-intent'))
     .toMatchObject({ before: null, after: 'version: 1.0.0\n' })
 })
 
@@ -55,9 +55,9 @@ it('recovers an ambiguous binary write without repeating it or publishing the fe
     if (fail) { fail = false; throw new Error('connection lost after server stored bytes') }
   }
   await expect(publishDesktopRelease(f.plan, f.operations)).rejects.toThrow(/connection lost/u)
-  expect(f.objects.has('feed/nightly.yml')).toBe(false)
+  expect(f.objects.has('feed/stable.yml')).toBe(false)
   await publishDesktopRelease(f.plan, f.operations)
-  expect(f.writes).toEqual(['bin/installer.exe', 'bin/installer.blockmap', 'feed/nightly.yml'])
+  expect(f.writes).toEqual(['bin/installer.exe', 'bin/installer.blockmap', 'feed/stable.yml'])
 })
 
 it('reports published but tag pending and retries only the tag', async () => {
@@ -76,7 +76,7 @@ it('reports published but tag pending and retries only the tag', async () => {
 it.each(['binary', 'same-version-feed', 'newer-feed'] as const)('stops on %s conflict', async (kind) => {
   const f = fixture()
   if (kind === 'binary') f.objects.set('bin/installer.exe', observed('different'))
-  else f.objects.set('feed/nightly.yml', observed(kind === 'newer-feed' ? 'version: 2.0.0\n' : 'version: 1.0.0\nchanged: true\n'))
+  else f.objects.set('feed/stable.yml', observed(kind === 'newer-feed' ? 'version: 2.0.0\n' : 'version: 1.0.0\nchanged: true\n'))
   await expect(publishDesktopRelease(f.plan, f.operations)).rejects.toMatchObject({ code: kind === 'newer-feed' ? 'superseded' : 'conflict' })
   expect(f.writes).toHaveLength(0)
 })
@@ -108,10 +108,10 @@ it('stops when a channel changes between preflight and writing', async () => {
   const put = f.operations.transport.put.bind(f.operations.transport)
   f.operations.transport.put = async (...args) => {
     await put(...args)
-    f.objects.set('feed/nightly.yml', observed('version: 3.0.0\n'))
+    f.objects.set('feed/stable.yml', observed('version: 3.0.0\n'))
   }
   await expect(publishDesktopRelease(f.plan, f.operations)).rejects.toMatchObject({ code: 'remote-changed' })
-  expect(f.writes).not.toContain('feed/nightly.yml')
+  expect(f.writes).not.toContain('feed/stable.yml')
 })
 
 it('does not update the channel when readback cannot confirm a binary', async () => {
@@ -123,7 +123,7 @@ it('does not update the channel when readback cannot confirm a binary', async ()
 
 it('classifies corrupted remote channel metadata separately from an invalid local plan', async () => {
   const f = fixture()
-  f.objects.set('feed/nightly.yml', observed('version: invalid\n'))
+  f.objects.set('feed/stable.yml', observed('version: invalid\n'))
   await expect(publishDesktopRelease(f.plan, f.operations)).rejects.toMatchObject({ code: 'verification-failed' })
   expect(f.writes).toEqual([])
 })
@@ -136,7 +136,7 @@ it.each(['version: [private-feed', 'version: 42\n', 'version: invalid-private-ve
         ...f.plan,
         artifacts: f.plan.artifacts.map(artifact => artifact.channelMetadata ? { ...artifact, contents } : artifact),
       }
-      if (remote) f.objects.set('feed/nightly.yml', observed(contents))
+      if (remote) f.objects.set('feed/stable.yml', observed(contents))
       await expect(publishDesktopRelease(plan, f.operations)).rejects.toMatchObject({
         code: remote ? 'verification-failed' : 'invalid-plan',
         message: `desktop publish: invalid ${remote ? 'remote' : 'planned'} channel version`,

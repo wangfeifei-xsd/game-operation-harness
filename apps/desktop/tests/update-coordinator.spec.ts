@@ -449,3 +449,31 @@ it('does not diagnose a filesystem cause from error wording alone', async () => 
   f.downloadUpdate.mockRejectedValueOnce(new Error('ENOSPC or EACCES in a remote response'))
   expect((await f.coordinator.download('1.1.0-rc.2')).downloadFailure).toBeUndefined()
 })
+
+it.each(['valid', 'product', 'appId', 'environment', 'channel', 'target', 'missing-identity', 'origin', 'path', 'hash', 'empty-files'])(
+  'validates product update metadata before admitting a download: %s', async (kind) => {
+    const source = { appId: 'com.example.agentassistant.test', environment: 'test', channel: 'stable' as const,
+      url: 'https://updates.example.com/agent-assistant/test/stable/' }
+    const target = `${process.platform === 'darwin' ? 'mac' : 'win'}-${process.arch}`
+    const identity: Record<string, string> = { product: 'agent-assistant', appId: source.appId, environment: 'test', channel: 'stable', target }
+    if (['product', 'appId', 'environment', 'channel', 'target'].includes(kind)) identity[kind] = 'other'
+    const info = { version: '1.2.0', releaseDate: '2026-11-16T00:00:00Z',
+      files: [{ url: `${source.url}bin/${target}/agent-assistant-1.2.0.zip`, sha512: `${'a'.repeat(86)}==`, size: 1 }],
+      ...(kind === 'missing-identity' ? {} : { agentAssistant: identity }) }
+    if (kind === 'origin') info.files[0]!.url = 'https://other.example.com/installer.zip'
+    if (kind === 'path') info.files[0]!.url = `${source.url}bin/other/installer.zip`
+    if (kind === 'hash') info.files[0]!.sha512 = 'invalid'
+    if (kind === 'empty-files') info.files = []
+    const events = new EventEmitter()
+    const download = vi.fn()
+    const updater = Object.assign(events as AppUpdater, { setFeedURL: vi.fn(),
+      checkForUpdates: vi.fn(async () => ({ isUpdateAvailable: true, updateInfo: info })), downloadUpdate: download })
+    const coordinator = new DesktopUpdateCoordinator(state => state, async () => true, updater, () => true,
+      () => '1.1.0', undefined, 'stable', async () => {}, source)
+    coordinators.push(coordinator)
+    const state = await coordinator.check(true)
+    expect(state.phase).toBe(kind === 'valid' ? 'available' : 'error')
+    if (kind !== 'valid') await expect(coordinator.download('1.2.0')).rejects.toThrow()
+    expect(download).not.toHaveBeenCalled()
+  },
+)

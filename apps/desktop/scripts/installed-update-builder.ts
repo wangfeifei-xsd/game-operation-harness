@@ -13,10 +13,13 @@ import { verifyDesktopRuntime } from '../src/runtime-tree.ts'
  * @returns Configuration only. Calling builder hooks requires separate hardware authorization and supervision.
  */
 export async function createInstalledUpdateBuilderConfig(manifest: string, version: string, environment: NodeJS.ProcessEnv) {
-  const run = await readInstalledUpdateRun(manifest)
+  const run = await readInstalledUpdateRun(manifest, environment)
   if (!run.versions.includes(version)) throw new Error('installed update: package version is outside the qualification run')
-  if (environment.DSH_DESKTOP_AUTO_UPDATE_ENV !== 'test' || environment.DSH_DESKTOP_UNSIGNED === '1'
-    || environment.DOWNLOAD_TEST_ORIGIN !== run.origin || environment.DOWNLOAD_TEST_COS_BUCKET !== run.bucket) {
+  if (environment.DSH_DESKTOP_AUTO_UPDATE_ENV !== 'test'
+    || environment.DSH_DESKTOP_PRODUCT_ENVIRONMENT !== undefined && environment.DSH_DESKTOP_PRODUCT_ENVIRONMENT !== 'test'
+    || environment.DSH_DESKTOP_UNSIGNED === '1'
+    || environment.DOWNLOAD_TEST_ORIGIN !== undefined && environment.DOWNLOAD_TEST_ORIGIN !== run.origin
+    || environment.DOWNLOAD_TEST_COS_BUCKET !== run.bucket) {
     throw new Error('installed update: signed ordinary-update qualification requires matching test deployment settings')
   }
   const application = await verifyInstalledUpdateApplication(run.root)
@@ -25,16 +28,16 @@ export async function createInstalledUpdateBuilderConfig(manifest: string, versi
   const config = createElectronBuilderConfig({ ...environment, DSH_DESKTOP_APP_ID: run.appId,
     DSH_DESKTOP_TARGET_PLATFORM: 'win32', DSH_DESKTOP_TARGET_ARCH: 'x64', DSH_DESKTOP_UNSIGNED: '0' }, 'win32', 'x64', dsh, version)
   return { ...config,
-    productName: run.productName,
+    appId: run.appId, productName: run.productName, protocols: [],
     directories: { ...config.directories, output: join(run.root, version, 'installer') },
-    extraMetadata: { ...config.extraMetadata, name: `dsh-update-test-${run.id}`, version, main: 'qualification-bootstrap.mjs' },
+    extraMetadata: { ...config.extraMetadata, name: `agent-assistant-update-test-${run.id}`, dshDesktopAppId: run.appId, dshMandatoryUpdatePolicy: null, version, main: 'qualification-bootstrap.mjs' },
     files: [
-      { from: application, to: '.', filter: ['lib/*.js', 'lib/*.cjs', 'lib/welcome/design-platform.css', 'renderer/**/*', 'qualification-bootstrap.mjs', 'installed-update-identity.mjs'] },
+      { from: application, to: '.', filter: ['lib/*.js', 'lib/*.cjs', 'lib/shell/**/*', 'lib/auth/**/*', 'product/**/*', 'renderer/**/*', 'qualification-bootstrap.mjs', 'installed-update-identity.mjs'] },
       'package.json',
       ...config.files.filter((file): file is string => typeof file === 'string' && file.startsWith('!')),
       { from: dsh, to: 'dsh', filter: ['**/*'] },
       { from: join(dsh, 'node_modules'), to: 'dsh/node_modules', filter: ['**/*'] },
     ],
-    publish: [{ provider: 'generic' as const, url: `${run.origin}/${run.feedKey.slice(0, -'nightly.yml'.length)}`, channel: 'nightly' }],
+    publish: [{ provider: 'generic' as const, url: `${run.origin}/${run.feedKey.slice(0, -'stable.yml'.length)}`, channel: 'stable' }],
   }
 }

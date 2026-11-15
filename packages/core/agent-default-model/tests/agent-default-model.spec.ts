@@ -30,7 +30,7 @@ it('persists complete selections through its owning profile entry', async () => 
   onTestFinished(() => standalone.fiber.dispose())
   await standalone.plugin(DefaultModel, { provider: 'test', model: 'original' })
   await standalone.agentDefaultModel.saveSelection({ provider: 'test', model: 'ignored' })
-  expect(standalone.agentDefaultModel.currentSelection().model).toBe('original')
+  expect(standalone.agentDefaultModel.requireSelection().model).toBe('original')
 })
 
 it('serializes overlapping saves and continues after a rejected write', async () => {
@@ -67,4 +67,19 @@ it('serializes overlapping saves and continues after a rejected write', async ()
   await last
   expect(calls).toEqual(['rejected', 'saved'])
   expect(ctx.agentDefaultModel.currentSelection()).toEqual({ provider: 'test', model: 'final' })
+})
+
+it('keeps product defaults empty after their source is removed and never falls back to config', async () => {
+  const ctx = new Context()
+  onTestFinished(() => ctx.fiber.dispose())
+  await ctx.plugin(DefaultModel, { sourceRequired: true, provider: 'legacy', model: 'legacy' })
+  expect(ctx.agentDefaultModel.currentSelection()).toBeNull()
+  let current: ReturnType<typeof ctx.agentDefaultModel.currentSelection> = { provider: 'configured', model: 'configured' }
+  const remove = ctx.agentDefaultModel.registerSource({ read: () => current, save: (next) => { current = next; return Promise.resolve() } })
+  expect(ctx.agentDefaultModel.requireSelection().provider).toBe('configured')
+  await ctx.agentDefaultModel.saveSelection({ provider: 'another', model: 'another' })
+  expect(current).toEqual({ provider: 'another', model: 'another' })
+  remove()
+  expect(ctx.agentDefaultModel.currentSelection()).toBeNull()
+  await expect(ctx.agentDefaultModel.saveSelection({ provider: 'legacy', model: 'legacy' })).rejects.toThrow('不可用')
 })

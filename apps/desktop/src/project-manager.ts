@@ -85,6 +85,11 @@ export class DesktopProjectManager {
       readDesktopRuntime(this.runtime.dsh)
       migrateProfileSettings(this.paths.profile)
       createPluginProfile(this.paths.profile)
+      // 产品只使用随包插件；用户补丁和依赖不能改写认证或任务恢复。
+      writeJson(join(this.paths.profile, 'package.json'), {
+        name: PROJECT_NAME, private: true, version: '0.0.0', dependencies: {},
+        dsh: { profile: { bundles: [...WEB_PROFILE.bundles] } },
+      })
       removeLinkProjections(this.paths.profile)
     })
   }

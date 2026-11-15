@@ -1,3 +1,4 @@
+import './product-deployment-fixture.ts'
 import { readInstallerLocales } from '../scripts/installer-locales.mjs'
 import { tmpdir } from 'node:os'
 import { readFileSync } from 'node:fs'
@@ -18,12 +19,12 @@ vi.mock('node:fs/promises', async importOriginal => ({
 }))
 
 describe('installer preparation preserves application dependencies', () => {
-  it.each(['win32', 'darwin'] as const)('rejects a missing production policy before signing on %s', async (platform) => {
+  it.each(['win32', 'darwin'] as const)('requires native signing when no mandatory policy is configured on %s', async (platform) => {
     const { createElectronBuilderConfig } = await import('../scripts/electron-builder-config.mjs')
     expect(() => createElectronBuilderConfig({ DSH_DESKTOP_APP_ID: 'com.example.installer',
-      DSH_DESKTOP_AUTO_UPDATE_ENV: 'production',
+      DSH_DESKTOP_AUTO_UPDATE_ENV: 'test',
       DSH_DESKTOP_MANDATORY_UPDATE_TEST_ORIGIN: 'https://test.example.com',
-    }, platform, 'x64')).toThrow('DSH_DESKTOP_MANDATORY_UPDATE_PROD_ORIGIN')
+    }, platform, 'x64')).toThrow(platform === 'win32' ? 'DSH_DESKTOP_WINDOWS_CER_FILE' : 'DSH_DESKTOP_MACOS_SIGNING_IDENTITY')
   })
   it.each(['win32', 'darwin'] as const)('preserves installer metadata and dependency ownership on %s', async (platform) => {
     execute.mockClear()
@@ -52,9 +53,9 @@ describe('installer preparation preserves application dependencies', () => {
       })
       const appInfo = new AppInfo(metadataPackager, undefined)
       expect(appInfo.companyName).toBe('Hangzhou DeepSeek Artificial Intelligence Co., Ltd.')
-      expect(appInfo.copyright).toBe(`Copyright © ${new Date().getFullYear()} game-operation-harness`)
+      expect(appInfo.copyright).toBe(`Copyright © ${new Date().getFullYear()} Agent 助手`)
       if (platform === 'win32') {
-        expect(expandMacro(config.nsis.uninstallDisplayName, null, appInfo, {}, false)).toBe('game-operation-harness')
+        expect(expandMacro(config.nsis.uninstallDisplayName, null, appInfo, {}, false)).toBe('Agent 助手')
         expect(config.nsis.installerLanguages).toEqual(readInstallerLocales().map(locale => locale.id))
       }
       const aboutIcon = config.extraResources.find(resource => resource.to === 'icon.png')
@@ -78,7 +79,9 @@ describe('installer preparation preserves application dependencies', () => {
       await packager.installAppDependencies(process.platform === 'win32' ? Platform.LINUX : Platform.WINDOWS, Arch.x64)
       expect(packager.areNodeModulesHandledExternally).toBe(false)
       expect(execute).toHaveBeenCalledTimes(platform === 'win32' ? 1 : 0)
-      expect(write).toHaveBeenCalledTimes(platform === 'win32' ? 1 : 0)
+      expect(write).toHaveBeenCalledTimes(platform === 'win32' ? 2 : 1)
+      expect(write).toHaveBeenCalledWith(expect.stringMatching(/product[\\/]deployment\.json$/u),
+        JSON.stringify({ schemaVersion: 1, environment: 'test', mode: platform === 'win32' ? 'local' : 'release' }))
       if (platform === 'win32') {
         expect(write).toHaveBeenCalledWith(expect.stringMatching(/installer-ui[\\/]strings\.nsh$/u),
           expect.stringContaining('LangString INSTALLER_INSTALL ${LANG_JAPANESE}'), 'utf8')
@@ -99,7 +102,7 @@ describe('installer preparation preserves application dependencies', () => {
       DSH_DESKTOP_TARGET_ARCH: 'x64',
       DSH_DESKTOP_UNSIGNED: '1',
     }, 'win32', 'x64')
-    expect(config.artifactName).toBe('deepseek-harness-${version}-${os}-${arch}-unsigned.${ext}')
+    expect(config.artifactName).toBe('agent-assistant-${version}-${os}-${arch}-unsigned.${ext}')
   })
 
   it('packages every preload entry point the shell loads', async () => {
@@ -114,7 +117,7 @@ describe('installer preparation preserves application dependencies', () => {
     const { createElectronBuilderConfig } = await import('../scripts/electron-builder-config.mjs')
     const config = createElectronBuilderConfig({
       DSH_DESKTOP_APP_ID: 'com.example.installer',
-      DSH_DESKTOP_AUTO_UPDATE_ENV: 'production',
+      DSH_DESKTOP_AUTO_UPDATE_ENV: 'test',
       DSH_DESKTOP_MANDATORY_UPDATE_TEST_ORIGIN: 'https://harness-test.deepseek.com',
       DSH_DESKTOP_MANDATORY_UPDATE_PROD_ORIGIN: 'https://policy.example.com',
       DSH_DESKTOP_MACOS_SIGNING_IDENTITY: 'Example Company (TEAMID1234)',

@@ -1,3 +1,4 @@
+import './installed-update-fixture.ts'
 import { execFile } from 'node:child_process'
 import { mkdir, mkdtemp, readFile, readdir, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -11,7 +12,7 @@ import { installedUpdateFileHash } from '../scripts/installed-update-signature.m
 async function fixture(body: (manifest: string, executable: string, receipt: string) => Promise<void>): Promise<void> {
   const root = await mkdtemp(join(tmpdir(), 'dsh-network-plan-试验-'))
   try {
-    const run = await createInstalledUpdateRun(root, ['0.1.6-nightly.20260914.1', '0.1.6-nightly.20260914.2'],
+    const run = await createInstalledUpdateRun(root, ['1.0.1', '1.0.2'],
       { version: '0.1.5-rc.2', commit: 'a'.repeat(40), dirtyFiles: [] })
     const executable = join(root, `${run.productName}.exe`)
     await writeFile(executable, 'inert app fixture, never executed')
@@ -47,7 +48,7 @@ describe('installed update network plan', () => {
         }
         if (failure === 'failed-receipt') data.passed = false
         if (failure === 'wrong-run') data.runId = 'b'.repeat(24)
-        if (failure === 'wrong-version') data.version = '0.1.6-nightly.20260914.2'
+        if (failure === 'wrong-version') data.version = '1.0.2'
         if (failure === 'invalid-signature') data.applicationSignature.valid = false
         if (failure === 'changed-file') await writeFile(executable, 'changed')
         if (failure === 'renamed-file') executable = join(executable, '../ordinary-app.exe')

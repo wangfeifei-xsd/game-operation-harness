@@ -28,6 +28,11 @@
     // not declaration path aliases, keep each package/vendor source compiled
     // under its own tsconfig boundary.
     "paths": {
+      "@deepseek-ai/dsh-llm-pi-ai/model-config": ["./packages/llm/llm-pi-ai/src/model-config.ts"],
+      "@deepseek-ai/dsh-api-model-config-controller/types": ["./packages/api/model-config-controller/src/types.ts"],
+      "@deepseek-ai/dsh-api-model-config-controller": ["./packages/api/model-config-controller/src/index.ts"],
+      "@deepseek-ai/dsh-harness-model-config/types": ["./packages/llm/harness-model-config/src/types.ts"],
+      "@deepseek-ai/dsh/model-composition": ["./apps/cli/src/model-composition.ts"],
       "@deepseek-ai/dsh-desktop-publisher/*": ["./apps/desktop-publisher/src/*"],
       "@deepseek-ai/dsh-client-script-realm": ["./packages/client/script-realm/src/index.ts"],
       "@deepseek-ai/dsh-client-script-realm/client": ["./packages/client/script-realm/src/client/index.ts"],
@@ -112,6 +117,7 @@
       "@deepseek-ai/dsh-client-ui-sidebar-terminal/client": ["./packages/client/ui-sidebar-terminal/src/client/index.ts"],
       "@deepseek-ai/dsh-ssh/protocol": ["./packages/ssh/ssh/src/protocol.ts"],
       "@deepseek-ai/dsh-ssh/schemas": ["./packages/ssh/ssh/src/schemas.ts"],
+      "@deepseek-ai/dsh-subprocess-local/process-inspector": ["./packages/subprocess/subprocess-local/src/process-inspector.ts"],
       "@deepseek-ai/dsh-subprocess-local/output": ["./packages/subprocess/subprocess-local/src/output.ts"],
       "@deepseek-ai/dsh-computer-use": ["./packages/computer-use/computer-use/src/index.ts"],
       "@deepseek-ai/dsh-computer-use/types": ["./packages/computer-use/computer-use/src/types.ts"],
@@ -436,6 +442,12 @@
       "@deepseek-ai/dsh-ptc-runtime-node/configuration": ["./packages/ptc-runtime/ptc-runtime-node/src/configuration.ts"],
       "@deepseek-ai/dsh-message-feedback/types": ["./packages/feedback/message-feedback/src/types.ts"],
       "@deepseek-ai/dsh-webhook/types": ["./packages/experimental/webhook/src/types.ts"],
+      "@deepseek-ai/dsh-client-ui-harness-account": ["./packages/client/ui-harness-account/src/index.ts"],
+      "@deepseek-ai/dsh-client-ui-harness-account/src/*": ["./packages/client/ui-harness-account/src/*"],
+      "@deepseek-ai/dsh-client-ui-harness-account/*": ["./packages/client/ui-harness-account/src/*"],
+      "@deepseek-ai/dsh-host-harness-product": ["./packages/host/harness-product/src/index.ts"],
+      "@deepseek-ai/dsh-host-harness-product/src/*": ["./packages/host/harness-product/src/*"],
+      "@deepseek-ai/dsh-host-harness-product/*": ["./packages/host/harness-product/src/*"],
       // BEGIN generated package aliases — pnpm run gen-tsconfig-paths
       "@deepseek-ai/dsh-acp": ["./packages/acp/acp/src"],
       "@deepseek-ai/dsh-acp-app": ["./packages/bundle/acp-app/src"],
@@ -488,6 +500,7 @@
       "@deepseek-ai/dsh-goal": ["./packages/goal/goal/src"],
       "@deepseek-ai/dsh-goal-round-driver": ["./packages/goal/goal-round-driver/src"],
       "@deepseek-ai/dsh-harness-dev-context": ["./packages/context/harness-dev-context/src"],
+      "@deepseek-ai/dsh-harness-model-config": ["./packages/llm/harness-model-config/src"],
       "@deepseek-ai/dsh-headless": ["./packages/bundle/headless/src"],
       "@deepseek-ai/dsh-home-paths": ["./packages/util/home-paths/src"],
       "@deepseek-ai/dsh-hook-protocol": ["./packages/experimental/hook-protocol/src"],

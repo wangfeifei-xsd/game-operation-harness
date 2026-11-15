@@ -1,3 +1,4 @@
+import './product-deployment-fixture.ts'
 import { chmod, lstat, mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
@@ -134,11 +135,12 @@ it('includes the diagnostic worker in the archive selected by the shipping file 
   await mkdir(join(appDir, 'lib'), { recursive: true })
   await mkdir(resources)
   const worker = join(appDir, 'lib', 'operation-report-worker.js')
-  const excluded = join(appDir, 'lib', 'not-shipped.js')
+  const excluded = join(appDir, 'lib', 'operation-report-worker.js.map')
   await writeFile(worker, 'export {}')
   await writeFile(excluded, 'export {}')
   const config = unsignedWindowsConfig('com.example.diagnostics', join(root, 'dsh'))
-  const filesConfig = config.files.map(entry => typeof entry === 'string' ? entry : { ...entry, filter: [...entry.filter] })
+  const filesConfig = config.files.map(entry => typeof entry === 'string' ? entry : { from: entry.from, to: entry.to,
+    ...(entry.filter === undefined ? {} : { filter: [...entry.filter] }) })
   const matchers = getFileMatchers({ files: filesConfig }, 'files', destination, {
     defaultSrc: appDir, globalOutDir: root, customBuildOptions: {}, macroExpander: value => value,
   })!
@@ -158,7 +160,7 @@ it('includes the diagnostic worker in the archive selected by the shipping file 
   }).pack([{ src: appDir, destination, files, metadata }])
   const archive = await readAsar(join(resources, 'app.asar'))
   expect(archive.getFile('lib/operation-report-worker.js').size).toBe(Buffer.byteLength('export {}'))
-  expect(() => archive.getFile('lib/not-shipped.js')).toThrow()
+  expect(() => archive.getFile('lib/operation-report-worker.js.map')).toThrow()
 })
 
 it.each([false, true])('unpacks PE files through builder source patterns (external=%s)', async (external) => {

@@ -46,7 +46,7 @@ it.each([true, false])('preserves download headers and verified bytes with overw
 it('propagates an oversized channel stream error through the SDK and closes the request', async () => {
   const server = await startCosLoopback((_request, response) => { answer(response, 200, Buffer.alloc(1024 * 1024 + 1, 65)) })
   try {
-    const artifact = { path: '', filename: 'nightly.yml', key: 'feed/nightly.yml', contents: 'version: 1.0.0\n', contentType: 'application/yaml', channelMetadata: true }
+    const artifact = { path: '', filename: 'stable.yml', key: 'feed/stable.yml', contents: 'version: 1.0.0\n', contentType: 'application/yaml', channelMetadata: true }
     const plan: DesktopUploadPlan = { environment: 'test', target: 'win-x64', version: '1.0.0', bucket: 'fixture-1250000000',
       publicUrl: 'https://example.com/', secretIdEnvName: 'ID', secretKeyEnvName: 'KEY', artifacts: [artifact] }
     const transport = desktopPublishCos(plan, { secretId: 'fixture-id', secretKey: 'fixture-secret' }, (credentials) => {

@@ -94,6 +94,12 @@
     },
     {
       "path": "../../packages/subprocess/subprocess-local"
+    },
+    {
+      "path": "../../packages/llm/harness-model-config"
+    },
+    {
+      "path": "../../packages/host/harness-product"
     }
   ]
 }

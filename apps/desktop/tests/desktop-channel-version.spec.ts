@@ -1,10 +1,11 @@
+import './product-deployment-fixture.ts'
 import { readFileSync } from 'node:fs'
 import { expect, it } from 'vitest'
 import { desktopCiVersion } from '../scripts/desktop-ci-version.mjs'
 import { desktopBuildVersionPrefix } from '../scripts/desktop-build-version.mjs'
 import { createElectronBuilderConfig } from '../scripts/electron-builder-config.mjs'
 
-it.each(['nightly', 'stable'] as const)('resolves every CI version mode independently of %s', (channel) => {
+it.each(['stable', 'nightly'] as const)('resolves every CI version mode independently of %s', (channel) => {
   const now = new Date('2026-11-03T00:00:00Z')
   for (const version of ['1.2.3', '1.2.3-alpha.1', '1.2.3-rc.1']) {
     const env = { DSH_DESKTOP_UPDATE_CHANNEL: channel, GITHUB_RUN_NUMBER: '7', GITHUB_RUN_ATTEMPT: '2' }
@@ -36,7 +37,7 @@ it.each(['arm64', 'x64'] as const)('embeds stable in a prerelease macOS %s packa
     APPLE_KEYCHAIN_PROFILE: 'channel-test',
   }, 'darwin', arch)
   expect(config.extraMetadata).toMatchObject({ version, dshDesktopUpdateChannel: 'stable' })
-  expect(config.publish).toEqual([{ provider: 'generic', url: `https://download.deepseek.com/dsh-desk/feeds/mac-${arch}/`, channel: 'stable' }])
+  expect(config.publish).toEqual([{ provider: 'generic', url: `https://updates.example.com/agent-assistant/master/stable/feeds/mac-${arch}/`, channel: 'stable' }])
 })
 
 it('accepts a stable prerelease in an unsigned Windows x64 configuration', () => {

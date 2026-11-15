@@ -99,7 +99,7 @@ export class SettingsController extends TypertRemoteService {
     const settings = this.provider()
     return {
       writable: settings.writable,
-      hasDocument: true,
+      hasDocument: settings.writable,
       namespaces: settings.describe({ redactSecrets: true }).map(namespaceView),
     }
   }
@@ -218,7 +218,7 @@ export class SettingsController extends TypertRemoteService {
     if (settings === undefined) {
       throw new RemoteError(
         'gateway/internal',
-        'settings service is absent: mount @deepseek-ai/dsh-settings with @deepseek-ai/dsh-config-editor in the profile composition',
+        'settings service is absent: mount @deepseek-ai/dsh-settings in the profile composition; editing also requires @deepseek-ai/dsh-config-editor',
         {},
       )
     }

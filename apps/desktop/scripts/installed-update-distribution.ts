@@ -47,12 +47,12 @@ export async function planInstalledUpdateDistribution(manifest: string, version:
   const run = await readInstalledUpdateRun(manifest)
   if (!run.versions.includes(version)) throw new Error('installed update: version is outside the qualification run')
   const directory = join(run.root, version, 'installer')
-  const metadata = record(load(await readFile(join(directory, 'nightly.yml'), 'utf8')))
+  const metadata = record(load(await readFile(join(directory, 'stable.yml'), 'utf8')))
   if (metadata.version !== version || !Array.isArray(metadata.files) || metadata.files.length !== 1) {
     throw new Error('installed update: feed must describe exactly the selected version and installer')
   }
   const info = record(metadata.files[0])
-  const filename = `deepseek-harness-${version}-win-x64.exe`
+  const filename = `agent-assistant-${version}-win-x64.exe`
   if (info.url !== filename || (metadata.path !== undefined && metadata.path !== filename)) {
     throw new Error('installed update: feed filename must identify the selected local Windows installer')
   }
@@ -65,7 +65,7 @@ export async function planInstalledUpdateDistribution(manifest: string, version:
   if (metadata.releaseDate !== undefined && (typeof metadata.releaseDate !== 'string'
     || !Number.isFinite(Date.parse(metadata.releaseDate)))) throw new Error('installed update: invalid feed release date')
   const url = `${run.origin}/${installer.key}`
-  const contents = dump({ version, files: [{ url, size: installer.size, sha512: installer.sha512 }],
+  const contents = dump({ version, agentAssistant: { product: 'agent-assistant', appId: run.appId, environment: 'test', channel: 'stable', target: 'win-x64' }, files: [{ url, size: installer.size, sha512: installer.sha512 }],
     path: url, sha512: installer.sha512, ...(metadata.releaseDate === undefined ? {} : { releaseDate: metadata.releaseDate }) })
   return { version, bucket: run.bucket, binaries: [installer, blockmap],
     feed: { key: run.feedKey, url: `${run.origin}/${run.feedKey}`, contents,

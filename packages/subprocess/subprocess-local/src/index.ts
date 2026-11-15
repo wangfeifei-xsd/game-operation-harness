@@ -387,4 +387,4 @@ function environmentValue(env: NodeJS.ProcessEnv, name: 'PATH' | 'PATHEXT'): str
 export default LocalSubprocessRuntime
 
 /** 供拥有子进程生命周期的产品协调器复用操作系统进程身份检查。 */
-export { createProcessInspector, type ProcessIdentity, type ProcessInspector } from './process-inspector.ts'
+export type { ProcessIdentity, ProcessInspector } from './process-inspector.ts'

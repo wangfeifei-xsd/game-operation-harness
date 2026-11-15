@@ -1,12 +1,16 @@
-/** Boot the materialized target runtime without access to a user's Harness profile. */
-
-import { appendFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+/** 使用隔离中央服务验证安装闭包；产品 Host 保持固定装配与认证。 */
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { rm } from 'node:fs/promises'
+import { randomBytes } from 'node:crypto'
+import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import { fileURLToPath } from 'node:url'
+import { HarnessAuthClient } from '@deepseek-ai/dsh-host-harness-product/auth-client'
+import { readHarnessConfig, harnessUserHome } from '@deepseek-ai/dsh-host-harness-product/config'
+import { acquireHarnessUserHome } from '@deepseek-ai/dsh-host-harness-product/home'
 import { readPrimaryRuntime, workspaceDependencyPaths } from '../../../packages/skill/tool-workspace-dependencies/src/index.ts'
 import { DesktopHostProcess } from '../src/host-process.ts'
 import { createPluginProfile } from '../src/project-manager.ts'
@@ -15,9 +19,9 @@ import type { DesktopRuntimeDescriptor } from '../src/runtime-tree.ts'
 const OFFICE_SKILLS = ['office', 'office-docx', 'office-pptx', 'office-xlsx']
 
 /**
- * Require each bundled Office skill to be listed and loaded with a nonempty body.
- * @param results - Host probe results; `bytes` is the loaded body length, 0 when unlisted or not loaded.
- * @throws Error listing every result when a bundled Office skill is missing or empty.
+ * 确认随包的 Office 指令均可列出并读取正文。
+ * @param results - 各指令实际读取的字节数。
+ * @throws 缺少任何 Office 指令或正文为空时拒绝验证。
  */
 export function assertOfficeSkillsLoadable(results: ReadonlyArray<{ readonly name: string; readonly bytes: number }>): void {
   if (!OFFICE_SKILLS.every(name => results.some(skill => skill.name === name && skill.bytes > 0))) {
@@ -26,213 +30,110 @@ export function assertOfficeSkillsLoadable(results: ReadonlyArray<{ readonly nam
 }
 
 /**
- * Check CLI package operations, Host startup, its frontend, external plugins, packaged Office skill loading,
- * and real Office rendering, conversion, and recalculation.
- * @param root - Materialized dsh resources.
- * @param node - Prepared target Electron executable.
- * @param runtime - Verified resource descriptor.
- * @param environment - Credential-scrubbed build environment and private native cache.
- * @param resourcesRuntime - Bundled interpreters outside the application archive.
- * @returns Resolves after checks and teardown; rejects on a check or teardown failure.
+ * 验证原生 Office 依赖及经过中央认证的固定产品 Host，不给产品增加测试路由或插件豁免。
+ * @param root - 准备完成或位于 ASAR 内的运行目录。
+ * @param node - 目标 Electron 可执行文件。
+ * @param runtime - 已核验的目标资源描述。
+ * @param environment - 已移除发布凭据的构建环境。
+ * @param resourcesRuntime - ASAR 外的解释器与依赖目录。
+ * @returns 原生转换、产品 HTTP 认证、固定装配与退出均已验证。
  */
 export async function smokeDesktopRuntime(
   root: string, node: string, runtime: DesktopRuntimeDescriptor, environment: NodeJS.ProcessEnv, resourcesRuntime: string,
 ): Promise<void> {
-  const home = mkdtempSync(join(tmpdir(), 'dsh-desktop-smoke-'))
-  const profile = join(home, 'profiles', 'desktop')
-  const hostEnvironment = {
-    ...Object.fromEntries(Object.entries(environment).filter(([name]) => !/^(?:npm|pnpm|corepack)_/iu.test(name))),
-    DSH_HOME: home, HOME: home, USERPROFILE: home,
-    XDG_CONFIG_HOME: home, XDG_CACHE_HOME: home, XDG_STATE_HOME: home,
-    APPDATA: home, LOCALAPPDATA: home,
-    npm_config_userconfig: join(home, 'npmrc'), npm_config_globalconfig: join(home, 'npmrc'),
-    npm_config_store_dir: join(home, 'store'), npm_config_enable_global_virtual_store: 'false',
-  }
-  const host = new DesktopHostProcess(node, root, profile, undefined, hostEnvironment,
-    undefined, join(resourcesRuntime, 'primary-runtime'),
-    { pnpm: join(resourcesRuntime, 'primary-runtime', 'dependencies', 'pnpm', 'bin', 'pnpm.mjs'), nodeBin: join(resourcesRuntime, 'bin') })
+  const scratch = mkdtempSync(join(tmpdir(), 'dsh-desktop-smoke-'))
+  const config = readHarnessConfig('dev', fileURLToPath(new URL('../../../config/environments/', import.meta.url)))
+  const token = randomBytes(32).toString('base64url')
+  const user = { user_id: 'desktop_smoke', login_name: 'desktop_smoke', display_name: '桌面验证账号', status: 'ACTIVE' as const }
+  const session = { user, session_id: 'desktop_smoke_session', expires_in: 3600,
+    expires_at: new Date(Date.now() + 3_600_000).toISOString(), absolute_expires_at: new Date(Date.now() + 7_200_000).toISOString() }
+  const central = createServer((request, response) => {
+    response.setHeader('content-type', 'application/json')
+    if (request.url === '/api/v1/harness/bootstrap') {
+      response.end(JSON.stringify({ deployment_id: config.creativity.deploymentId })); return
+    }
+    if (request.url === '/api/v1/harness/auth/login' && request.method === 'POST') {
+      response.end(JSON.stringify({ ...session, token_type: 'Bearer', access_token: token })); return
+    }
+    if (request.url === '/api/v1/harness/auth/session' && request.headers.authorization === `Bearer ${token}`) {
+      response.end(JSON.stringify(session)); return
+    }
+    response.writeHead(401); response.end('{}')
+  })
+  let host: DesktopHostProcess | undefined
+  let release: (() => Promise<void>) | undefined
   let timer: ReturnType<typeof setTimeout> | undefined
   try {
-    writeFileSync(join(home, 'npmrc'), '')
+    await new Promise<void>((resolve, reject) => {
+      central.once('error', reject)
+      central.listen(0, '127.0.0.1', () => { central.removeListener('error', reject); resolve() })
+    })
+    const address = central.address()
+    if (address === null || typeof address === 'string') throw new Error('桌面验证中央端口未分配')
+    config.creativity.baseUrl = `http://127.0.0.1:${address.port}`
+    config.storage.root = join(scratch, 'dev')
+    config.providers.credentials = {}
+    config.proxy = { http: null, https: null, noProxy: '*' }
+    config.telemetry.enabled = false
+    const configuration = join(scratch, 'configuration')
+    mkdirSync(configuration)
+    writeFileSync(join(configuration, 'dev.json'), JSON.stringify(config))
+    const login = await new HarnessAuthClient(config).login({ login_name: user.login_name, password: 'isolated-smoke', captcha_token: 'isolated-smoke' })
+    release = await acquireHarnessUserHome(config, login.user.user_id, () => { throw new Error('桌面验证账号目录锁丢失') })
+    const home = harnessUserHome(config, login.user.user_id)
+    const profile = join(home, 'profiles', 'desktop')
     createPluginProfile(profile)
-    const pluginName = 'desktop-runtime-smoke-plugin'
-    const plugin = join(home, pluginName)
-    mkdirSync(plugin, { recursive: true })
-    const installedName = 'desktop-installed-smoke-plugin'
-    const installedPlugin = join(home, installedName)
-    mkdirSync(installedPlugin)
-    writeFileSync(join(installedPlugin, 'package.json'), JSON.stringify({
-      name: installedName, version: '1.0.0', type: 'module', exports: './index.js', dsh: { bundle: { patch: './bundle.yml' } },
-    }))
-    writeFileSync(join(installedPlugin, 'index.js'), `
-export function apply(ctx) {
-  ctx.effect(() => ctx.webServer.register({ kind: 'exact', path: '/desktop-smoke-installed',
-    handler(_request, response) { response.end('installed plugin ready') } }))
-}
-`)
-    writeFileSync(join(installedPlugin, 'bundle.yml'), `- insert:\n    - id: ${installedName}\n      name: ${installedName}\n      inject: [webServer]\n`)
-    appendFileSync(join(profile, 'pnpm-workspace.yaml'), 'offline: true\nupdateNotifier: false\n')
-    const cli = join(root, 'node_modules', '@deepseek-ai', 'dsh-desktop-host', 'lib', 'cli.js')
-    const runCli = (args: string[]) => promisify(execFile)(node,
-      ['--expose-internals', cli, 'plugin', '--profile', 'desktop', ...args],
-      { cwd: home, env: { ...hostEnvironment, ELECTRON_RUN_AS_NODE: '1' }, timeout: 120_000, windowsHide: true })
-    await runCli(['add', `file:${installedPlugin}`, '--offline', '--ignore-scripts'])
-    const installedEntry = join(profile, 'node_modules', installedName, 'index.js')
-    if (readFileSync(installedEntry, 'utf8') !== readFileSync(join(installedPlugin, 'index.js'), 'utf8')) {
-      throw new Error('desktop runtime: CLI did not install the local plugin')
-    }
-    await runCli(['remove', installedName])
-    if (existsSync(installedEntry)) throw new Error('desktop runtime: CLI did not remove the local plugin')
-    console.log('desktop runtime: CLI offline plugin installation and removal passed')
+    const hostEnvironment = { ...environment, DSH_HOME: home, HOME: scratch, USERPROFILE: scratch,
+      XDG_CONFIG_HOME: scratch, XDG_CACHE_HOME: scratch, XDG_STATE_HOME: scratch, APPDATA: scratch, LOCALAPPDATA: scratch }
     const primary = join(resourcesRuntime, 'primary-runtime')
     const dependencies = workspaceDependencyPaths(primary, await readPrimaryRuntime(primary))
-    await promisify(execFile)(dependencies.python, ['-I', '-B',
-      fileURLToPath(new URL('../tests/fixtures/office-conversion-inputs.py', import.meta.url)), home],
-    { env: environment, timeout: 120_000, windowsHide: true })
-    const inputs = ['docx', 'xlsx', 'pptx'].map(extension => ({ extension,
-      bytes: readFileSync(join(home, `input.${extension}`)).toString('base64') }))
-    const cordis = runtime.sharedPackages.find(entry => entry.name === '@deepseek-ai/cordis')
-    if (cordis === undefined) throw new Error('desktop runtime: missing shared Cordis package')
-    writeFileSync(join(plugin, 'package.json'), JSON.stringify({
-      name: pluginName, version: '1.0.0', type: 'module', exports: './index.js',
-      peerDependencies: { '@deepseek-ai/cordis': cordis.version }, dsh: { bundle: { patch: './bundle.yml' } },
-    }))
-    writeFileSync(join(plugin, 'index.js'), `
-import { Context } from '@deepseek-ai/cordis'
-import { inspect } from 'node:util'
-import { readFile } from 'node:fs/promises'
-export function apply(ctx) {
-  if (!(ctx instanceof Context)) throw new Error('desktop runtime: external plugin loaded another Cordis instance')
-  ctx.effect(() => ctx.webServer.register({ kind: 'exact', path: '/desktop-smoke',
-    handler(_request, response) { response.end('plugin route ready') } }))
-  ctx.effect(() => ctx.webServer.register({ kind: 'exact', path: '/desktop-smoke-install',
-    async handler(_request, response) {
-      try {
-        response.end(JSON.stringify(await ctx.pluginManager.installBundle(${JSON.stringify(installedPlugin)})))
-      } catch (error) {
-        response.statusCode = 500
-        response.end(inspect(error, { depth: 5 }))
-      }
-    } }))
-  ctx.effect(() => ctx.webServer.register({ kind: 'exact', path: '/desktop-smoke-skills',
-    async handler(_request, response) {
-      try {
-        const names = ${JSON.stringify(OFFICE_SKILLS)}
-        const listed = new Set((await ctx.skills.list()).map(skill => skill.name))
-        const loaded = await Promise.all(names.map(async name => {
-          const skill = listed.has(name) ? await ctx.skills.get(name) : undefined
-          return { name, bytes: skill?.content.length ?? 0 }
-        }))
-        response.end(JSON.stringify(loaded))
-      } catch (error) {
-        response.statusCode = 500
-        response.end(inspect(error, { depth: 5 }))
-      }
-    } }))
-  for (const input of ${JSON.stringify(inputs)}) {
-    ctx.effect(() => ctx.webServer.register({ kind: 'exact', path: '/desktop-smoke-office/' + input.extension,
-      async handler(_request, response) {
-        try {
-          const bytes = Buffer.from(input.bytes, 'base64')
-          const result = await ctx.officeKit.convert({ extension: input.extension, priority: 'foreground',
-            source: { key: 'desktop-smoke-' + input.extension, version: 'fixture', bytes: bytes.length,
-              async read() { return { bytes, version: 'fixture' } } } })
-          response.end(Buffer.from(result.pdf))
-        } catch (error) {
-          response.statusCode = 500
-          response.end(inspect(error, { depth: 5 }))
-        }
-      } }))
-    ctx.effect(() => ctx.webServer.register({ kind: 'exact', path: '/desktop-smoke-office-operations/' + input.extension,
-      async handler(_request, response) {
-        try {
-          const bytes = Buffer.from(input.bytes, 'base64')
-          const source = (operation) => ({ key: 'desktop-smoke-' + operation + '-' + input.extension, version: 'fixture', bytes: bytes.length,
-            async read() { return { bytes, version: 'fixture' } } })
-          const rendered = await ctx.officeKit.renderImages({ extension: input.extension, source: source('images'),
-            maxImages: 4, maxPixels: 16777216, maxDimension: 8192, maxBytes: 64 * 1024 * 1024 })
-          const format = { docx: 'odt', xlsx: 'ods', pptx: 'odp' }[input.extension]
-          const converted = await ctx.officeKit.convertTo({ extension: input.extension, format,
-            source: source('convert'), output: { owner: 'desktop-smoke', name: 'converted.' + format } })
-          const recalculated = input.extension === 'xlsx'
-            ? await ctx.officeKit.recalculate({ extension: 'xlsx', format: 'xlsx', source: source('recalculate'),
-              output: { owner: 'desktop-smoke', name: 'recalculated.xlsx' } })
-            : undefined
-          response.end(JSON.stringify({
-            images: rendered.images.map(image => Buffer.from(image.png.subarray(0, 8)).toString('hex')),
-            converted: (await readFile(converted.path)).subarray(0, 4).toString('hex'),
-            recalculated: recalculated === undefined ? null : (await readFile(recalculated.path)).subarray(0, 4).toString('hex'),
-          }))
-        } catch (error) {
-          response.statusCode = 500
-          response.end(inspect(error, { depth: 5 }))
-        }
-      } }))
-  }
-}
-`)
-    writeFileSync(join(plugin, 'bundle.yml'), '- insert:\n    - id: desktop-runtime-smoke-plugin\n      name: desktop-runtime-smoke-plugin\n      inject: [webServer, officeKit, pluginManager, skills]\n')
-    cpSync(plugin, join(profile, 'node_modules', pluginName), { recursive: true })
-    const manifest = JSON.parse(readFileSync(join(profile, 'package.json'), 'utf8')) as {
-      dependencies?: Record<string, string>
-      dsh: { profile: { bundles: string[] } }
-    }
-    manifest.dependencies = { ...manifest.dependencies, [pluginName]: `file:${plugin}` }
-    manifest.dsh.profile.bundles.push(pluginName)
-    writeFileSync(join(profile, 'package.json'), JSON.stringify(manifest))
-    writeFileSync(join(profile, 'cordis.patch.yml'), '- id: webserver\n  config:\n    host: 127.0.0.1\n    port: 0\n')
+    const run = promisify(execFile)
+    await run(dependencies.python, ['-I', '-B',
+      fileURLToPath(new URL('../tests/fixtures/office-conversion-inputs.py', import.meta.url)), scratch],
+    { env: hostEnvironment, timeout: 120_000, windowsHide: true })
+    // Office 在单独原生依赖探针中执行，不修改受保护 Host 的插件树。
+    const office = await run(node, ['--expose-internals',
+      fileURLToPath(new URL('../tests/fixtures/runtime-office-smoke.mjs', import.meta.url)), root, scratch],
+    { env: { ...hostEnvironment, ELECTRON_RUN_AS_NODE: '1' }, timeout: 300_000, windowsHide: true })
+    const loadedSkills = JSON.parse(office.stdout) as { name: string; bytes: number }[]
+    assertOfficeSkillsLoadable(loadedSkills)
+    if (!runtime.sharedPackages.some(entry => entry.name === '@deepseek-ai/cordis')) throw new Error('desktop runtime: missing shared Cordis package')
+    host = new DesktopHostProcess(node, root, profile, undefined, hostEnvironment, undefined, primary,
+      { pnpm: join(primary, 'dependencies', 'pnpm', 'bin', 'pnpm.mjs'), nodeBin: join(resourcesRuntime, 'bin') }, undefined,
+      { version: 1, generation: 1, environment: 'dev', configDirectory: configuration,
+        token: login.access_token, sessionId: login.session_id, user: login.user })
     const ready = await Promise.race([host.start(), new Promise<never>((_, reject) => {
       timer = setTimeout(() => { reject(new Error('desktop runtime: Host readiness exceeded 120 seconds')) }, 120_000)
     })])
     clearTimeout(timer)
-    const cookie = ready.authenticationCookie
-    const response = await fetch(new URL('/', ready.url), { headers: { cookie } })
-    if (response.status !== 200 || !(await response.text()).includes('<html')) {
-      throw new Error('desktop runtime: packaged frontend smoke failed')
+    const anonymous = await fetch(ready.url)
+    await anonymous.body?.cancel()
+    if (anonymous.status !== 401) throw new Error('desktop runtime: anonymous Host access was not rejected')
+    const response = await fetch(ready.url, { headers: { cookie: ready.authenticationCookie } })
+    if (response.status !== 200 || !(await response.text()).includes('<html')) throw new Error('desktop runtime: packaged frontend smoke failed')
+    await host.stop()
+    // 修改 profile 不能让旧版插件装配绕过当前产品限制。
+    const manifest = JSON.parse(readFileSync(join(profile, 'package.json'), 'utf8')) as { dependencies: Record<string, string> }
+    manifest.dependencies['desktop-untrusted-plugin'] = 'file:./untrusted'
+    writeFileSync(join(profile, 'package.json'), JSON.stringify(manifest))
+    host = new DesktopHostProcess(node, root, profile, undefined, hostEnvironment, undefined, primary, undefined, undefined,
+      { version: 1, generation: 2, environment: 'dev', configDirectory: configuration,
+        token: login.access_token, sessionId: login.session_id, user: login.user })
+    try { await host.start() }
+    catch (error) {
+      if (!(error instanceof Error) || !error.message.includes('桌面产品插件配置被修改')) throw error
+      console.log('desktop runtime: protected Host, anonymous rejection, fixed composition and native Office operations passed')
+      return
     }
-    const pluginResponse = await fetch(new URL('/desktop-smoke', ready.url), { headers: { cookie } })
-    if (await pluginResponse.text() !== 'plugin route ready') throw new Error('desktop runtime: plugin HTTP route failed')
-    const installation = await fetch(new URL('/desktop-smoke-install', ready.url), {
-      headers: { cookie }, signal: AbortSignal.timeout(120_000),
-    })
-    const installationResult = await installation.text()
-    const installed = await fetch(new URL('/desktop-smoke-installed', ready.url), { headers: { cookie } })
-    if (!installation.ok || !installed.ok || await installed.text() !== 'installed plugin ready') {
-      throw new Error(`desktop runtime: bundled pnpm plugin installation failed: ${installationResult}`)
-    }
-    const skills = await fetch(new URL('/desktop-smoke-skills', ready.url), { headers: { cookie }, signal: AbortSignal.timeout(120_000) })
-    if (!skills.ok) throw new Error(`desktop runtime: Office skill loading failed: ${await skills.text()}`)
-    const loadedSkills = await skills.json() as { name: string; bytes: number }[]
-    assertOfficeSkillsLoadable(loadedSkills)
-    console.log('desktop runtime: packaged Office skills listed and loaded')
-    for (const { extension } of inputs) {
-      const converted = await fetch(new URL(`/desktop-smoke-office/${extension}`, ready.url), {
-        headers: { cookie }, signal: AbortSignal.timeout(120_000),
-      })
-      if (!converted.ok) throw new Error(`desktop runtime: ${extension} conversion failed: ${await converted.text()}`)
-      const pdf = Buffer.from(await converted.arrayBuffer())
-      if (!/^%PDF-\d\.\d/u.test(pdf.subarray(0, 8).toString())
-        || !pdf.subarray(-1024).toString().trimEnd().endsWith('%%EOF')) {
-        throw new Error(`desktop runtime: invalid ${extension} PDF output`)
-      }
-    }
-    for (const { extension } of inputs) {
-      const operations = await fetch(new URL(`/desktop-smoke-office-operations/${extension}`, ready.url), {
-        headers: { cookie }, signal: AbortSignal.timeout(240_000),
-      })
-      if (!operations.ok) throw new Error(`desktop runtime: ${extension} Office operations failed: ${await operations.text()}`)
-      const result = await operations.json() as { images: string[]; converted: string; recalculated: string | null }
-      // PNG images, then ZIP containers for OpenDocument and XLSX outputs.
-      if (result.images.length === 0 || result.images.some(signature => signature !== '89504e470d0a1a0a')
-        || result.converted !== '504b0304' || (extension === 'xlsx' ? result.recalculated !== '504b0304' : result.recalculated !== null)) {
-        throw new Error(`desktop runtime: invalid ${extension} Office operation output: ${JSON.stringify(result)}`)
-      }
-    }
-    console.log('desktop runtime: DOCX, XLSX, PPTX to PDF, image rendering, conversion, and recalculation passed')
+    throw new Error('desktop runtime: modified product profile was accepted')
   } finally {
     clearTimeout(timer)
-    try { await host.stop() } finally {
-      await rm(home, { recursive: true, force: true, maxRetries: 20, retryDelay: 50 })
+    try { await host?.stop() }
+    finally {
+      central.closeAllConnections()
+      await new Promise<void>((resolve, reject) => central.close((error) => { if (error !== undefined) reject(error); else resolve() }))
+      await release?.()
+      await rm(scratch, { recursive: true, force: true, maxRetries: 20, retryDelay: 50 })
     }
   }
 }

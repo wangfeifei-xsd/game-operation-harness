@@ -49,7 +49,7 @@ async function setup(): Promise<PrivateFixture> {
   const central = vi.spyOn(HarnessAuthClient.prototype, 'session').mockResolvedValue(session)
   const plugin = ctx.plugin({ apply(scope: Context) {
     installHarnessPrivateAuth(scope, readHarnessConfig('dev'), {
-      kind: 'harness/start', generation: 1, token: randomBytes(32).toString('base64url'), secret, user: session.user,
+      kind: 'harness/start', generation: 1, sessionId: session.session_id, token: randomBytes(32).toString('base64url'), secret, user: session.user,
     }, stop)
   } })
   await plugin.await()

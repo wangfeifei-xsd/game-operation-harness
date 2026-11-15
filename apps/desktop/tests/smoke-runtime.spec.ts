@@ -1,6 +1,6 @@
 /** Packaged runtime HTTP authentication and Office skill probe results. */
 
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, dirname, isAbsolute, join, resolve } from 'node:path'
@@ -15,10 +15,12 @@ import { runtimeFixture } from './runtime-fixture.ts'
 const boundary = vi.hoisted(() => ({
   start: vi.fn<() => Promise<{ url: string; injections: []; authenticationCookie: string }>>(),
   stop: vi.fn(async () => {}),
+  construct: vi.fn<(...args: unknown[]) => void>(),
   run: vi.fn<(_executable: string, _args: string[], _options: { cwd?: string }) => Promise<{ stdout: string; stderr: string }>>(),
 }))
 vi.mock('../src/host-process.ts', () => ({
   DesktopHostProcess: class {
+    constructor(...args: unknown[]) { boundary.construct(...args) }
     start = boundary.start
     stop = boundary.stop
   },
@@ -31,6 +33,7 @@ vi.mock('node:child_process', async (importOriginal) => {
 afterEach(() => {
   boundary.start.mockReset()
   boundary.stop.mockClear()
+  boundary.construct.mockClear()
   boundary.run.mockReset()
   vi.restoreAllMocks()
 })
@@ -42,7 +45,7 @@ const loadedSkills = [
   { name: 'office-xlsx', bytes: 5611 },
 ]
 
-it('uses the private readiness Cookie for every packaged runtime HTTP probe', async () => {
+it('authenticates the fixed product Host, rejects anonymous access and refuses modified profiles', async () => {
   const root = mkdtempSync(join(tmpdir(), 'dsh-smoke-auth-'))
   const ctx = new Context()
   onTestFinished(async () => {
@@ -57,8 +60,7 @@ it('uses the private readiness Cookie for every packaged runtime HTTP probe', as
   const primary = join(resources, 'primary-runtime')
   mkdirSync(primary, { recursive: true })
   writeFileSync(join(primary, 'runtime.json'), JSON.stringify({
-    desktopVersion: '1.0.0', platform: process.platform, arch: process.arch,
-    python: '3.12.0', pythonPackages: {},
+    desktopVersion: '1.0.0', platform: process.platform, arch: process.arch, python: '3.12.0', pythonPackages: {},
   }))
   const secret = Buffer.alloc(32, 7).toString('base64url')
   const cookie = `dsh-desktop-session=${secret}`
@@ -70,51 +72,24 @@ it('uses the private readiness Cookie for every packaged runtime HTTP probe', as
     requests.push({ path: request.url, cookie: request.headers.cookie })
     await next()
   })
-  ctx.effect(() => ctx.webServer.registerFallback({
-    handler(request, response) {
-      const path = request.url
-      if (path === '/') response.end('<html>packaged fixture</html>')
-      else if (path === '/desktop-smoke') response.end('plugin route ready')
-      else if (path === '/desktop-smoke-install') response.end('{}')
-      else if (path === '/desktop-smoke-installed') response.end('installed plugin ready')
-      else if (path === '/desktop-smoke-skills') response.end(JSON.stringify(loadedSkills))
-      else if (path?.startsWith('/desktop-smoke-office/')) response.end('%PDF-1.7\nfixture\n%%EOF')
-      else if (path?.startsWith('/desktop-smoke-office-operations/')) response.end(JSON.stringify({
-        images: ['89504e470d0a1a0a'], converted: '504b0304', recalculated: path.endsWith('/xlsx') ? '504b0304' : null,
-      }))
-      else response.writeHead(404).end()
-    },
-  }))
-  boundary.start.mockResolvedValue({ url: ctx.webServer.getOrigin(), injections: [], authenticationCookie: cookie })
+  ctx.effect(() => ctx.webServer.registerFallback({ handler(_request, response) { response.end('<html>packaged fixture</html>') } }))
+  boundary.start.mockResolvedValueOnce({ url: ctx.webServer.getOrigin(), injections: [], authenticationCookie: cookie })
+    .mockRejectedValueOnce(new Error('桌面产品插件配置被修改，请重新登录'))
   let smokeHome: string | undefined
-  // Only package-manager and Office subprocess work is substituted; HTTP admission is real.
-  boundary.run.mockImplementation(async (_executable, args, options) => {
-    if (options.cwd === undefined) {
-      const home = args.at(-1)!
-      for (const extension of ['docx', 'xlsx', 'pptx']) writeFileSync(join(home, `input.${extension}`), 'fixture')
-    } else {
-      const home = options.cwd
-      smokeHome = home
-      const installed = join(home, 'profiles', 'desktop', 'node_modules', 'desktop-installed-smoke-plugin')
-      if (args.includes('add')) cpSync(join(home, 'desktop-installed-smoke-plugin'), installed, { recursive: true })
-      else {
-        if (!args.includes('remove') || !isAbsolute(home) || dirname(home) !== resolve(tmpdir())
-          || !basename(home).startsWith('dsh-desktop-smoke-')) throw new Error('unexpected package-manager fixture operation')
-        expect(readFileSync(join(installed, 'index.js'), 'utf8')).toContain('installed plugin ready')
-        rmSync(installed, { recursive: true })
-      }
-    }
-    return { stdout: '', stderr: '' }
+  // 中央服务与 HTTP 凭据验证仍实际运行；只替代目标可执行程序。
+  boundary.run.mockImplementation(async (_executable, args) => {
+    smokeHome = args.at(-1)
+    return { stdout: args.some(arg => arg.endsWith('runtime-office-smoke.mjs')) ? JSON.stringify(loadedSkills) : '', stderr: '' }
   })
   vi.spyOn(console, 'log').mockImplementation(() => {})
   await smokeDesktopRuntime(join(root, 'payload'), process.execPath, runtime, {}, resources)
-  expect(requests.map(request => request.path)).toEqual([
-    '/', '/desktop-smoke', '/desktop-smoke-install', '/desktop-smoke-installed', '/desktop-smoke-skills',
-    '/desktop-smoke-office/docx', '/desktop-smoke-office/xlsx', '/desktop-smoke-office/pptx',
-    '/desktop-smoke-office-operations/docx', '/desktop-smoke-office-operations/xlsx', '/desktop-smoke-office-operations/pptx',
-  ])
-  expect(requests.every(request => request.cookie === cookie)).toBe(true)
-  expect(boundary.stop).toHaveBeenCalledOnce()
+  expect(requests).toEqual([{ path: '/', cookie: undefined }, { path: '/', cookie }])
+  expect(boundary.construct).toHaveBeenCalledTimes(2)
+  for (const args of boundary.construct.mock.calls) {
+    expect(args[9]).toMatchObject({ version: 1, environment: 'dev', user: { user_id: 'desktop_smoke' } })
+    expect(args[4]).not.toHaveProperty('token')
+  }
+  expect(boundary.stop).toHaveBeenCalledTimes(2)
   expect(smokeHome).toBeDefined()
   expect(existsSync(smokeHome!)).toBe(false)
 })

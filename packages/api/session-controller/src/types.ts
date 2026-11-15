@@ -133,7 +133,7 @@ export interface ModelCatalogFailure {
 
 /** Host-generation model catalog and the default used by unconfigured Sessions. */
 export interface ModelCatalog {
-  readonly default: ModelSelection
+  readonly default: ModelSelection | null
   /** Provider routes with at least one currently available catalog model. */
   readonly routableProviders: readonly string[]
   readonly groups: readonly ModelProviderGroup[]
@@ -710,6 +710,12 @@ declare module '@deepseek-ai/cordis' {
      * @param message - user-safe failure chain.
      */
     'api-session/error'(sessionId: SessionId, message: string): void
+    /**
+     * 会话已切换模型，但默认选择持久化失败；当前会话仍保留新选择。
+     * @mode emit
+     * @param sessionId - 已成功切换模型的会话。
+     */
+    'api-session/default-model-save-failed'(sessionId: SessionId): void
   }
 }
 

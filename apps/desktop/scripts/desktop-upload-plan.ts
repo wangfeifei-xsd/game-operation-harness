@@ -1,5 +1,6 @@
 /** Validate packaged Desktop update artifacts before any network upload begins. */
 
+import { desktopProductDeployment } from '@deepseek-ai/dsh-desktop-publisher/product-deployment.mjs'
 import type { DesktopPackageTargetName } from './package-target.ts'
 import type { DesktopUploadArtifact, DesktopUploadPlan } from '@deepseek-ai/dsh-desktop-publisher/desktop-upload-types.ts'
 import { createHash } from 'node:crypto'
@@ -173,6 +174,7 @@ export async function createDesktopUploadPlan(
     throw new Error(`desktop upload: desktop version ${desktopVersion} does not match current dsh version ${dshVersion}`)
   }
 
+  const deployment = desktopProductDeployment(environment, true)
   const update = resolveDesktopUploadConfig(environment, target.platform, target.arch)
   const buildRecord = await jsonFile(
     join(artifactsRoot, desktopBuildRecordFilename(targetName)),
@@ -190,7 +192,9 @@ export async function createDesktopUploadPlan(
   }
   if (buildRecord.schemaVersion !== 1
     || buildRecord.target !== targetName
-    || (buildRecord.channel ?? 'nightly') !== update.channel
+    || buildRecord.channel !== update.channel
+    || buildRecord.product !== 'agent-assistant' || buildRecord.appId !== deployment.desktop.appId
+    || buildRecord.productEnvironment !== deployment.environment
     || buildRecord.environment !== update.environment
     || buildRecord.publicUrl !== update.publicUrl) {
     throw new Error(`desktop upload: ${targetName} package completion record for ${buildVersion} does not match the ${update.environment} update destination`)
@@ -214,7 +218,7 @@ export async function createDesktopUploadPlan(
     throw new Error(`desktop upload: ${metadataFilename}.files must contain exactly one target update file`)
   }
 
-  const base = `deepseek-harness-${buildVersion}-${target.os}-${target.arch}`
+  const base = `agent-assistant-${buildVersion}-${target.os}-${target.arch}`
   const updaterExtension = target.platform === 'darwin' ? 'zip' : 'exe'
   const updaterInfo = updateFileInfo(metadata.files[0], `${metadataFilename}.files[0]`, `${base}.${updaterExtension}`)
   const updaterPath = await verifyChecksummedArtifact(artifactsRoot, updaterInfo)
@@ -246,6 +250,7 @@ export async function createDesktopUploadPlan(
   const payloadUrl = `${update.origin}/${binaryPrefix}/${updaterInfo.filename}`
   const published = {
     ...metadata,
+    agentAssistant: { product: 'agent-assistant', appId: deployment.desktop.appId, environment: deployment.environment, channel: update.channel, target: targetName },
     ...(options.stagingPercentage === undefined ? {} : { stagingPercentage: options.stagingPercentage }),
     files: [{ ...object(metadata.files[0], `${metadataFilename}.files[0]`), url: payloadUrl }],
     ...(metadata.path === undefined ? {} : { path: payloadUrl }),
@@ -256,17 +261,32 @@ export async function createDesktopUploadPlan(
   }
   artifacts.push(channelArtifact)
   const latestFilename = desktopLatestInstallerFilename(targetName)
-  const latestKey = `desktop/${latestFilename}`
+  if (deployment.desktop.downloadIndexUrl === null) throw new Error('尚未配置桌面下载索引')
+  const latestUrl = new URL(latestFilename, deployment.desktop.downloadIndexUrl)
+  const latestKey = latestUrl.pathname.slice(1)
+  const installerBytes = await stat(installerArtifact.path)
+  const installerHash = createHash('sha256')
+  for await (const bytes of createReadStream(installerArtifact.path)) installerHash.update(bytes)
+  const downloadIndex = {
+    deployment: { environment: deployment.environment, desktop: {
+      appId: deployment.desktop.appId, channel: deployment.desktop.channel, downloadIndexUrl: deployment.desktop.downloadIndexUrl,
+    } },
+    key: new URL(deployment.desktop.downloadIndexUrl).pathname.slice(1), installerKey: installerArtifact.key,
+    file: { target: targetName === 'win-x64' ? 'windows-x64' as const : targetName === 'mac-arm64' ? 'macos-arm64' as const : 'macos-x64' as const,
+      url: `${update.origin}/${installerArtifact.key}`, filename: installerArtifact.filename,
+      bytes: installerBytes.size, sha256: installerHash.digest('hex') },
+  }
   return {
     environment: update.environment,
     target: targetName,
     version: buildVersion,
-    publicUrl: options.latest ? `${update.origin}/${latestKey}` : update.publicUrl,
+    publicUrl: options.latest ? latestUrl.href : update.publicUrl,
     bucket: update.bucket,
     secretIdEnvName: update.secretIdEnvName,
     secretKeyEnvName: update.secretKeyEnvName,
     artifacts: options.latest ? [{ ...installerArtifact, filename: latestFilename, key: latestKey,
       contentDisposition: `attachment; filename="${installerArtifact.filename}"` }] : artifacts,
+    ...(options.latest ? {} : { downloadIndex }),
     ...typeof buildRecord.commit === 'string' ? { commit: buildRecord.commit } : {},
     ...typeof buildRecord.dirty === 'boolean' ? { dirty: buildRecord.dirty } : {},
   }

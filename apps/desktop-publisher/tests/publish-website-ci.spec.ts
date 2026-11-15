@@ -1,3 +1,4 @@
+import '../../desktop/tests/product-deployment-fixture.ts'
 import { createHash } from 'node:crypto'
 import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -27,14 +28,14 @@ it.each(['accepted', 'unconfirmed', 'incomplete', 'wrong-journal', 'upload', 'pu
     }))
     const route = { runId: '12', attempt: '1', commit: 'a'.repeat(40), sourceRef: 'master', channel: scenario === 'stable' ? 'stable' : 'nightly',
       runnerName: 'mini', runnerLabel: 'dsh-mini', target: 'mac-arm64', preset: 'production' }
-    const manifest = { schemaVersion: 1, source: { repository: 'owner/repo', runId: '12', attempt: '1', commit: route.commit,
+    const manifest = { schemaVersion: 1, source: { product: 'agent-assistant', appId: 'com.example.agentassistant.master', productEnvironment: 'master', repository: 'owner/repo', runId: '12', attempt: '1', commit: route.commit,
       workflowCommit: route.commit, sourceRef: 'master', channel: route.channel, runnerName: 'mini', target: 'mac-arm64',
       preset: 'production', productVersion: '1.0.0', version: '1.0.0', testReleaseId: null, qualification: 'notarized' },
-    files: [{ name: 'deepseek-harness-1.0.0-mac-arm64.dmg', size: 1, sha512: createHash('sha512').update('x').digest('base64') }] }
+    files: [{ name: 'agent-assistant-1.0.0-mac-arm64.dmg', size: 1, sha512: createHash('sha512').update('x').digest('base64') }] }
     await writeFile(join(root, 'releases', '12', '1', 'manifest.json'), JSON.stringify(manifest))
     const approval = websiteApproval(manifest, 'production-123')
     await writeFile(join(records, 'state.json'), JSON.stringify({ approval, upload: 'uploaded' }))
-    if (scenario === 'metadata') await writeFile(join(records, 'state.json'), JSON.stringify({ approval, upload: 'uploaded', purgeAttempt: '1', purge: { zoneId: 'zone-fixture', publicUrl: 'https://download.deepseek.com/desktop/dsh-latest-macos-arm64.dmg', submittedAt: '2026-10-30T00:00:00.000Z', jobId: 'old-job', status: 'success' } }))
+    if (scenario === 'metadata') await writeFile(join(records, 'state.json'), JSON.stringify({ approval, upload: 'uploaded', purgeAttempt: '1', purge: { zoneId: 'zone-fixture', publicUrl: 'https://updates.example.com/agent-assistant/master/stable/agent-assistant-latest-macos-arm64.dmg', submittedAt: '2026-10-30T00:00:00.000Z', jobId: 'old-job', status: 'success' } }))
     if (scenario === 'metadata-retry') await writeFile(join(records, 'state.json'), JSON.stringify({ approval, upload: 'upload-intent', uploadConfirmed: true }))
     const env = { RUNNER_NAME: 'mini', GITHUB_REPOSITORY: 'owner/repo', GITHUB_RUN_ID: '99',
       GITHUB_RUN_ATTEMPT: '1', DSH_PACKAGING_CONFIG_DIR: config, DESKTOP_PUBLISH_ROUTE: JSON.stringify(route),
@@ -88,7 +89,7 @@ it.each(['accepted', 'unconfirmed', 'incomplete', 'wrong-journal', 'upload', 'pu
           await publishWebsiteCi('upload', env)
           expect(output.mock.calls.map(call => String(call[0])).join('')).toContain((scenario === 'put' || scenario === 'metadata')
             ? 'Website installer uploaded:' : 'identical remote bytes and download filename confirmed; skipped')
-          if (scenario === 'upload') expect(server.requests[0]!.path).toBe('/desktop/dsh-latest-macos-arm64.dmg')
+          if (scenario === 'upload') expect(server.requests[0]!.path).toBe('/agent-assistant/master/stable/agent-assistant-latest-macos-arm64.dmg')
           expect(server.requests.map(request => request.method)).toEqual((scenario === 'put' || scenario === 'metadata') ? ['GET', 'PUT', 'GET'] : ['GET'])
           expect(JSON.parse(await readFile(join(records, 'state.json'), 'utf8'))).toMatchObject({ approval, upload: 'uploaded' })
           expect(await readFile(env.GITHUB_OUTPUT, 'utf8')).toContain(`record=${records}`)

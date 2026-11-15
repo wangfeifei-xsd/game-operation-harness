@@ -1,0 +1,43 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/host/harness-product/README.md
+/:
+  en: 7fa0bd1f14e8f050
+  zh: 0db4d17f480e1dd0
+/deepseek-ai-dsh-host-harness-product:
+  en: 9fb0993651058789
+  zh: 3af0bafcf1b5db88
+/deepseek-ai-dsh-host-harness-product/summary:
+  en: 8a09c238fb689b29
+  zh: 3e9e91f05e78e073
+/deepseek-ai-dsh-host-harness-product/table-of-contents:
+  en: ece13d4a18088d9d
+  zh: 0a15c15b9ed72090
+/deepseek-ai-dsh-host-harness-product/use-this-package:
+  en: 0bdcbb7843dbcdb0
+  zh: dd1194e71d76831b
+/deepseek-ai-dsh-host-harness-product/further-exploration:
+  en: fb8a095ab33db36c
+  zh: a035ff524e91208a
+/deepseek-ai-dsh-host-harness-product/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/deepseek-ai-dsh-host-harness-product/model-experience/authenticated-product-execution:
+  en: 7147b769da8dc18f
+  zh: a62120d484b3b705
+/deepseek-ai-dsh-host-harness-product/model-experience/authenticated-product-execution/what-the-model-sees:
+  en: e4451bd4c201b8d3
+  zh: 13b4004ffdbec28f
+/deepseek-ai-dsh-host-harness-product/model-experience/authenticated-product-execution/token-effect:
+  en: 52b0aa5b222fb433
+  zh: 5c7f88de747e7f5c
+/deepseek-ai-dsh-host-harness-product/model-experience/authenticated-product-execution/kv-cache-effect:
+  en: 90949d5be97cdcf6
+  zh: 6acace53f86eddfe
+/deepseek-ai-dsh-host-harness-product/known-limitations-and-deferred-work:
+  en: 88a1b154de8dd69c
+  zh: 4122fee483dd49cb
+/deepseek-ai-dsh-host-harness-product/known-limitations-and-deferred-work/dev-note:
+  en: 5284e29c571e9825
+  zh: 45c7daa7e6fc4bdf

@@ -1,5 +1,6 @@
 /** Build one release target with matching Electron and dsh architecture. */
 
+import { desktopProductDeployment } from '@deepseek-ai/dsh-desktop-publisher/product-deployment.mjs'
 import { spawn } from 'node:child_process'
 import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { parseArgs } from 'node:util'
@@ -154,6 +155,9 @@ function writeReleaseRecord(
     target: target.name,
     version: buildVersion,
     environment: update.environment,
+    productEnvironment: desktopProductDeployment(environment).environment,
+    appId: desktopProductDeployment(environment).desktop.appId,
+    product: 'agent-assistant',
     channel: update.channel,
     publicUrl: update.publicUrl,
     // Upload reads this to tag the commit a production release was packaged from.
@@ -195,6 +199,7 @@ export function resolveDesktopPackageTarget(
 
 interface DesktopPackageInvocation {
   readonly target: DesktopPackageTarget
+  readonly environment: 'dev' | 'test' | 'fat' | 'master'
   readonly directory: boolean
   readonly prepareOnly: boolean
   readonly unsigned: boolean
@@ -228,6 +233,7 @@ export function parseDesktopPackageInvocation(
     args: argv.filter(argument => argument !== '--'),
     allowPositionals: true,
     options: {
+      environment: { type: 'string', default: 'test' },
       dir: { type: 'boolean', default: false },
       'prepare-only': { type: 'boolean', default: false },
       unsigned: { type: 'boolean', default: false },
@@ -238,6 +244,7 @@ export function parseDesktopPackageInvocation(
   })
   if (positionals.length > 1) throw new Error('desktop package: expected at most one target')
   const name = positionals[0] ?? hostTargetName(hostPlatform, hostArch)
+  if (!['dev', 'test', 'fat', 'master'].includes(values.environment)) throw new Error('请指定 --environment dev|test|fat|master')
   if (values.unsigned && values['prepare-only']) throw new Error('desktop package: --unsigned cannot use --prepare-only')
   if (values['skip-notarization'] && (name === 'win-x64' || values.unsigned || values['prepare-only'])) {
     throw new Error('desktop package: --skip-notarization requires a signed macOS build, without --prepare-only')
@@ -248,6 +255,7 @@ export function parseDesktopPackageInvocation(
   }
   return {
     target: resolveDesktopPackageTarget(name, hostPlatform, hostArch),
+    environment: values.environment as DesktopPackageInvocation['environment'],
     directory: values.dir,
     prepareOnly: values['prepare-only'],
     unsigned: values.unsigned,
@@ -344,11 +352,15 @@ async function main(): Promise<void> {
   if (invocation.skipNotarization) {
     process.stdout.write('desktop package: skipping notarization and stapling; internal debugging only, not qualified for distribution or update publishing\n')
   }
-  const environment = target.platform === 'darwin' && invocation.unsigned
+  const environment = invocation.unsigned
     ? localMacOSPackageEnvironment()
     : loadDesktopPackageEnvironment(target.platform, process.env, APP_ROOT, {
       unsigned: invocation.unsigned, prepareOnly: invocation.prepareOnly,
     })
+  environment.DSH_DESKTOP_PRODUCT_ENVIRONMENT = invocation.environment
+  const deployment = desktopProductDeployment(environment, !invocation.unsigned && !invocation.prepareOnly)
+  environment.DSH_DESKTOP_APP_ID = deployment.desktop.appId
+  environment.DSH_DESKTOP_UPDATE_CHANNEL = deployment.desktop.channel
   const productVersion = packageVersion(join(APP_ROOT, 'package.json'), 'desktop package')
   // Release settings come from the selected configuration files, so the version this run publishes is an
   // argument; the environment variable below only carries it to the child processes that build.
@@ -402,7 +414,7 @@ async function main(): Promise<void> {
   if (success && target.platform === 'darwin' && !invocation.directory && !invocation.prepareOnly) {
     const paths = desktopTargetBuildPaths(target.name, environment)
     const output = desktopArtifactOutput(paths, invocation)
-    const filename = `deepseek-harness-${buildVersion}-mac-${target.arch}${output.suffix}.dmg`
+    const filename = `agent-assistant-${buildVersion}-mac-${target.arch}${output.suffix}.dmg`
     console.log(`DMG: ${join(output.directory, filename)}`)
   }
 }
@@ -545,13 +557,13 @@ export async function packageTarget(
   } else if (target.platform === 'darwin' && !invocation.unsigned && !invocation.skipNotarization) {
     await execute([...desktopElectronBuilderArguments(target, true), '--config.mac.notarize=false'], electronBuilderEnv)
     await execute(['exec', 'tsx', 'scripts/smoke-packaged-runtime.ts'], targetEnv)
-    const appPath = join(buildPaths.artifacts, target.arch === 'arm64' ? 'mac-arm64' : 'mac', 'DeepSeek Harness.app')
+    const appPath = join(buildPaths.artifacts, target.arch === 'arm64' ? 'mac-arm64' : 'mac', 'Agent 助手.app')
     await withMacOSNotarizationProxy(mac?.notarizationProxy,
       () => notarizeMacOS({ appPath, ...resolveMacOSNotarizationEnvironment(environment) }), undefined, undefined, proxyEvent)
   } else {
     if (target.platform === 'darwin' && invocation.skipNotarization && !invocation.directory) {
       await execute(desktopElectronBuilderArguments(target, true), electronBuilderEnv)
-      const appPath = join(artifactsRoot, target.arch === 'arm64' ? 'mac-arm64' : 'mac', 'DeepSeek Harness.app')
+      const appPath = join(artifactsRoot, target.arch === 'arm64' ? 'mac-arm64' : 'mac', 'Agent 助手.app')
       for (const format of ['dmg', 'zip'] as const) {
         await buildMacArtifact({ format, appPath, output: artifactsRoot })
       }

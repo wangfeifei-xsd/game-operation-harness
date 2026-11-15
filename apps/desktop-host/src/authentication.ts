@@ -1,5 +1,7 @@
 /** Receive the Desktop startup credential over the private parent IPC channel. */
 
+import { parseDesktopProductStart, type DesktopProductStart } from '@deepseek-ai/dsh-host-harness-product/desktop-start'
+
 interface AuthenticationChannel {
   readonly connected: boolean
   on(event: 'message', listener: (message: unknown) => void): unknown
@@ -19,6 +21,7 @@ export class DesktopAuthenticationEnd extends Error {
 /** One private credential receipt and the lifetime of its parent channel. */
 export interface DesktopSecretReceipt {
   readonly secret: Promise<string>
+  readonly product: Promise<DesktopProductStart>
   readonly signal: AbortSignal
   /** Remove private IPC listeners and end any pending receipt. */
   dispose(): void
@@ -32,6 +35,8 @@ export interface DesktopSecretReceipt {
  */
 export function receiveDesktopSecret(channel: AuthenticationChannel): DesktopSecretReceipt {
   const delivered = Promise.withResolvers<string>()
+  const product = Promise.withResolvers<DesktopProductStart>()
+  void product.promise.catch(() => undefined)
   const lifetime = new AbortController()
   let received = false
   const detach = (): void => {
@@ -40,9 +45,11 @@ export function receiveDesktopSecret(channel: AuthenticationChannel): DesktopSec
   }
   const end = (error: Error): void => {
     if (lifetime.signal.aborted) return
+    clearTimeout(deadline)
     detach()
     lifetime.abort(error)
     delivered.reject(error)
+    product.reject(error)
   }
   const onDisconnect = (): void => { end(new DesktopAuthenticationEnd('disconnected')) }
   const onMessage = (message: unknown): void => {
@@ -50,20 +57,26 @@ export function receiveDesktopSecret(channel: AuthenticationChannel): DesktopSec
     if (message.type === 'shutdown') { end(new DesktopAuthenticationEnd('shutdown')); return }
     if (message.type !== 'desktop-auth') return
     if (received) { end(new Error('Desktop authentication credential already received')); return }
-    if (Array.isArray(message) || Object.keys(message).length !== 2 || !('secret' in message) || typeof message.secret !== 'string'
+    if (Array.isArray(message) || Object.keys(message).length !== 3 || !('product' in message) || !('secret' in message) || typeof message.secret !== 'string'
       || !/^[A-Za-z0-9_-]{43}$/u.test(message.secret)
       || Buffer.from(message.secret, 'base64url').toString('base64url') !== message.secret) {
       end(new Error('Desktop authentication message is invalid'))
       return
     }
+    try { product.resolve(parseDesktopProductStart('product' in message ? message.product : undefined)) }
+    catch (_invalidProduct) { end(new Error('桌面产品启动身份无效')); return }
     received = true
+    clearTimeout(deadline)
     delivered.resolve(message.secret)
   }
   channel.on('message', onMessage)
   channel.on('disconnect', onDisconnect)
+  const deadline = setTimeout(() => { end(new Error('桌面私有启动认证超时')) }, 15_000)
+  deadline.unref()
   if (!channel.connected) onDisconnect()
   return {
     secret: delivered.promise,
+    product: product.promise,
     signal: lifetime.signal,
     dispose() { end(new Error('Desktop authentication receiver disposed')) },
   }

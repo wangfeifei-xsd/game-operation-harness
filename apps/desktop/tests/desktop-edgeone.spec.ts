@@ -1,3 +1,4 @@
+import './product-deployment-fixture.ts'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { teo } from 'tencentcloud-sdk-nodejs-teo'
 import { purgeDesktopInstaller, resolveDesktopPurgeConfig } from '../scripts/desktop-edgeone.ts'
@@ -14,7 +15,7 @@ afterEach(() => vi.restoreAllMocks())
 describe('production EdgeOne configuration', () => {
   it.each([
     [{ DSH_DESKTOP_AUTO_UPDATE_ENV: 'test' }, /production is required/u],
-    [{ DSH_DESKTOP_AUTO_UPDATE_ENV: 'prod' }, /must be "test" or "production"/u],
+    [{ DSH_DESKTOP_AUTO_UPDATE_ENV: 'prod' }, /产品环境不匹配/u],
     [{ DOWNLOAD_PROD_EO_ZONE_ID: '' }, /DOWNLOAD_PROD_EO_ZONE_ID/u],
     [{ DOWNLOAD_PROD_EO_ZONE_ID: 'invalid' }, /must name one EO zone/u],
     [{ DOWNLOAD_PROD_COS_SECRET_KEY: '' }, /DOWNLOAD_PROD_COS_SECRET_KEY/u],
@@ -23,10 +24,10 @@ describe('production EdgeOne configuration', () => {
   })
 
   it('uses the upload plan URL verbatim and derives only cache-only destinations', () => {
-    const url = 'https://download.deepseek.com/changed/installer.dmg'
+    const url = 'https://updates.example.com/changed/installer.dmg'
     expect(resolveDesktopPurgeConfig(environment, 'mac-arm64', url).publicUrl).toBe(url)
-    expect(resolveDesktopPurgeConfig(environment, 'win-x64').publicUrl).toBe('https://download.deepseek.com/desktop/dsh-latest-windows-x64.exe')
-    expect(resolveDesktopPurgeConfig(environment, 'mac-x64').publicUrl).toBe('https://download.deepseek.com/desktop/dsh-latest-macos-x64.dmg')
+    expect(resolveDesktopPurgeConfig(environment, 'win-x64').publicUrl).toBe('https://updates.example.com/agent-assistant/master/stable/agent-assistant-latest-windows-x64.exe')
+    expect(resolveDesktopPurgeConfig(environment, 'mac-x64').publicUrl).toBe('https://updates.example.com/agent-assistant/master/stable/agent-assistant-latest-macos-x64.dmg')
   })
 })
 

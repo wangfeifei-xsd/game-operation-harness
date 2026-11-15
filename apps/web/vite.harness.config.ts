@@ -9,7 +9,7 @@ export default defineConfig({
   build: {
     outDir: 'harness-dist', emptyOutDir: true, cssCodeSplit: false,
     rollupOptions: {
-      input: { auth: fileURLToPath(new URL('./harness/auth.tsx', import.meta.url)), panel: fileURLToPath(new URL('./harness/panel.tsx', import.meta.url)) },
+      input: { auth: fileURLToPath(new URL('./harness/auth.tsx', import.meta.url)) },
       output: { entryFileNames: '[name].js', chunkFileNames: '[name]-[hash].js', assetFileNames: '[name][extname]' },
     },
   },

@@ -4,10 +4,10 @@ import { accessSync, constants, statSync } from 'node:fs'
 import { dirname, isAbsolute, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { readDesktopPackageSettings as readSettings } from './desktop-file-settings.mjs'
-import { resolveDesktopAppId, resolveMacOSNotarizationEnvironment, resolveMacOSSigningEnvironment, resolveNpmRegistry } from './desktop-release-environment.mjs'
+import { resolveMacOSNotarizationEnvironment, resolveMacOSSigningEnvironment, resolveNpmRegistry } from './desktop-release-environment.mjs'
+import { desktopProductDeployment } from '@deepseek-ai/dsh-desktop-publisher/product-deployment.mjs'
 import { resolveDesktopAutoUpdateConfig } from '@deepseek-ai/dsh-desktop-publisher/desktop-auto-update-environment.mjs'
 import { createWindowsTokenSigner } from './windows-sign.mjs'
-import { resolveDesktopPolicyEnvironment } from './desktop-policy-environment.mjs'
 import { validateMacOSSignatureCacheDirectory } from './macos-signature-cache-directory.mjs'
 import { resolveMacOSPackageSettings } from './macos-package-settings.mjs'
 import { resolveWindowsSignatureCacheDirectory } from './windows-signature-cache-directory.mjs'
@@ -28,7 +28,7 @@ const AMBIENT_RELEASE_SETTING = /^(?:DSH_DESKTOP_(?:APP_ID|AUTO_UPDATE_ENV|MANDA
 export function localMacOSPackageEnvironment(environment = process.env) {
   return {
     ...Object.fromEntries(Object.entries(environment).filter(([name]) => !AMBIENT_RELEASE_SETTING.test(name))),
-    DSH_DESKTOP_APP_ID: 'com.deepseek.harness',
+    DSH_DESKTOP_PRODUCT_ENVIRONMENT: environment.DSH_DESKTOP_PRODUCT_ENVIRONMENT ?? 'test',
     DSH_DESKTOP_UNSIGNED: '1',
   }
 }
@@ -119,12 +119,11 @@ function requireReadableFile(environment, name) {
  */
 export function validateDesktopPackageEnvironment(environment, target, options = {}) {
   resolveDesktopTargetBuildPaths(environment, target.platform, target.arch)
-  resolveDesktopAppId(environment)
   resolveNpmRegistry(environment)
-  if (target.platform !== 'darwin' || !options.unsigned) resolveDesktopPolicyEnvironment(environment)
   if (target.platform === 'darwin') resolveMacOSPackageSettings(environment)
   else resolveWindowsPackageSettings(environment)
-  if (options.unsigned) return
+  desktopProductDeployment(environment, !options.unsigned && !options.prepareOnly)
+  if (options.unsigned || options.prepareOnly && target.platform === 'win32') return
   if (!options.prepareOnly) resolveDesktopAutoUpdateConfig(environment, target.platform, target.arch)
   if (target.platform === 'win32') {
     if (!options.prepareOnly) createWindowsTokenSigner({

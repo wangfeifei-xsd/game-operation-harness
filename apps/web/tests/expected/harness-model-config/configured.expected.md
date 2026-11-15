@@ -1,0 +1,30 @@
+- table:
+  - rowgroup:
+    - row "模型名称 供应商 模型标识 状态 操作":
+      - columnheader "模型名称"
+      - columnheader "供应商"
+      - columnheader "模型标识"
+      - columnheader "状态"
+      - columnheader "操作"
+  - rowgroup:
+    - row "模型 A 修改 默认 其他 fixture-model 已启用 编辑 测试连接 停用 删除":
+      - cell "模型 A 修改 默认"
+      - cell "其他"
+      - cell "fixture-model"
+      - cell "已启用"
+      - cell "编辑 测试连接 停用 删除":
+        - button "编辑"
+        - button "测试连接"
+        - button "停用"
+        - button "删除"
+    - row "模型 B 其他 fixture-model 已启用 编辑 测试连接 设为默认 停用 删除":
+      - cell "模型 B"
+      - cell "其他"
+      - cell "fixture-model"
+      - cell "已启用"
+      - cell "编辑 测试连接 设为默认 停用 删除":
+        - button "编辑"
+        - button "测试连接"
+        - button "设为默认"
+        - button "停用"
+        - button "删除"

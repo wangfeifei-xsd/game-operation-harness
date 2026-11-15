@@ -78,7 +78,9 @@
     "@deepseek-ai/dsh-experimental-worktree": "workspace:*",
     "@deepseek-ai/dsh-experimental-plugin-market-bundle": "workspace:*",
     "@deepseek-ai/dsh-experimental-forge-bundle": "workspace:*",
-    "antd": "^6.6.5"
+    "antd": "^6.6.5",
+    "@deepseek-ai/dsh-client-ui-harness-account": "workspace:*",
+    "@deepseek-ai/dsh-host-harness-product": "workspace:*"
   },
   "dependencies": {
     "@deepseek-ai/dsh-message-quotes": "workspace:*"

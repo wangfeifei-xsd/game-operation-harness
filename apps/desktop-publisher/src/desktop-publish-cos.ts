@@ -26,6 +26,7 @@ export function desktopPublishCos(
   createClient: (credentials: DesktopCosCredentials) => COS = createDesktopCos,
 ): DesktopPublishTransport {
   const keys = new Map(plan.artifacts.map(artifact => [artifact.key, artifact.channelMetadata]))
+  if (plan.downloadIndex !== undefined) keys.set(plan.downloadIndex.key, true)
   const client = () => createClient(credentials)
   const location = (key: string) => {
     if (!keys.has(key)) throw new Error('desktop publish: object is outside the selected plan')

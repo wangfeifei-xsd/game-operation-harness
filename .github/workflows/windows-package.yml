@@ -14,11 +14,17 @@ on:
         options: [test, production]
         default: test
         required: true
-      update_channel:
-        description: '升级通道：人工选择 nightly 或 stable，与版本后缀无关；默认通道由此打包输入确定'
+      product_environment:
+        description: '产品部署环境；必须与发布存储选择匹配，master 使用 production，其他环境使用 test'
         type: choice
-        options: [nightly, stable]
-        default: nightly
+        options: [dev, test, fat, master]
+        default: test
+        required: true
+      update_channel:
+        description: '升级通道：首版仅开放 stable，与版本后缀无关'
+        type: choice
+        options: [stable]
+        default: stable
         required: true
       version_mode:
         description: '版本模式：default 按环境自动选择（test 取 build-number，production 取 follow-dsh）；follow-dsh 跟随 dsh 包版本号；build-number 自动追加构建编号；manual 手填'
@@ -79,6 +85,7 @@ jobs:
       PACKAGE_SOURCE_REF: ${{ inputs.source_ref }}
       # TODO: Remove this legacy source_ref mode mapping on 2027-01-04 with the parser aliases.
       PACKAGE_VERSION_MODE: ${{ inputs.version_mode == 'follow-dsh' && 'product' || inputs.version_mode == 'build-number' && 'auto' || inputs.version_mode }}
+      DSH_DESKTOP_PRODUCT_ENVIRONMENT: ${{ inputs.product_environment }}
       DSH_DESKTOP_UPDATE_CHANNEL: ${{ inputs.update_channel }}
       DSH_TELEMETRY_DISABLED: '1'
       DSH_PACKAGING_PRESET: ${{ inputs.preset }}
@@ -180,7 +187,7 @@ jobs:
         env:
           PACKAGE_VERSION: ${{ steps.settings.outputs.version }}
         run: |
-          $packageArgs = @('run', 'package:desktop:win:x64', '--check', '--build-version', $env:PACKAGE_VERSION)
+          $packageArgs = @('run', 'package:desktop:win:x64', '--check', '--environment', $env:DSH_DESKTOP_PRODUCT_ENVIRONMENT, '--build-version', $env:PACKAGE_VERSION)
           if ($env:PACKAGE_SIGNING -eq 'unsigned') { $packageArgs += '--unsigned' }
           pnpm @packageArgs
           exit $LASTEXITCODE
@@ -189,7 +196,7 @@ jobs:
           PACKAGE_VERSION: ${{ steps.settings.outputs.version }}
         run: |
           & "$env:PACKAGE_CI_HELPERS/windows-packaging-priority.ps1" -BestEffort
-          $packageArgs = @('run', 'package:desktop:win:x64', '--build-version', $env:PACKAGE_VERSION)
+          $packageArgs = @('run', 'package:desktop:win:x64', '--environment', $env:DSH_DESKTOP_PRODUCT_ENVIRONMENT, '--build-version', $env:PACKAGE_VERSION)
           if ($env:PACKAGE_SIGNING -eq 'unsigned') { $packageArgs += '--unsigned' }
           pnpm @packageArgs
           exit $LASTEXITCODE

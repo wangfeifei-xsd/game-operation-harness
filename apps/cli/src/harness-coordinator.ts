@@ -1,10 +1,9 @@
 /** 一个公开实例同时拥有一个账号；异步结果受登录代次约束。 */
-import { randomBytes, timingSafeEqual } from 'node:crypto'
-import { mkdir, realpath } from 'node:fs/promises'
-import { dirname, relative, isAbsolute } from 'node:path'
-import lockfile from 'proper-lockfile'
+import { randomBytes } from 'node:crypto'
+import { acquireHarnessUserHome } from '@deepseek-ai/dsh-host-harness-product/home'
+import { sameHarnessSecret } from '@deepseek-ai/dsh-host-harness-product/secret'
 import { HarnessAuthClient, HarnessAuthError, type HarnessLogin, type HarnessSession } from './harness-auth-client.ts'
-import { harnessUserHome, type HarnessConfig } from './harness-config.ts'
+import { type HarnessConfig } from './harness-config.ts'
 import { HarnessRuntimeProcess } from './harness-runtime-process.ts'
 import { migrateHarnessUserHome } from './harness-home.ts'
 
@@ -19,17 +18,7 @@ interface Identity {
   release?: (() => Promise<void>) | undefined
 }
 
-/**
- * 比较本机或私有 IPC 凭据，重复或不合法的 cookie 由 HTTP 层拒绝。
- * @param actual - 请求中收到的凭据。
- * @param expected - Node 内存持有的凭据。
- * @returns 是否精确匹配。
- */
-export function sameHarnessSecret(actual: string | undefined, expected: string): boolean {
-  return actual !== undefined && /^[A-Za-z0-9_-]{43}$/u.test(actual)
-    && timingSafeEqual(Buffer.from(actual), Buffer.from(expected))
-}
-
+export { sameHarnessSecret } from '@deepseek-ai/dsh-host-harness-product/secret'
 /** 公开登录入口的账号和进程状态所有者。 */
 export class HarnessCoordinator {
   readonly auth: HarnessAuthClient
@@ -74,22 +63,13 @@ export class HarnessCoordinator {
       this.identity = identity
       const current = identity
       this.state = 'starting'
-      const home = harnessUserHome(this.config, login.user.user_id)
-      await mkdir(dirname(home), { recursive: true, mode: 0o700 })
-      const root = await realpath(this.config.storage.root)
-      const canonical = await realpath(dirname(home))
-      const suffix = relative(root, canonical)
-      if (suffix.startsWith('..') || isAbsolute(suffix)) throw new HarnessAuthError(503, 'HARNESS_HOME_INVALID', '账号数据目录无效')
-      this.assertGeneration(generation)
-      identity.release = await lockfile.lock(home, { realpath: false, stale: 15_000, update: 5_000, retries: 0,
-        onCompromised: () => { this.invalidate(current, new HarnessAuthError(503, 'HARNESS_HOME_LOCK_LOST', '账号数据目录锁已失效，请重新登录')) },
-      }).catch((cause: unknown) => { throw new HarnessAuthError(409, 'HARNESS_HOME_IN_USE', '此账号正在另一个实例中运行', { cause }) })
+      identity.release = await acquireHarnessUserHome(this.config, login.user.user_id, () => { this.invalidate(current, new HarnessAuthError(503, 'HARNESS_HOME_LOCK_LOST', '账号数据目录锁已失效，请重新登录')) })
       this.assertGeneration(generation)
       migrateHarnessUserHome(this.config, login.user.user_id)
       identity.runtime = new HarnessRuntimeProcess(this.config, (error) => {
         this.invalidate(current, error ?? new HarnessAuthError(503, 'HARNESS_RUNTIME_STOPPED', '运行服务已停止，请重新登录'))
       })
-      identity.origin = await identity.runtime.start({ kind: 'harness/start', generation, token: login.access_token, secret: identity.secret, user: login.user })
+      identity.origin = await identity.runtime.start({ kind: 'harness/start', generation, sessionId: login.session_id, token: login.access_token, secret: identity.secret, user: login.user })
       this.assertGeneration(generation)
       const verified = await this.auth.session(login.access_token)
       this.assertGeneration(generation)

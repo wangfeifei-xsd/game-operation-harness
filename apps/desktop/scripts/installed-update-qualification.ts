@@ -3,6 +3,8 @@ import { createHash, randomBytes } from 'node:crypto'
 import { mkdir, mkdtemp, readFile, readdir, stat, writeFile } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
 import { gt, valid } from 'semver'
+import { desktopProductDeployment } from '@deepseek-ai/dsh-desktop-publisher/product-deployment.mjs'
+import type { HarnessConfig } from '@deepseek-ai/dsh-host-harness-product/config'
 
 /** Source identifiers exclude file contents, configuration values, and credentials. */
 export interface InstalledUpdateSource {
@@ -26,6 +28,23 @@ export interface InstalledUpdateRun {
   readonly bucket: string
   readonly feedKey: string
   readonly binPrefix: string
+  readonly deployment: HarnessConfig
+}
+
+function destination(id: string) {
+  const product = desktopProductDeployment({ DSH_DESKTOP_PRODUCT_ENVIRONMENT: 'test' }, true)
+  if (product.desktop.updates.url === null) throw new Error('installed update: test update source is required')
+  const base = new URL(product.desktop.updates.url)
+  base.pathname = base.pathname.replace(/test\/stable\/$/u, `qualification/${id}/test/stable/`)
+  const prefix = base.pathname.replace(/^\/|\/$/gu, '')
+  const appId = `${product.desktop.appId}.qualification.q${id}`
+  const deployment: HarnessConfig = { ...product,
+    storage: { root: join(product.storage.root, 'qualification', id, 'test') },
+    desktop: { ...product.desktop, appId, downloadIndexUrl: new URL('downloads.json', base).href,
+      updates: { enabled: true, url: base.href }, mandatoryUpdate: { enabled: false, url: null } },
+  }
+  return { appId, productName: `Agent 助手更新验证 ${id}`, origin: base.origin, deployment,
+    feedKey: `${prefix}/feeds/win-x64/stable.yml`, binPrefix: `${prefix}/bin/win-x64` }
 }
 
 /**
@@ -33,56 +52,65 @@ export interface InstalledUpdateRun {
  * @param parent Ignored material directory; each invocation acquires a separate child atomically.
  * @param versions Explicit original and successor test versions, in increasing order.
  * @param source Source version, Git commit, and dirty-file list captured before material preparation.
+ * @param environment - 显式测试环境及公开存储桶设置，不读取签名或上传秘密。
  * @returns The retained run manifest; no package or publication is implied by its presence.
  */
 export async function createInstalledUpdateRun(
-  parent: string, versions: readonly [string, string], source: InstalledUpdateSource,
+  parent: string, versions: readonly [string, string], source: InstalledUpdateSource, environment: NodeJS.ProcessEnv = process.env,
 ): Promise<InstalledUpdateRun> {
   validateVersions(versions)
   if (valid(source.version) === null || !/^[a-f0-9]{40,64}$/u.test(source.commit)) {
     throw new Error('installed update: valid source version and Git commit are required')
   }
+  const bucket = environment.DOWNLOAD_TEST_COS_BUCKET?.trim()
+  if (!bucket || !/^[A-Za-z0-9-]+$/u.test(bucket)
+    || environment.DSH_DESKTOP_PRODUCT_ENVIRONMENT !== undefined && environment.DSH_DESKTOP_PRODUCT_ENVIRONMENT !== 'test'
+    || environment.DSH_DESKTOP_AUTO_UPDATE_ENV !== undefined && environment.DSH_DESKTOP_AUTO_UPDATE_ENV !== 'test') {
+    throw new Error('installed update: explicit test deployment and bucket are required')
+  }
+  const id = randomBytes(12).toString('hex')
+  const target = destination(id)
   await mkdir(parent, { recursive: true })
   const root = await mkdtemp(join(resolve(parent), 'installed-update-'))
-  const id = randomBytes(12).toString('hex')
   const run: InstalledUpdateRun = {
     schemaVersion: 1, id, root, createdAt: new Date().toISOString(), source, versions,
-    appId: `com.deepseek.dsh.qualification.q${id}`, productName: `DSH Update Test ${id}`,
-    environment: 'test', origin: 'https://download-test.deepseek.com', bucket: 'bj-toc-download-test-1320056602',
-    feedKey: `dsh-desk/feeds/qualification/${id}/win-x64/nightly.yml`,
-    binPrefix: `dsh-desk/bin/qualification/${id}/win-x64`,
+    environment: 'test', bucket, ...target,
   }
   await writeFile(join(root, 'run.json'), `${JSON.stringify(run, null, 2)}\n`, { flag: 'wx', mode: 0o600, flush: true })
   return run
 }
 
 function validateVersions(versions: readonly [string, string]): void {
-  const pattern = /^\d+\.\d+\.\d+-(?:nightly\.[0-9.]+|[0-9A-Za-z.-]+\.\d{8}\.[1-9]\d*)$/u
-  if (versions.some(version => valid(version) !== version || !pattern.test(version))
+  if (versions.some(version => valid(version) !== version || version.includes('-'))
     || !gt(versions[1], versions[0])) {
-    throw new Error('installed update: two increasing dated test versions are required')
+    throw new Error('installed update: two increasing stable test versions are required')
   }
 }
 
 /**
  * Load a retained manifest and reject altered destinations or application identities.
  * @param path Local run.json produced by the allocator.
+ * @param environment - 显式测试存储桶设置，用于复核保留记录。
  * @returns Validated test-only run; the directory must still be the original manifest location.
  */
-export async function readInstalledUpdateRun(path: string): Promise<InstalledUpdateRun> {
+export async function readInstalledUpdateRun(path: string, environment: NodeJS.ProcessEnv = process.env): Promise<InstalledUpdateRun> {
   const value: unknown = JSON.parse(await readFile(path, 'utf8'))
   if (typeof value !== 'object' || value === null || Array.isArray(value)) throw new Error('installed update: invalid run manifest')
   const row = value as Record<string, unknown>
   if (row.schemaVersion !== 1 || typeof row.id !== 'string' || !/^[a-f0-9]{24}$/u.test(row.id)
     || row.root !== resolve(dirname(path)) || row.environment !== 'test'
-    || row.origin !== 'https://download-test.deepseek.com' || row.bucket !== 'bj-toc-download-test-1320056602'
-    || row.appId !== `com.deepseek.dsh.qualification.q${row.id}` || row.productName !== `DSH Update Test ${row.id}`
-    || row.feedKey !== `dsh-desk/feeds/qualification/${row.id}/win-x64/nightly.yml`
-    || row.binPrefix !== `dsh-desk/bin/qualification/${row.id}/win-x64`
+    || typeof row.bucket !== 'string' || row.bucket !== environment.DOWNLOAD_TEST_COS_BUCKET?.trim()
     || !Array.isArray(row.versions) || row.versions.length !== 2 || row.versions.some(version => typeof version !== 'string')) {
     throw new Error('installed update: manifest identity, location, versions, or test destination changed')
   }
-  validateVersions(row.versions as [string, string])
+  const target = destination(row.id)
+  if (row.appId !== target.appId || row.productName !== target.productName || row.origin !== target.origin
+    || row.feedKey !== target.feedKey || row.binPrefix !== target.binPrefix
+    || JSON.stringify(row.deployment) !== JSON.stringify(target.deployment)) {
+    throw new Error('installed update: controlled test deployment changed; allocate a new run')
+  }
+  const versions = row.versions as [string, string]
+  validateVersions(versions)
   if (typeof row.source !== 'object' || row.source === null || Array.isArray(row.source)) {
     throw new Error('installed update: missing source version and commit')
   }
@@ -93,7 +121,9 @@ export async function readInstalledUpdateRun(path: string): Promise<InstalledUpd
     || typeof row.createdAt !== 'string' || !Number.isFinite(Date.parse(row.createdAt))) {
     throw new Error('installed update: invalid source version, commit, file list, or creation time')
   }
-  return row as unknown as InstalledUpdateRun
+  return { schemaVersion: 1, id: row.id, root: resolve(dirname(path)), environment: 'test', bucket: row.bucket,
+    createdAt: row.createdAt, versions, ...target,
+    source: { version: source.version, commit: source.commit, dirtyFiles: source.dirtyFiles as string[] } }
 }
 
 interface JournalRecord {
@@ -250,7 +280,7 @@ function inspectJournalRuns(runs: readonly JournalRun[], versions: readonly [str
  */
 export async function collectInstalledUpdateJournals(manifest: string, directory: string): Promise<string> {
   const run = await readInstalledUpdateRun(manifest)
-  if (!resolve(directory).replaceAll('\\', '/').endsWith(`/dsh-update-qualification/${run.id}/journals`)) {
+  if (!resolve(directory).replaceAll('\\', '/').endsWith(`/agent-assistant-update-qualification/${run.id}/journals`)) {
     throw new Error('installed update: matching installed-app journal directory is required')
   }
   const snapshots = await readJournalRuns(directory, run.versions)

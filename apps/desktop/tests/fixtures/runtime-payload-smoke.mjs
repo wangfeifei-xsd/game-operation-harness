@@ -92,6 +92,19 @@ async function checkSearch() {
   assert.equal(run(['--files', '--glob', name, '.']), `./${name}`)
 }
 
+/** 已组装应用必须携带主进程读取的部署描述与所选完整配置。 */
+async function checkProductConfiguration() {
+  const application = dirname(root)
+  if (!application.endsWith('.asar')) return
+  const directory = join(application, 'product')
+  const deployment = JSON.parse(readFileSync(join(directory, 'deployment.json'), 'utf8'))
+  assert.equal(deployment.schemaVersion, 1)
+  assert.ok(['local', 'release'].includes(deployment.mode))
+  const { readHarnessConfig } = await import(pathToFileURL(requireRuntime.resolve('@deepseek-ai/dsh-host-harness-product/config')).href)
+  const config = readHarnessConfig(deployment.environment, join(directory, 'environments'))
+  assert.equal(Object.keys(config.providers.credentials).length, 0, 'Public application must not contain provider credentials')
+}
+
 /** Resolve one system function through Koffi's packaged native module. */
 function checkKoffi() {
   const koffi = requireRuntime('koffi')
@@ -135,6 +148,7 @@ function checkHtml() {
 try {
   const builtin = requireRuntime('node-addon-require-builtin')
   assert.equal(typeof builtin.requireBuiltin('internal/modules/esm/loader').getOrInitializeCascadedLoader, 'function')
+  await checkProductConfiguration()
   console.error('runtime payload: pnpm')
   await checkPnpm(resourcesRuntime)
   console.error('runtime payload: koffi')

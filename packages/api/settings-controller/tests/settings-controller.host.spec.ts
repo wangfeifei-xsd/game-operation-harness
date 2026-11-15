@@ -12,6 +12,16 @@ async function boot() {
 }
 
 describe('settings Remote', () => {
+  it('reads live configuration without exposing writes or a document when the editor is absent', async () => {
+    const { ctx } = await configurationFixture({ editor: false, hmr: false })
+    await ctx.plugin(SettingsController)
+    const controller = ctx.settingsController
+    expect(controller.describe()).toMatchObject({ writable: false, hasDocument: false })
+    expect(controller.describe().namespaces.find(row => row.ns === 'first')?.value).toEqual({ count: 2, list: [] })
+    await expect(controller.update('first', { count: 4 }, undefined)).rejects.toMatchObject({ code: 'settings/rejected' })
+    await expect(controller.openSettingsDocument(new AbortController().signal)).rejects.toMatchObject({ code: 'gateway/internal' })
+  })
+
   it('publishes form operations and the credentials namespace', async () => {
     const { ctx, controller } = await boot()
     expect(controller.typertRemote.namespace).toBe('settings')
@@ -29,7 +39,7 @@ describe('settings Remote', () => {
     const model = describe.namespaces.find(row => row.ns === 'default-model')!
     const saved = await controller.mutate(model.ns, [{ op: 'set', path: ['model'], value: 'next' }], model.revision)
     expect(saved.value).toEqual({ provider: 'test', model: 'next' })
-    expect(ctx.agentDefaultModel.currentSelection().model).toBe('next')
+    expect(ctx.agentDefaultModel.requireSelection().model).toBe('next')
     await expect(controller.update(model.ns, { model: 'stale' }, model.revision)).rejects.toMatchObject({ code: 'settings/conflict' })
     await expect(controller.update('first', { count: 0 }, undefined)).rejects.toMatchObject({ code: 'settings/rejected' })
     await expect(controller.update('', {}, undefined)).rejects.toMatchObject({ code: 'gateway/bad-request' })

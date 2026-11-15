@@ -67,6 +67,7 @@ export function apply(ctx: ClientContext): void {
   )
   const limitsFace = limits.inject()
   const modelsFace = models.inject()
+  ctx.effect(() => ctx.remote.$on('model-config/changed', () => { models.refreshCatalog() }))
   // The model catalogue is not part of any settings section: adapters come and
   // go, and a document commit elsewhere can change which routes are stored.
   ctx.effect(

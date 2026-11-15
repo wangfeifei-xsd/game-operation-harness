@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 /** Composer selection survives focus transfers and background editor reconciliation. */
 import * as uiPrimitives from '@deepseek-ai/dsh-client-ui-primitives'
+import { render } from '@testing-library/react'
+import { createElement } from 'react'
 import { expect, it, onTestFinished, vi } from 'vitest'
 import { $getRoot, $getSelection, $isRangeSelection, SELECTION_CHANGE_COMMAND, UNDO_COMMAND } from 'lexical'
 import { DraftEditorRuntime } from '../src/client/input/editor/runtime.ts'
@@ -140,6 +142,30 @@ it('restores a pending selection when blur and explicit focus share one update b
   expect(f.selection()).toMatchObject({ anchor: 6, focus: 6 })
   expect(f.domSelection()).toMatchObject({ anchor: 6, focus: 6, text: '' })
   expect(reveal).toHaveBeenCalledOnce()
+})
+
+it('leaves a modal control focused when the background composer unlocks', () => {
+  const f = fixture()
+  const dialog = document.createElement('div')
+  dialog.setAttribute('role', 'dialog')
+  dialog.setAttribute('aria-modal', 'true')
+  dialog.append(f.outside)
+  document.body.append(dialog)
+  onTestFinished(() => { dialog.remove() })
+  function Layer() {
+    uiPrimitives.useModalLayer({ current: dialog }, true, () => {})
+    return null
+  }
+  const layer = render(createElement(Layer))
+  onTestFinished(layer.unmount)
+  expect(document.activeElement).toBe(f.outside)
+  const selection = f.selection()
+  expect(f.focusComposer()).not.toHaveBeenCalled()
+  expect(document.activeElement).toBe(f.outside)
+  expect(f.selection()).toEqual(selection)
+  layer.unmount()
+  f.focusComposer()
+  expect(document.activeElement).toBe(f.root)
 })
 
 it('hands mobile submission focus to the composer without stealing focus from another control', async () => {

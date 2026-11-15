@@ -19,9 +19,9 @@
     "lib/*.js.map",
     "lib/types/*.d.ts",
     "lib/types/*.d.ts.map",
+    "lib/resources",
     "docs",
-    "src",
-    "lib/resources"
+    "src"
   ],
   "scripts": {
     "prepack": "tsx ../../scripts/stage-dsh-docs.ts",
@@ -130,7 +130,10 @@
     "proper-lockfile": "^4.1.2",
     "@deepseek-ai/dsh-error": "workspace:*",
     "@deepseek-ai/dsh-subprocess-local": "workspace:*",
-    "open": "^11.0.2"
+    "open": "^11.0.2",
+    "@deepseek-ai/dsh-api-model-config-controller": "workspace:*",
+    "@deepseek-ai/dsh-harness-model-config": "workspace:*",
+    "@deepseek-ai/dsh-host-harness-product": "workspace:*"
   },
   "devDependencies": {
     "@deepseek-ai/dsh-brand": "workspace:*",
@@ -192,7 +195,11 @@
       "default": "./lib/profile-boot.js"
     },
     "./lib/*": "./lib/*",
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./model-composition": {
+      "types": "./lib/types/model-composition.d.ts",
+      "default": "./lib/model-composition.js"
+    }
   },
   "engines": {
     "node": ">=24.9.0"

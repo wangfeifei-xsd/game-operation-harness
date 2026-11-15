@@ -1,3 +1,4 @@
+import './product-deployment-fixture.ts'
 import { spawnSync } from 'node:child_process'
 import { afterEach, expect, it, vi } from 'vitest'
 import { createElectronBuilderConfig } from '../scripts/electron-builder-config.mjs'

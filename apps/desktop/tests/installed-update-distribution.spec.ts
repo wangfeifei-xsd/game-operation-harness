@@ -1,3 +1,4 @@
+import './installed-update-fixture.ts'
 import { createHash } from 'node:crypto'
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -7,7 +8,7 @@ import { load } from 'js-yaml'
 import { createInstalledUpdateRun } from '../scripts/installed-update-qualification.ts'
 import { planInstalledUpdateDistribution } from '../scripts/installed-update-distribution.ts'
 
-const versions = ['0.1.6-nightly.20260914.1', '0.1.6-nightly.20260914.2'] as const
+const versions = ['1.0.1', '1.0.2'] as const
 
 async function fixture<T>(body: (manifest: string) => Promise<T>): Promise<T> {
   const directory = await mkdtemp(join(tmpdir(), 'dsh-update-distribution-'))
@@ -16,11 +17,11 @@ async function fixture<T>(body: (manifest: string) => Promise<T>): Promise<T> {
     for (const version of versions) {
       const output = join(run.root, version, 'installer')
       await mkdir(output, { recursive: true })
-      const filename = `deepseek-harness-${version}-win-x64.exe`
+      const filename = `agent-assistant-${version}-win-x64.exe`
       const body = Buffer.from(`inert fixture ${version}`)
       await writeFile(join(output, filename), body)
       await writeFile(join(output, `${filename}.blockmap`), 'inert map')
-      await writeFile(join(output, 'nightly.yml'), JSON.stringify({ version,
+      await writeFile(join(output, 'stable.yml'), JSON.stringify({ version,
         files: [{ url: filename, size: body.length, sha512: createHash('sha512').update(body).digest('base64') }] }))
     }
     return await body(join(run.root, 'run.json'))
@@ -35,12 +36,12 @@ describe('qualification distribution file planning', () => {
       expect(old!.feed.sha512).not.toBe(next!.feed.sha512)
       expect(old!.binaries.map(file => file.key)).not.toEqual(next!.binaries.map(file => file.key))
       expect(next!.binaries).toHaveLength(2)
-      expect(next!.binaries.every(file => file.key.startsWith('dsh-desk/bin/qualification/'))).toBe(true)
-      expect(next!.feed.key).toMatch(/^dsh-desk\/feeds\/qualification\/[a-f0-9]{24}\/win-x64\/nightly.yml$/u)
+      expect(next!.binaries.every(file => file.key.startsWith('agent-assistant/qualification/') && file.key.includes('/test/stable/bin/win-x64/'))).toBe(true)
+      expect(next!.feed.key).toMatch(/^agent-assistant\/qualification\/[a-f0-9]{24}\/test\/stable\/feeds\/win-x64\/stable.yml$/u)
       expect(next!.publicationAuthorized).toBe(false)
       expect(next!.verified).toBe('file-integrity-only')
       expect(load(next!.feed.contents)).toMatchObject({ version: versions[1],
-        files: [{ url: `https://download-test.deepseek.com/${next!.binaries[0]!.key}` }] })
+        files: [{ url: `https://updates.example.com/${next!.binaries[0]!.key}` }] })
     })
   })
 
@@ -49,7 +50,7 @@ describe('qualification distribution file planning', () => {
       await fixture(async (manifest) => {
         const plan = await planInstalledUpdateDistribution(manifest, versions[0])
         const installer = plan.binaries[0]!.path
-        const metadataPath = join(installer, '..', 'nightly.yml')
+        const metadataPath = join(installer, '..', 'stable.yml')
         const metadata = JSON.parse(await readFile(metadataPath, 'utf8')) as { version: string; files: { url: string }[]; sha512?: string }
         if (failure === 'changed-bytes') await writeFile(installer, 'changed')
         if (failure === 'missing-map') await rm(plan.binaries[1]!.path)

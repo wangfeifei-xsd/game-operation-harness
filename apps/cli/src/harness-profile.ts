@@ -24,6 +24,7 @@ async function receiveStart(): Promise<HarnessStart> {
     const receive = (value: unknown): void => {
       if (typeof value !== 'object' || value === null || !('kind' in value) || value.kind !== 'harness/start'
         || !('generation' in value) || typeof value.generation !== 'number' || !Number.isSafeInteger(value.generation)
+        || !('sessionId' in value) || typeof value.sessionId !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/u.test(value.sessionId)
         || !('token' in value) || typeof value.token !== 'string' || !/^[A-Za-z0-9_-]{43}$/u.test(value.token)
         || !('secret' in value) || typeof value.secret !== 'string' || !/^[A-Za-z0-9_-]{43}$/u.test(value.secret)
         || !('user' in value) || typeof value.user !== 'object' || value.user === null
@@ -31,7 +32,7 @@ async function receiveStart(): Promise<HarnessStart> {
         || !('login_name' in value.user) || typeof value.user.login_name !== 'string'
         || !('display_name' in value.user) || typeof value.user.display_name !== 'string'
         || !('status' in value.user) || value.user.status !== 'ACTIVE') { finish(new HarnessAuthError(403, 'HARNESS_PRIVATE_ONLY', '私有启动身份无效')); return }
-      finish({ kind: 'harness/start', generation: value.generation, token: value.token, secret: value.secret,
+      finish({ kind: 'harness/start', generation: value.generation, sessionId: value.sessionId, token: value.token, secret: value.secret,
         user: { user_id: value.user.user_id, login_name: value.user.login_name, display_name: value.user.display_name, status: 'ACTIVE' } })
     }
     process.on('message', receive); process.once('disconnect', disconnected)
@@ -83,7 +84,7 @@ export async function runHarnessProfile(profile: 'harness' | 'harness-runtime', 
     if (input !== undefined) {
       await client.bootstrap()
       const session = await client.session(input.token)
-      if (session.user.user_id !== input.user.user_id || isStopped()) throw new HarnessAuthError(401, 'HARNESS_RUNTIME_CLOSED', '启动身份已经失效')
+      if (session.user.user_id !== input.user.user_id || session.session_id !== input.sessionId || isStopped()) throw new HarnessAuthError(401, 'HARNESS_RUNTIME_CLOSED', '启动身份已经失效')
     }
     const authorization: { run?: () => Promise<void> } = {}
     const runtime = await runProfile({ profile, resolvedProfile: { profile: resolved, installAnchor: INSTALL_ANCHOR },

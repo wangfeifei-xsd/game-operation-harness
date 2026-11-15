@@ -1292,6 +1292,25 @@ A Session became visible or its Agent was created or disposed. Consumers upsert 
 
 Source: [`packages/api/session-controller/src/types.ts`](../../packages/api/session-controller/src/types.ts)
 
+<a id="api-sessiondefault-model-save-failed--emit"></a>
+
+#### `api-session/default-model-save-failed` — emit
+
+会话已切换模型，但默认选择持久化失败；当前会话仍保留新选择。
+
+```ts cordis-catalog
+/**
+ * 会话已切换模型，但默认选择持久化失败；当前会话仍保留新选择。
+ * @mode emit
+ * @param sessionId - 已成功切换模型的会话。
+ */
+'api-session/default-model-save-failed'(sessionId: SessionId): void
+```
+
+Types: [SessionId](core.md)
+
+Source: [`packages/api/session-controller/src/types.ts`](../../packages/api/session-controller/src/types.ts)
+
 <a id="api-sessionerror--emit"></a>
 
 #### `api-session/error` — emit

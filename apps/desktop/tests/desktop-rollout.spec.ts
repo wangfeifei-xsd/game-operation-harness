@@ -1,3 +1,4 @@
+import './product-deployment-fixture.ts'
 import { execFile, spawnSync } from 'node:child_process'
 import { createServer } from 'node:http'
 import { promisify } from 'node:util'
@@ -25,18 +26,20 @@ const digest = (contents: string) => ({
 })
 
 async function fixture(target: 'mac-arm64' | 'mac-x64' | 'win-x64' = 'mac-arm64',
-  preset: 'production' | 'test' = 'production', channel: 'nightly' | 'stable' = 'nightly') {
+  preset: 'production' | 'test' = 'production', channel: 'stable' = 'stable') {
   const root = await mkdtemp(join(tmpdir(), 'desktop-rollout-'))
   try {
     const directory = join(root, 'releases', '42', '1')
     await mkdir(directory, { recursive: true })
     const version = '0.2.2-rc.1'
-    const payload = `deepseek-harness-${version}-${target}.${target === 'win-x64' ? 'exe' : 'zip'}`
+    const payload = `agent-assistant-${version}-${target}.${target === 'win-x64' ? 'exe' : 'zip'}`
     const contents = dump({ version, files: [{ url: payload, ...digest('installer') }],
       path: payload, sha512: digest('installer').sha512, releaseDate: '2026-11-04T00:00:00.000Z' })
     const filename = `${channel}${target === 'win-x64' ? '' : '-mac'}.yml`
     const manifest: DesktopRetainedManifest = { schemaVersion: 1, source: {
       repository: 'owner/repo', runId: '42', attempt: '1', commit: 'a'.repeat(40), workflowCommit: 'b'.repeat(40),
+      product: 'agent-assistant', productEnvironment: preset === 'production' ? 'master' : 'test',
+      appId: `com.example.agentassistant.${preset === 'production' ? 'master' : 'test'}`,
       sourceRef: 'dsh-v0.2.2-rc.1', runnerName: 'runner', target, preset, channel,
       productVersion: version, version, testReleaseId: preset === 'test' ? 'a'.repeat(32) : null, qualification: target === 'win-x64' ? 'signed' : 'notarized',
     }, files: [{ name: filename, ...digest(contents) }, { name: payload, ...digest('installer') }] }
@@ -70,8 +73,8 @@ function transport(contents: string) {
 }
 
 it.each([
-  ['mac-arm64', 'production', 'nightly'], ['win-x64', 'production', 'nightly'],
-  ['mac-x64', 'production', 'stable'], ['mac-arm64', 'test', 'nightly'], ['win-x64', 'test', 'stable'],
+  ['mac-arm64', 'production', 'stable'], ['win-x64', 'production', 'stable'],
+  ['mac-x64', 'production', 'stable'], ['mac-arm64', 'test', 'stable'], ['win-x64', 'test', 'stable'],
 ] as const)('promotes %s %s %s from 10 to 30 to 100 without installer files or binary requests', async (target, preset, channel) => {
   const f = await fixture(target, preset, channel)
   try {
@@ -137,7 +140,7 @@ it('requires initial publication evidence and prepares approval without installe
     const config = join(f.root, 'config')
     await mkdir(join(config, 'publishing'), { recursive: true })
     await writeFile(join(config, 'publishing/production.json'), JSON.stringify({
-      bucket: 'bucket-123', origin: 'https://download.deepseek.com', credentialsFile: join(f.root, 'absent-secret'),
+      bucket: 'bucket-123', origin: 'https://updates.example.com', credentialsFile: join(f.root, 'absent-secret'),
       githubApp: { clientId: 'app', privateKeyFile: join(f.root, 'absent-key') },
     }))
     const route = { ...f.manifest.source, runnerLabel: 'dsh-runner' }
@@ -146,7 +149,7 @@ it('requires initial publication evidence and prepares approval without installe
     await expect(prepareDesktopRolloutCi(env)).rejects.toThrow(/initial COS/u)
     const record = await createDesktopPublicationRecord(join(f.root, 'upload-records'), {
       repository: 'owner/repo', runId: '42', attempt: '1',
-      destination: `bucket-123/${f.plan.upload.publicUrl}nightly`, actor: 'operator',
+      destination: `bucket-123/${f.plan.upload.publicUrl}stable`, actor: 'operator',
       operation: 'publish', reason: 'fixture', stagingPercentage: 10,
     })
     await record.record({ type: 'feeds-complete' })
@@ -213,12 +216,12 @@ it.each(['apply', 'changed-approval', 'replaced-feed', 'website'] as const)('che
     await mkdir(join(config, 'publishing'), { recursive: true })
     await writeFile(credentialsFile, JSON.stringify({ secretId: 'fixture', secretKey: 'fixture' }))
     await writeFile(join(config, 'publishing/production.json'), JSON.stringify({
-      edgeOneZoneId: 'zone-fixture', bucket: 'bucket-123', origin: 'https://download.deepseek.com', credentialsFile,
+      edgeOneZoneId: 'zone-fixture', bucket: 'bucket-123', origin: 'https://updates.example.com', credentialsFile,
       githubApp: { clientId: 'app', privateKeyFile: join(f.root, 'absent-key') },
     }))
     const record = await createDesktopPublicationRecord(join(f.root, 'upload-records'), {
       repository: 'owner/repo', runId: '42', attempt: '1', actor: 'operator',
-      destination: `bucket-123/${f.plan.upload.publicUrl}nightly`, operation: 'publish', reason: 'fixture',
+      destination: `bucket-123/${f.plan.upload.publicUrl}stable`, operation: 'publish', reason: 'fixture',
     })
     await record.record({ type: 'feeds-complete' })
     const env = { RUNNER_NAME: 'runner', GITHUB_REPOSITORY: 'owner/repo', DSH_PACKAGING_CONFIG_DIR: config,
@@ -339,13 +342,14 @@ it('runs the real route CLI without gh and emits the selected route and preset',
 it.each(['mac-arm64', 'win-x64'] as const)('accepts %s metadata produced by the original full upload planner', async (target) => {
   const f = await fixture(target)
   try {
-    const base = `deepseek-harness-${f.manifest.source.version}-${target}`
+    const base = `agent-assistant-${f.manifest.source.version}-${target}`
     const extension = target === 'win-x64' ? 'exe' : 'zip'
     await writeFile(join(f.directory, `${base}.${extension}`), 'installer')
     await writeFile(join(f.directory, `${base}.${extension}.blockmap`), 'blockmap')
     if (target !== 'win-x64') await writeFile(join(f.directory, `${base}.dmg`), 'installer')
     await writeFile(join(f.directory, desktopBuildRecordFilename(target)), JSON.stringify({
-      schemaVersion: 1, target, version: f.manifest.source.version, channel: 'nightly',
+      schemaVersion: 1, product: 'agent-assistant', productEnvironment: 'master', appId: 'com.example.agentassistant.master',
+      target, version: f.manifest.source.version, channel: 'stable',
       environment: 'production', publicUrl: f.plan.upload.publicUrl, commit: f.manifest.source.commit, dirty: false,
     }))
     const original = await createDesktopUploadPlan(target, { artifactsRoot: f.directory, environment: f.environment,
@@ -367,7 +371,7 @@ it.each(['missing-yaml', 'wrong-approval', 'not-uploaded', 'wrong-zone', 'not-se
       await mkdir(join(config, 'publishing'), { recursive: true })
       await writeFile(credentialsFile, JSON.stringify({ secretId: 'fixture-id', secretKey: 'fixture-key' }))
       await writeFile(join(config, 'publishing/production.json'), JSON.stringify({
-        edgeOneZoneId: 'zone-fixture', bucket: 'bucket-123', origin: 'https://download.deepseek.com', credentialsFile,
+        edgeOneZoneId: 'zone-fixture', bucket: 'bucket-123', origin: 'https://updates.example.com', credentialsFile,
         githubApp: { clientId: 'app', privateKeyFile: join(f.root, 'absent-key') },
       }))
       if (scenario === 'wrong-zone') {
@@ -379,7 +383,7 @@ it.each(['missing-yaml', 'wrong-approval', 'not-uploaded', 'wrong-zone', 'not-se
       const directory = join(f.root, 'upload-records', 'website-99-mac-arm64')
       await mkdir(directory, { recursive: true })
       const approval = websitePublisher.websiteApproval(await readRetainedDesktopManifest(join(f.root, 'releases'), '42', '1'), 'bucket-123')
-      const publicUrl = desktopWebsiteInstallerUrl('mac-arm64')
+      const publicUrl = desktopWebsiteInstallerUrl('mac-arm64', f.environment)
       await writeFile(join(directory, 'state.json'), JSON.stringify({ approval,
         upload: scenario === 'not-uploaded' ? 'pending' : 'uploaded', purgeAttempt: '1',
         purge: { zoneId: 'zone-fixture', publicUrl, submittedAt: '2026-11-04T00:00:00.000Z',

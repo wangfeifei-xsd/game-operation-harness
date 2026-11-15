@@ -5,6 +5,7 @@ import { load } from 'js-yaml'
 import { gt, valid } from 'semver'
 import { z } from 'zod'
 import type { DesktopUploadArtifact, DesktopUploadPlan } from './desktop-upload-types.ts'
+import { preflightDesktopDownloadIndex, publishDesktopDownloadIndex } from './desktop-download-index.ts'
 
 /** File identity computed from bytes, never inferred from COS ETags. */
 export interface DesktopObjectDigest { readonly size: number; readonly sha512: string }
@@ -88,6 +89,7 @@ export async function publishDesktopRelease(plan: DesktopUploadPlan, operations:
   if (plan.environment === 'production' && (!plan.commit || !/^[a-f0-9]{40}$/u.test(plan.commit) || plan.dirty !== false)) {
     throw new DesktopPublishError('invalid-plan', 'desktop publish: production requires a clean packaged commit')
   }
+  await preflightDesktopDownloadIndex(plan, operations)
   const snapshots = new Map<string, DesktopRemoteObject | null>()
   // Reject obsolete requests before even uploading their missing binary files.
   for (const feed of feeds) {
@@ -122,6 +124,7 @@ export async function publishDesktopRelease(plan: DesktopUploadPlan, operations:
     if (!same(actual, digest)) throw new DesktopPublishError('verification-failed', `desktop publish: remote bytes differ: ${artifact.key}`)
     await operations.record({ type: 'put-verified', key: artifact.key })
   }
+  await publishDesktopDownloadIndex(plan, operations)
   await operations.record({ type: 'feeds-complete' })
   if (plan.environment === 'production') {
     try { await operations.tag() } catch (cause) {

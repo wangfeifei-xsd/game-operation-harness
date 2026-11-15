@@ -43,7 +43,7 @@ afterEach(() => {
 })
 
 describe('desktop external plugin profile', () => {
-  it('preserves installed packages, profile state, and the lockfile when preparing a launch', async () => {
+  it('keeps plugin files and the lockfile while restoring the fixed product composition', async () => {
     const { manager } = setup()
     await manager.applyRelease()
     seedPlugin(manager)
@@ -71,7 +71,9 @@ describe('desktop external plugin profile', () => {
 
     await expect(manager.applyRelease()).resolves.toBeUndefined()
 
-    expect(files.map(file => readFileSync(join(profile, file), 'utf8'))).toEqual(before)
+    expect(files.slice(1).map(file => readFileSync(join(profile, file), 'utf8'))).toEqual(before.slice(1))
+    expect(JSON.parse(readFileSync(manifestPath, 'utf8'))).toMatchObject({ dependencies: {},
+      dsh: { profile: { bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app'] } } })
     expect(lstatSync(path).isDirectory()).toBe(true)
     expect(lstatSync(join(profile, 'node_modules/plugin')).isDirectory()).toBe(true)
   })
@@ -235,10 +237,11 @@ describe('desktop external plugin profile', () => {
     runtimeFixture(dsh, '1.1.0', '24.18.0')
     const next = new DesktopProjectManager(manager.paths, { ...manager.runtime, dsh })
     await next.applyRelease()
-    expect(plugins(next)).toEqual([{ name: 'plugin', version: '1.0.0', enabled: true }])
+    expect(plugins(next)).toEqual([])
+    expect(readFileSync(join(next.paths.profile, 'node_modules/plugin/bundle.yml'), 'utf8')).toBe('[]\n')
   })
 
-  it('allows peer version mismatches to reach Host startup and remain available for recovery', async () => {
+  it('keeps incompatible plugin files inactive in the fixed product composition', async () => {
     const { root, manager } = setup()
     await manager.applyRelease()
     seedPlugin(manager)
@@ -247,7 +250,8 @@ describe('desktop external plugin profile', () => {
     const next = new DesktopProjectManager(manager.paths, { ...manager.runtime, dsh })
     await expect(next.applyRelease()).resolves.toBeUndefined()
     await next.disableAllPlugins()
-    expect(plugins(next)).toEqual([{ name: 'plugin', version: '1.0.0', enabled: false }])
+    expect(plugins(next)).toEqual([])
+    expect(readFileSync(join(next.paths.profile, 'node_modules/plugin/bundle.yml'), 'utf8')).toBe('[]\n')
   })
 })
 

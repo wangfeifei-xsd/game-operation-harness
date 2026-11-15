@@ -130,7 +130,10 @@ export class DesktopBackendController<Host extends DesktopBackendHost> {
 
   private cleanup(attempt: Attempt<Host>): Promise<void> {
     if (attempt.cleanup === undefined) {
-      attempt.cleanup = Promise.resolve().then(async () => { await attempt.host?.stop() })
+      attempt.cleanup = Promise.resolve().then(async () => { await attempt.host?.stop() }).catch((error: unknown) => {
+        delete attempt.cleanup
+        throw error
+      })
     }
     return attempt.cleanup
   }

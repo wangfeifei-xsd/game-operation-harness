@@ -9,6 +9,8 @@
   },
   "include": [
     "snapshots/session/headless.snapshot.ts",
+    "apps/web/tests/harness-model-config.e2e.ts",
+    "apps/web/tests/harness-product-fixture.ts",
     "apps/web/tests/home-cat.e2e.ts",
     "apps/web/tests/sidebar-drawer.e2e.ts",
     "apps/web/tests/creation-recommendations.e2e.ts",
@@ -291,6 +293,7 @@
     "scripts/client-bundle-purity.spec.ts"
   ],
   "references": [
+    { "path": "./packages/host/harness-product" },
     { "path": "./packages/experimental/action-cards" },
     { "path": "./packages/experimental/creation-recommendations" },
     { "path": "./packages/experimental/plugin-recommendations" },
@@ -398,6 +401,8 @@
     { "path": "./packages/api/session-controller/tsconfig.host.json" },
     { "path": "./packages/api/workspace-files/tsconfig.host.json" },
     { "path": "./packages/api/settings-controller" },
+    { "path": "./packages/api/model-config-controller" },
+    { "path": "./packages/llm/harness-model-config" },
     { "path": "./packages/api/remote-access/tsconfig.host.json" },
     { "path": "./packages/api/workspace-controller/tsconfig.host.json" },
     { "path": "./packages/typert/loader" },

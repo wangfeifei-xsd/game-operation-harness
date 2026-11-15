@@ -233,7 +233,7 @@ async function main() {
         const path = new URL(request.url).pathname.slice(1)
         assert.ok(['design-platform.css', 'shell-theme.js', 'mandatory-update-frame.js', 'mandatory-update.html', 'mandatory-update.js', 'mandatory-update.css', 'update-dialog.css'].includes(path))
         const mime = path.endsWith('.js') ? 'text/javascript' : path.endsWith('.css') ? 'text/css' : 'text/html'
-        return new Response(await readFile(new URL(`${path === 'design-platform.css' ? '../../lib/welcome' : '../../renderer'}/${path}`, import.meta.url)), { headers: { 'content-type': mime } })
+        return new Response(await readFile(new URL(`${path === 'design-platform.css' ? '../../lib/shell' : '../../renderer'}/${path}`, import.meta.url)), { headers: { 'content-type': mime } })
       })
       const parent = new BrowserWindow({ show: true, width: 900, height: 650, webPreferences: { preload: fileURLToPath(new URL('../../lib/preload-app.cjs', import.meta.url)), sandbox: true, contextIsolation: true } })
       await parent.loadURL('dsh-app://app/')

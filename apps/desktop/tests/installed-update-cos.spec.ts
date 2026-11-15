@@ -1,9 +1,11 @@
+import './installed-update-fixture.ts'
 import { createHash } from 'node:crypto'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type COS from 'cos-nodejs-sdk-v5'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { createInstalledUpdateRun } from '../scripts/installed-update-qualification.ts'
 import { createInstalledUpdateCos } from '../scripts/installed-update-cos.ts'
 // Repository-only fixture: deliberately excluded from the publisher runtime exports.
 import { answer, cosError, startCosLoopback, type CosLoopback, type CosLoopbackResponder } from '../../desktop-publisher/tests/cos-loopback.ts'
@@ -14,8 +16,8 @@ const state = vi.hoisted(() => ({
 }))
 
 vi.mock('../scripts/desktop-package-environment.mjs', () => ({ loadDesktopPackageEnvironment: () => ({
-  DSH_DESKTOP_AUTO_UPDATE_ENV: state.settings, DOWNLOAD_TEST_ORIGIN: 'https://download-test.deepseek.com',
-  DOWNLOAD_TEST_COS_BUCKET: 'bj-toc-download-test-1320056602', DOWNLOAD_TEST_COS_SECRET_ID: 'fixture-id',
+  DSH_DESKTOP_AUTO_UPDATE_ENV: state.settings, DOWNLOAD_TEST_ORIGIN: 'https://updates.example.com',
+  DOWNLOAD_TEST_COS_BUCKET: 'fixture-1250000000', DOWNLOAD_TEST_COS_SECRET_ID: 'fixture-id',
   DOWNLOAD_TEST_COS_SECRET_KEY: 'fixture-key', DSH_DESKTOP_WINDOWS_TOKEN_PIN: 'fixture-pin-not-for-sdk',
 }) }))
 
@@ -43,15 +45,23 @@ afterEach(async () => {
   finally { await Promise.all(paths.map(path => rm(path, { recursive: true, force: true }))) }
 })
 
-const BUCKET = 'bj-toc-download-test-1320056602'
-const key = `dsh-desk/bin/qualification/${'a'.repeat(24)}/win-x64/package.exe`
+const BUCKET = 'fixture-1250000000'
+let key = ''
+
+async function fixtureRun() {
+  const root = await mkdtemp(join(tmpdir(), 'qualification-cos-'))
+  roots.push(root)
+  return createInstalledUpdateRun(root, ['1.0.1', '1.0.2'], { version: '1.0.0', commit: 'a'.repeat(40), dirtyFiles: [] })
+}
 
 /** Store whose SDK client sends every request to a fresh loopback origin. */
 async function store(responder: CosLoopbackResponder) {
   const loopback = await startCosLoopback(responder)
   loopbacks.push(loopback)
   state.redirect = (cos) => { loopback.redirect(cos) }
-  return { store: createInstalledUpdateCos(), loopback }
+  const run = await fixtureRun()
+  key = `${run.binPrefix}/package.exe`
+  return { store: createInstalledUpdateCos(run), loopback }
 }
 
 function expectedHost(): string {
@@ -178,12 +188,12 @@ describe('qualification COS transport with real SDK serialization over a loopbac
     const fetch = vi.fn(async () => new Response('public bytes'))
     vi.stubGlobal('fetch', fetch)
     const { store: cos } = await store((_request, response) => { answer(response) })
-    const url = `https://download-test.deepseek.com/${key}`
+    const url = `https://updates.example.com/${key}`
     expect(await cos.publicRead(url)).toEqual({ size: 12, sha512: createHash('sha512').update('public bytes').digest('base64') })
     expect(fetch).toHaveBeenCalledWith(url, expect.objectContaining({ redirect: 'error', cache: 'no-store' }))
     await expect(cos.publicRead(`${url}?fresh=1`)).rejects.toThrow('exact test public URL')
-    await expect(cos.publicRead(url.replace('download-test', 'download'))).rejects.toThrow('exact test public URL')
-    await expect(cos.read('dsh-desk/feeds/nightly.yml')).rejects.toThrow('qualification namespace')
+    await expect(cos.publicRead(url.replace('updates.example.com', 'other.example.com'))).rejects.toThrow('exact test public URL')
+    await expect(cos.read('dsh-desk/feeds/stable.yml')).rejects.toThrow('qualification namespace')
   })
 
   it('refuses production settings without creating a request', async () => {
@@ -191,7 +201,8 @@ describe('qualification COS transport with real SDK serialization over a loopbac
     const loopback = await startCosLoopback((_request, response) => { answer(response) })
     loopbacks.push(loopback)
     state.redirect = (cos) => { loopback.redirect(cos) }
-    expect(() => createInstalledUpdateCos()).toThrow('test upload settings')
+    const run = await fixtureRun()
+    expect(() => createInstalledUpdateCos(run)).toThrow('test upload settings')
     expect(loopback.requests).toHaveLength(0)
   })
 

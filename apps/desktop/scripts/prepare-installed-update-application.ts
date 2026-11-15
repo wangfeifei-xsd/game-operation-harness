@@ -32,8 +32,9 @@ export async function prepareInstalledUpdateApplication(manifest: string, source
     const modules = (await readdir(join(source, 'lib'), { withFileTypes: true }))
       .filter(entry => /\.(?:js|cjs)$/u.test(entry.name))
     if (modules.some(entry => !entry.isFile())) throw new Error('installed update: application modules must be regular files')
-    const paths = [...modules.map(entry => `lib/${entry.name}`), ...await applicationFiles(source, 'renderer'), 'lib/welcome/design-platform.css'].sort()
-    for (const required of ['lib/main.js', 'lib/preload-app.cjs', 'lib/preload-mandatory.cjs', 'lib/preload-update-dialog.cjs']) {
+    const paths = [...modules.map(entry => `lib/${entry.name}`), ...await applicationFiles(source, 'renderer'),
+      ...await applicationFiles(source, 'lib/shell'), ...await applicationFiles(source, 'lib/auth')].sort()
+    for (const required of ['lib/main.js', 'lib/preload-app.cjs', 'lib/preload-auth.cjs', 'lib/preload-mandatory.cjs', 'lib/preload-update-dialog.cjs']) {
       if (!paths.includes(required)) throw new Error('installed update: rebuild Desktop before freezing application files')
     }
     const files: ApplicationFile[] = []
@@ -50,6 +51,15 @@ export async function prepareInstalledUpdateApplication(manifest: string, source
       if (createHash('sha256').update(await readFile(input.source)).digest('hex') !== files[index]!.sha256) {
         throw new Error('installed update: application input changed while freezing files')
       }
+    }
+    for (const [path, value] of Object.entries({
+      'product/deployment.json': { schemaVersion: 1, environment: 'test', mode: 'release' },
+      'product/environments/test.json': run.deployment,
+    })) {
+      const bytes = Buffer.from(`${JSON.stringify(value)}\n`)
+      await mkdir(dirname(join(directory, 'files', path)), { recursive: true })
+      await writeFile(join(directory, 'files', path), bytes, { flag: 'wx', flush: true })
+      files.push({ path, sha256: createHash('sha256').update(bytes).digest('hex') })
     }
     const result = { schemaVersion: 1, files, dependenciesFrozen: false, signed: false, bootTested: false }
     await writeFile(join(directory, 'result.json'), `${JSON.stringify(result, null, 2)}\n`, { flag: 'wx', flush: true })
@@ -76,7 +86,7 @@ export async function verifyInstalledUpdateApplication(root: string): Promise<st
     if (typeof entry !== 'object' || entry === null || !('path' in entry) || !('sha256' in entry)
       || typeof entry.path !== 'string' || typeof entry.sha256 !== 'string'
       || entry.path.includes('\\') || entry.path.includes(':') || entry.path.split('/').some(part => ['', '.', '..'].includes(part))
-      || (entry.path !== 'lib/welcome/design-platform.css'
+      || (!/^lib\/(?:shell|auth)\/.+$/u.test(entry.path) && !/^product\/(?:deployment\.json|environments\/test\.json)$/u.test(entry.path)
         && !/^(?:lib\/[^/]+\.(?:js|cjs)|renderer\/.+|qualification-bootstrap\.mjs|installed-update-identity\.mjs)$/u.test(entry.path))
       || !/^[a-f0-9]{64}$/u.test(entry.sha256) || paths.has(entry.path)) {
       throw new Error('installed update: invalid application file inventory')
@@ -88,7 +98,7 @@ export async function verifyInstalledUpdateApplication(root: string): Promise<st
   }
   const actual = await applicationFiles(join(directory, 'files'))
   if (actual.length !== paths.size || actual.some(path => !paths.has(path))
-    || ['lib/main.js', 'lib/welcome/design-platform.css', 'qualification-bootstrap.mjs', 'installed-update-identity.mjs'].some(path => !paths.has(path))) {
+    || ['lib/main.js', 'lib/preload-auth.cjs', 'lib/auth/index.html', 'product/deployment.json', 'product/environments/test.json', 'lib/shell/design-platform.css', 'qualification-bootstrap.mjs', 'installed-update-identity.mjs'].some(path => !paths.has(path))) {
     throw new Error('installed update: frozen application inventory has missing or additional files')
   }
   return join(directory, 'files')

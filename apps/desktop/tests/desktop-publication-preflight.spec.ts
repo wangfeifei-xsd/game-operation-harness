@@ -1,3 +1,4 @@
+import './product-deployment-fixture.ts'
 import { load } from 'js-yaml'
 import { createHash } from 'node:crypto'
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
@@ -21,20 +22,21 @@ it.each(['mac-arm64', 'win-x64'] as const)('preflights a complete retained %s bu
     const releaseId = 'a'.repeat(32)
     await writeFile(join(configRoot, 'presets/test.env'), `DSH_DESKTOP_AUTO_UPDATE_ENV=test\nDOWNLOAD_TEST_RELEASE_ID=${releaseId}\n`)
     await writeFile(join(configRoot, 'publishing/test.json'), JSON.stringify({
-      bucket: 'fixture-1250000000', origin: 'https://EXAMPLE.com:443/', credentialsFile: join(root, 'absent-credentials.json'),
+      bucket: 'fixture-1250000000', origin: 'https://updates.example.com', credentialsFile: join(root, 'absent-credentials.json'),
     }))
     const commit = 'b'.repeat(40)
-    const base = `deepseek-harness-1.0.0-${target}`
+    const base = `agent-assistant-1.0.0-${target}`
     const extension = target === 'win-x64' ? 'exe' : 'zip'
     const bytes = 'fixture installer bytes'
     await writeFile(join(artifacts, `${base}.${extension}`), bytes)
     await writeFile(join(artifacts, `${base}.${extension}.blockmap`), 'fixture blockmap')
     if (target !== 'win-x64') await writeFile(join(artifacts, `${base}.dmg`), 'fixture DMG')
     await writeFile(join(artifacts, `${target}-release.json`), JSON.stringify({
-      schemaVersion: 1, target, environment: 'test', version: '1.0.0', commit, dirty: false,
-      publicUrl: `https://example.com/dsh-desk/${releaseId}/feeds/${target}/`,
+      schemaVersion: 1, product: 'agent-assistant', productEnvironment: 'test', appId: 'com.example.agentassistant.test',
+      target, environment: 'test', channel: 'stable', version: '1.0.0', commit, dirty: false,
+      publicUrl: `https://updates.example.com/agent-assistant/test/stable/feeds/${target}/`,
     }))
-    await writeFile(join(artifacts, target === 'win-x64' ? 'nightly.yml' : 'nightly-mac.yml'), JSON.stringify({
+    await writeFile(join(artifacts, target === 'win-x64' ? 'stable.yml' : 'stable-mac.yml'), JSON.stringify({
       version: '1.0.0', files: [{ url: `${base}.${extension}`, size: Buffer.byteLength(bytes),
         sha512: createHash('sha512').update(bytes).digest('base64') }],
     }))
@@ -44,7 +46,7 @@ it.each(['mac-arm64', 'win-x64'] as const)('preflights a complete retained %s bu
       DSH_DESKTOP_TARGET_PLATFORM: target === 'win-x64' ? 'win32' : 'darwin', DSH_DESKTOP_TARGET_ARCH: target === 'win-x64' ? 'x64' : 'arm64',
       PACKAGE_SOURCE_REF: 'master', PACKAGE_SOURCE_SHA: 'b'.repeat(40), PACKAGE_VERSION: '1.0.0', PACKAGE_SIGNING: 'signed', PACKAGE_SKIP_NOTARIZATION: 'false',
       GITHUB_RUN_ID: '10', GITHUB_RUN_ATTEMPT: '2', GITHUB_REPOSITORY: 'owner/repo', GITHUB_SHA: commit, RUNNER_NAME: 'fixture-runner',
-      DESKTOP_PUBLISH_ROUTE: JSON.stringify({ sourceRef: 'master', channel: 'nightly', runId: '10', attempt: '2', commit, runnerName: 'fixture-runner', target, preset: 'test' }),
+      DESKTOP_PUBLISH_ROUTE: JSON.stringify({ sourceRef: 'master', channel: 'stable', runId: '10', attempt: '2', commit, runnerName: 'fixture-runner', target, preset: 'test' }),
     }
     const retained = await retainDesktopCi(env, app)
     await rm(app, { recursive: true })

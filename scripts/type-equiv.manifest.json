@@ -2992,6 +2992,51 @@
       "doc": "docs/subsystems/forge.md",
       "symbol": "ForgeAnnotationSource",
       "source": "packages/experimental/client-ui-forge/src/client/changes-service.ts"
+    },
+    {
+      "doc": "docs/subsystems/core.md",
+      "symbol": "DefaultModelSource",
+      "source": "packages/core/agent-default-model/src/index.ts"
+    },
+    {
+      "doc": "docs/subsystems/llm-streaming.md",
+      "symbol": "HarnessModelId",
+      "source": "packages/llm/harness-model-config/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/llm-streaming.md",
+      "symbol": "ModelProtocol",
+      "source": "packages/llm/harness-model-config/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/llm-streaming.md",
+      "symbol": "ModelProviderDefinition",
+      "source": "packages/llm/harness-model-config/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/llm-streaming.md",
+      "symbol": "ModelConfigInput",
+      "source": "packages/llm/harness-model-config/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/llm-streaming.md",
+      "symbol": "ModelConfigView",
+      "source": "packages/llm/harness-model-config/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/llm-streaming.md",
+      "symbol": "ModelConfigSnapshot",
+      "source": "packages/llm/harness-model-config/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/llm-streaming.md",
+      "symbol": "ModelConfigMutation",
+      "source": "packages/llm/harness-model-config/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/llm-streaming.md",
+      "symbol": "ModelConnectionResult",
+      "source": "packages/llm/harness-model-config/src/types.ts"
     }
   ]
 }

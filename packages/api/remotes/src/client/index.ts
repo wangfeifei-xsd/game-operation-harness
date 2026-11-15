@@ -8,6 +8,9 @@ import userQuestionsRemote from '@deepseek-ai/dsh-user-questions/remote'
 import commandsRemote from '@deepseek-ai/dsh-commands/remote'
 import agentTeamsRemote from '@deepseek-ai/dsh-agent-team/remote'
 export type {} from '@deepseek-ai/dsh-agent-team/remote'
+import modelConfigRemote from '@deepseek-ai/dsh-api-model-config-controller/remote'
+export type {} from '@deepseek-ai/dsh-api-model-config-controller/remote'
+export type {} from '@deepseek-ai/dsh-api-model-config-controller/types'
 import accountRemote from '@deepseek-ai/dsh-deepseek-account/remote'
 import settingsControllerRemote from '@deepseek-ai/dsh-api-settings-controller/remote'
 import officeKitRemote from '@deepseek-ai/dsh-office-kit/remote'
@@ -199,7 +202,8 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
   const disposers: Array<() => Promise<void>> = []
   try {
     for (const contribution of [
-      productAnalyticsRemote, agentPresetsRemote, commandsRemote, agentTeamsRemote, settingsControllerRemote, accountRemote,
+      modelConfigRemote, productAnalyticsRemote, agentPresetsRemote, commandsRemote, agentTeamsRemote,
+      settingsControllerRemote, accountRemote,
       goalsRemote, llmRemote, dynamicRemote, scheduleRemote,
       pluginInventoryRemote, pluginManagerRemote, mcpManagerRemote, pluginMarketRemote, pluginRegistryProbeRemote,
       toolResultsRemote,

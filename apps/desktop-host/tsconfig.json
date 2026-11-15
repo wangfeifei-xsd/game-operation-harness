@@ -8,12 +8,24 @@
     "src"
   ],
   "references": [
-    { "path": "../../packages/host/authentication-desktop" },
-    { "path": "../../vendor/cordis" },
-    { "path": "../../packages/core/agent" },
-    { "path": "../../packages/jobs/jobs" },
-    { "path": "../../packages/schedule/schedule" },
-    { "path": "../../packages/workspace/workspace" },
+    {
+      "path": "../../packages/host/authentication-desktop"
+    },
+    {
+      "path": "../../vendor/cordis"
+    },
+    {
+      "path": "../../packages/core/agent"
+    },
+    {
+      "path": "../../packages/jobs/jobs"
+    },
+    {
+      "path": "../../packages/schedule/schedule"
+    },
+    {
+      "path": "../../packages/workspace/workspace"
+    },
     {
       "path": "../cli"
     },
@@ -25,9 +37,6 @@
     },
     {
       "path": "../../packages/host/webserver"
-    },
-    {
-      "path": "../../packages/credentials/deepseek-account"
     },
     {
       "path": "../../packages/boot/plugin-manager"
@@ -49,6 +58,15 @@
     },
     {
       "path": "../../packages/util/brand"
+    },
+    {
+      "path": "../../packages/util/home-paths"
+    },
+    {
+      "path": "../../packages/host/harness-product"
+    },
+    {
+      "path": "../../packages/util/http-proxy"
     }
   ]
 }

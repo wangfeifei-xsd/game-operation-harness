@@ -11,11 +11,13 @@ import { createDesktopUploadPlan } from './desktop-upload-plan.ts'
 import { desktopPublishCos } from '@deepseek-ai/dsh-desktop-publisher/desktop-publish-cos.ts'
 import { createDesktopPublicationRecord, wasDesktopAttemptPublished, withDesktopChannelLock } from '@deepseek-ai/dsh-desktop-publisher/desktop-publish-record.ts'
 import { publishDesktopRelease } from '@deepseek-ai/dsh-desktop-publisher/desktop-publish.ts'
+import { withDesktopIndexLock } from '@deepseek-ai/dsh-desktop-publisher/desktop-index-lock.ts'
 import { desktopPublicationFailure } from '@deepseek-ai/dsh-desktop-publisher/desktop-publication-failure.ts'
 import { desktopPublicationSummary } from './desktop-publication-summary.ts'
 import { publishDesktopTag } from './desktop-publish-tag.ts'
 import { websiteApproval } from '@deepseek-ai/dsh-desktop-publisher/publish-website-ci.ts'
 import { desktopPublishQualificationError } from '@deepseek-ai/dsh-desktop-publisher/desktop-publish-qualification.mjs'
+import { desktopRetainedDeployment } from '@deepseek-ai/dsh-desktop-publisher/product-deployment.mjs'
 
 const routeSchema = z.object({ runId: z.string(), attempt: z.string(), commit: z.string(), runnerName: z.string(),
   sourceRef: z.string(), channel: z.enum(['nightly', 'stable']),
@@ -38,6 +40,7 @@ export async function prepareDesktopPublication(env: NodeJS.ProcessEnv, verifySi
   const root = desktopReleasesRoot(env)
   const manifest = await verifyRetainedDesktopRelease(root, route.runId, route.attempt)
   const source = manifest.source
+  const deployment = desktopRetainedDeployment(source)
   if (source.repository !== env.GITHUB_REPOSITORY || source.runnerName !== route.runnerName || source.target !== route.target
     || source.channel !== route.channel || source.sourceRef !== route.sourceRef || source.commit !== route.commit
     || source.preset !== route.preset) {
@@ -54,7 +57,8 @@ export async function prepareDesktopPublication(env: NodeJS.ProcessEnv, verifySi
     : { DSH_DESKTOP_AUTO_UPDATE_ENV: 'production', DOWNLOAD_PROD_COS_BUCKET: config.bucket }
   const plan = await createDesktopUploadPlan(source.target, { artifactsRoot: directory,
     stagingPercentage,
-    packagedProductVersion: source.productVersion, environment: { ...environment, DSH_DESKTOP_UPDATE_CHANNEL: source.channel } })
+    packagedProductVersion: source.productVersion, environment: { ...environment, DSH_DESKTOP_UPDATE_CHANNEL: source.channel,
+      DSH_DESKTOP_PRODUCT_ENVIRONMENT: deployment.environment } })
   if (plan.version !== source.version || plan.commit !== source.commit || plan.dirty !== false) throw new Error('desktop publish: completion record differs from retained source or has uncommitted changes')
   await verifySignatures(directory, manifest, config)
   const approval = createHash('sha256').update(JSON.stringify({ manifest, plan })).digest('hex')
@@ -111,10 +115,10 @@ if (process.argv[1] !== undefined && resolve(process.argv[1]) === import.meta.fi
               await journal.record({ type: 'complete' })
               return { status: 'complete' as const }
             })()
-            : await publishDesktopRelease(plan, {
+            : await withDesktopIndexLock(plan, credentials, () => publishDesktopRelease(plan, {
               transport: desktopPublishCos(plan, credentials), record: event => journal.record(event),
               tag,
-            })
+            }))
           status = result.status
           if (env.GITHUB_STEP_SUMMARY) await appendFile(env.GITHUB_STEP_SUMMARY,
             `\nDesktop publication: **${status}**\n\n${plan.target} ${plan.version}\n\nSource: ${route.runId}, attempt ${route.attempt}\n`)

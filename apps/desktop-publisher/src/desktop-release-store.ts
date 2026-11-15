@@ -14,6 +14,9 @@ const sourceSchema = z.strictObject({
   commit: z.string().regex(/^[a-f0-9]{40}$/u),
   workflowCommit: z.string().regex(/^[a-f0-9]{40}$/u),
   sourceRef: z.string().min(1),
+  product: z.literal('agent-assistant').optional(),
+  appId: z.string().min(1).optional(),
+  productEnvironment: z.enum(['dev', 'test', 'fat', 'master']).optional(),
   channel: z.enum(['nightly', 'stable']),
   runnerName: z.string().min(1),
   // Storage accepts every Desktop target; CI routing separately limits currently provisioned platforms.

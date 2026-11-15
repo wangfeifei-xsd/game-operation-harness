@@ -55,7 +55,7 @@ function resolveRequest(ctx: Context, input: WebhookSessionRequest): ResolvedWeb
   }
   let agentOptions: AgentOptions
   if (model === undefined) {
-    agentOptions = { ...ctx.agentDefaultModel.currentSelection() }
+    agentOptions = { ...ctx.agentDefaultModel.requireSelection() }
   } else {
     const modelRecord = model as Record<string, unknown>
     const provider = requiredString(modelRecord, 'provider')

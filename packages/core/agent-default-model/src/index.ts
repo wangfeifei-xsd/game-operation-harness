@@ -11,7 +11,7 @@ import { Context, Service } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type { ModelSelection } from '@deepseek-ai/dsh-agent'
 import { brandString } from '@deepseek-ai/dsh-brand'
-import type { ReasoningEffortId } from '@deepseek-ai/dsh-llm'
+import { LlmError, type ReasoningEffortId } from '@deepseek-ai/dsh-llm'
 import type {} from '@deepseek-ai/dsh-config-editor'
 
 declare module '@deepseek-ai/cordis' {
@@ -23,6 +23,8 @@ declare module '@deepseek-ai/cordis' {
 
 /** Default model selection supplied by plugin configuration. */
 export interface Config {
+  /** 产品来源必须存在；缺失时拒绝执行，不回退静态配置。 */
+  sourceRequired?: boolean
   /** Registered provider route. */
   provider: Volatile<string>
   /** Provider-owned model id. */
@@ -42,14 +44,42 @@ function selection(settings: { provider: string; model: string; reasoningEffort?
   }
 }
 
-/**
- * Owns the default model selection independently of any Host or transport.
- * Each operation reads the owning Config references.
- */
+/** 产品来源负责默认选择的读取和持久化。 */
+export interface DefaultModelSource {
+  /** @returns 空配置返回空。 */
+  read(): ModelSelection | null
+  /** @param next - 经目录校验的模型选择。 */
+  save(next: ModelSelection): Promise<void>
+}
+
+/** 默认选择的唯一读写入口，产品可以注册可持久化且允许空值的来源。 */
 export class AgentDefaultModelConfig extends Service {
+  private source: DefaultModelSource | undefined
+
+  /**
+   * 注册唯一产品来源，卸载后产品模式仍拒绝静态回退。
+   * @param source - 默认值的业务所有者。
+   * @returns 撤销该注册的函数。
+   */
+  registerSource(source: DefaultModelSource): () => void {
+    if (this.source !== undefined) throw new Error('默认模型来源已注册')
+    this.source = source
+    return () => { if (this.source === source) this.source = undefined }
+  }
+
+  /**
+   * 执行入口读取必需的模型选择。
+   * @returns 有效选择；无模型时抛出可识别错误。
+   */
+  requireSelection(): ModelSelection {
+    const value = this.currentSelection()
+    if (value === null) throw new LlmError('请先在设置中配置模型', 'NO_MODEL_CONFIGURED')
+    return value
+  }
   private saves: Promise<void> = Promise.resolve()
 
   static Config = z.object({
+    sourceRequired: z.boolean().default(false),
     provider: z.string().required().volatile(),
     model: z.string().required().volatile(),
     reasoningEffort: z.string().volatile(),
@@ -65,7 +95,9 @@ export class AgentDefaultModelConfig extends Service {
    * Read the current default model selection.
    * @returns a detached provider, model, and optional reasoning selection.
    */
-  currentSelection(): ModelSelection {
+  currentSelection(): ModelSelection | null {
+    if (this.source !== undefined) return this.source.read()
+    if (this.config.sourceRequired) return null
     const reasoningEffort = this.config.reasoningEffort.get()
     return selection({
       provider: this.config.provider.get(), model: this.config.model.get(),
@@ -81,6 +113,8 @@ export class AgentDefaultModelConfig extends Service {
    * @returns fulfillment after the optional profile write settles.
    */
   async saveSelection(next: ModelSelection): Promise<void> {
+    if (this.source !== undefined) return this.source.save(next)
+    if (this.config.sourceRequired) throw new LlmError('模型配置服务不可用', 'NO_MODEL_CONFIGURED')
     const entry = this.ownerContext.fiber.entry
     if (entry === undefined) return
     const editor = this.ctx.get('configEditor')

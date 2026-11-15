@@ -209,7 +209,7 @@ describe('official home cat in the default web profile', () => {
     await page.setViewportSize({ width: 1600, height: 850 })
     for (const locale of ['zh', 'en'] as const) {
       await settings.update('locale', { preference: locale })
-      const label = locale === 'zh' ? '游戏运营 Agent' : 'game-operation-harness'
+      const label = locale === 'zh' ? 'Agent 助手' : 'game-operation-harness'
       await page.getByRole('img', { name: label, exact: true }).waitFor()
       expect(await page.locator('[data-brand-cat]').count()).toBeGreaterThanOrEqual(2)
       expect(await page.locator('[data-brand-wordmark] [data-brand-cat]').count()).toBe(0)

@@ -1,0 +1,23 @@
+- dialog "设置":
+  - text: 设置
+  - navigation:
+    - button "通用设置"
+    - button "模型"
+    - button "Agent 预设"
+  - button "关闭"
+  - heading "模型配置" [level=4]
+  - button "新增模型"
+  - table:
+    - rowgroup:
+      - row "模型名称 供应商 模型标识 状态 操作":
+        - columnheader "模型名称"
+        - columnheader "供应商"
+        - columnheader "模型标识"
+        - columnheader "状态"
+        - columnheader "操作"
+    - rowgroup:
+      - row "暂无数据 尚未配置模型 新增模型":
+        - cell "暂无数据 尚未配置模型 新增模型":
+          - img "暂无数据"
+          - text: 尚未配置模型
+          - button "新增模型"

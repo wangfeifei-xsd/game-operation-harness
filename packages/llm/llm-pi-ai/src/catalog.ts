@@ -650,6 +650,8 @@ export type PiAiModelOverride = Omit<PiAiModelProfile, 'id'>
 
 /** The route-level facts model materialization reads. */
 export interface RouteCatalogRequest {
+  /** 私有路由所引用的内置模型目录。 */
+  catalogProvider?: string
   /** Provider route key, stamped onto every materialized model. */
   provider: string
   /** Wire protocol override; absent defers to each catalog model's own API. */
@@ -860,7 +862,7 @@ export function resolveRouteModels(
   validation: 'strict' | 'deferred' = 'strict',
 ): RouteCatalog {
   const { provider } = request
-  const defaults = catalogModels(provider)
+  const defaults = catalogModels(request.catalogProvider ?? provider)
   const providerBaseUrl = catalogProvider(provider)?.baseUrl
   // An absent `models` key and an empty one are the same request: the config
   // schema materializes `[]` for the absent case, and an empty catalog could

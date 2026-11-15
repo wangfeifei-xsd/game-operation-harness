@@ -26,6 +26,10 @@ The dependency-free preflights run before installation. Their executable regress
 node apps/desktop-publisher/tests/preinstall.mjs
 ```
 
+Product deployment comes from `config/environments/<environment>.json`, selected by `DSH_DESKTOP_PRODUCT_ENVIRONMENT`. The legacy release-store deployment maps `master` to `production` and other product environments to `test`; it does not replace the product environment. Only `stable` is accepted. Release packaging and publication reject missing application identity, ordinary update source or download index, mismatched retained product identity, and embedded provider credentials. See [product configuration](../../docs/harness-product.md#configuration).
+
+The same upload plan owns installer bytes, native update metadata and the public `downloads.json` index. Publication verifies local hashes, uploads immutable files, confirms remote bytes, advances the native feed, and then updates the download index. A cross-machine object lock serializes index writes across targets; same-version targets merge, while older versions and changed same-version targets are rejected. An incomplete index write reports failure while preserving uploaded objects for reconciliation. Rollback accepts only retained releases carrying this product identity.
+
 ## Implementation
 
 <details>

@@ -2,7 +2,7 @@
 
 [English](settings.md) | 中文
 
-[设置服务](../../packages/settings/settings/README.zh.md) 从活动 profile 条目投影 volatile Config 字段。[配置编辑器](../../packages/boot/config-editor/README.zh.md) 通过 Cordis patch 持久化编辑。业务消费者对自己的 Config 引用调用 `.get()`。
+[设置服务](../../packages/settings/settings/README.zh.md) 从活动 profile 条目投影 volatile Config 字段。可选的[配置编辑器](../../packages/boot/config-editor/README.zh.md)通过 Cordis patch 持久化编辑。未装载编辑器时，仍可读取描述符，但不能写入或访问配置文档。业务消费者对自己的 Config 引用调用 `.get()`。
 
 ## 标识与值
 
@@ -37,8 +37,8 @@ Project Config schemas into forms and own optional instance-level UI policy.
  */
 configure(presentation: { auto?: boolean }, owner: Fiber = this.ctx.fiber): () => void
 
-/** Locate the profile patch for native editing.
- * @returns The existing profile patch path.
+/** 查找原生编辑器使用的配置文件；只读 Host 通过拒绝 Promise 报错。
+ * @returns 当前配置文件路径。
  */
 prepareDocument(): Promise<string>
 

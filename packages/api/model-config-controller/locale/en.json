@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Model configuration API",
+    "description": "Manage Harness model configuration through authenticated Remote operations."
+  }
+}

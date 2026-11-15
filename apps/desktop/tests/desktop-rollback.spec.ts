@@ -5,13 +5,13 @@ import type { DesktopPublishOperations } from '@deepseek-ai/dsh-desktop-publishe
 import type { DesktopUploadPlan } from '../scripts/desktop-upload-plan.ts'
 
 function fixture() {
-  const objects = new Map([['bin/old.exe', 'old installer'], ['feed/nightly.yml', 'version: 2.0.0\n']])
+  const objects = new Map([['bin/old.exe', 'old installer'], ['feed/stable.yml', 'version: 2.0.0\n']])
   const writes: string[] = []
   const plan: DesktopUploadPlan = {
     environment: 'test', target: 'win-x64', version: '1.0.0', bucket: 'fixture', publicUrl: 'https://example.com', secretIdEnvName: 'ID', secretKeyEnvName: 'KEY',
     artifacts: [
       { key: 'bin/old.exe', path: '', filename: 'old.exe', contentType: 'application/octet-stream', channelMetadata: false, contents: 'old installer' },
-      { key: 'feed/nightly.yml', path: '', filename: 'nightly.yml', contentType: 'application/yaml', channelMetadata: true, contents: 'version: 1.0.0\n' },
+      { key: 'feed/stable.yml', path: '', filename: 'stable.yml', contentType: 'application/yaml', channelMetadata: true, contents: 'version: 1.0.0\n' },
     ],
   }
   const operations: DesktopPublishOperations = {
@@ -42,7 +42,7 @@ it('previews the exact YAML change without writes', async () => {
 it('only restores the YAML after checking the historical binary', async () => {
   const f = fixture()
   await expect(rollbackDesktopChannel(f.plan, '2.0.0', true, f.operations)).resolves.toMatchObject({ status: 'complete' })
-  expect(f.writes).toEqual(['feed/nightly.yml'])
+  expect(f.writes).toEqual(['feed/stable.yml'])
   expect(f.objects.get('bin/old.exe')).toBe('old installer')
 })
 
@@ -50,7 +50,7 @@ it.each(['missing-file', 'changed-file', 'changed-channel'] as const)('rejects %
   const f = fixture()
   if (problem === 'missing-file') f.objects.delete('bin/old.exe')
   if (problem === 'changed-file') f.objects.set('bin/old.exe', 'changed')
-  if (problem === 'changed-channel') f.objects.set('feed/nightly.yml', 'version: 3.0.0\n')
+  if (problem === 'changed-channel') f.objects.set('feed/stable.yml', 'version: 3.0.0\n')
   await expect(rollbackDesktopChannel(f.plan, '2.0.0', true, f.operations)).rejects.toThrow()
   expect(f.writes).toEqual([])
 })
@@ -58,8 +58,9 @@ it.each(['missing-file', 'changed-file', 'changed-channel'] as const)('rejects %
 it('restores nightly when stable already matches and resumes a partially restored pair', async () => {
   for (const stableAlreadyMatches of [true, false]) {
     const f = fixture()
-    const nightly = f.plan.artifacts[1]!
-    const plan = { ...f.plan, artifacts: [...f.plan.artifacts, { ...nightly, key: 'feed/stable.yml', filename: 'stable.yml' }] }
+    const nightly = { ...f.plan.artifacts[1]!, key: 'feed/nightly.yml', filename: 'nightly.yml' }
+    f.objects.set(nightly.key, 'version: 2.0.0\n')
+    const plan = { ...f.plan, artifacts: [f.plan.artifacts[0]!, nightly, { ...nightly, key: 'feed/stable.yml', filename: 'stable.yml' }] }
     f.objects.set('feed/stable.yml', stableAlreadyMatches ? nightly.contents! : 'version: 2.0.0\n')
     if (!stableAlreadyMatches) {
       const put = f.operations.transport.put.bind(f.operations.transport)

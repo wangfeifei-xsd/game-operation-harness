@@ -16,6 +16,7 @@ export interface ProductPackagePolicy {
  * Optional integrations may be reached by an optional bundle without becoming default capabilities.
  */
 export const PRODUCT_PACKAGE_POLICY: Readonly<Record<string, ProductPackagePolicy>> = {
+  'packages/llm/harness-model-config': { category: 'optional', reason: '由 Web 和桌面产品在中央账号验证后按受控部署配置装配。' },
   'packages/host/authentication-desktop': { category: 'optional', reason: 'Mounted by the private Desktop Host with its parent-process credential, outside default Web profiles.' },
   'packages/core/agent-tool-presentation': { category: 'optional', reason: 'Deprecated selector retained for existing executor configurations.' },
   'packages/client/script-realm': { category: 'optional', reason: 'Script environment provider registry for explicitly selected Client integrations.' },

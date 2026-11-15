@@ -1,8 +1,11 @@
-/** 游戏运营 Agent 的侧栏、首屏标识和点击触发的猫头动效。 */
+/** Agent 助手 的侧栏、首屏标识和点击触发的猫头动效。 */
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
+import type {} from '@deepseek-ai/dsh-client-ui-theme/client'
+import { ProductAccount } from './product-account.ts'
+import { ProductAccountFooter } from './ProductAccountFooter.tsx'
 import { PixelCat } from './home-cat/PixelCat.tsx'
 import { GameOperationBrandMark, GameOperationBrandName } from './Brand.tsx'
 
@@ -14,6 +17,19 @@ export const inject = ['slots']
  * @param ctx - 浏览器根上下文。
  */
 export function apply(ctx: ClientContext): void {
+  if (document.querySelector('meta[name="agent-assistant-account"][content="enabled"]')) {
+    ctx.inject(['theme'], (scope) => {
+      const account = new ProductAccount()
+      const palette = { getSnapshot: () => scope.theme.getTheme(), subscribe: (listener: () => void) => scope.on('theme/change', listener) }
+      scope.effect(() => account.start())
+      scope.slots.inject('sidebar.footer.action', () => scope.slots.register({
+        name: 'sidebar.footer.action', id: 'product-account', order: -100,
+        inject: () => ({ desktop: account.desktop,
+          request: <T>(...args: Parameters<typeof account.transport.request>) => account.transport.request<T>(...args),
+          logout: () => account.logout(), hooks: { account: account.state, theme: palette } }),
+      }, ProductAccountFooter))
+    })
+  }
   ctx.slots.inject('conversation.hero.frame', () => ctx.slots.register({
     name: 'conversation.hero.frame',
     id: 'pixel-cat',

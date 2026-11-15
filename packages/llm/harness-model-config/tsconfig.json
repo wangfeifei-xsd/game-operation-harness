@@ -1,0 +1,51 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "lib/types"
+  },
+  "include": [
+    "src"
+  ],
+  "references": [
+    {
+      "path": "../../../vendor/cordis"
+    },
+    {
+      "path": "../../../vendor/schemastery"
+    },
+    {
+      "path": "../../util/brand"
+    },
+    {
+      "path": "../../util/error"
+    },
+    {
+      "path": "../../util/atomic-write"
+    },
+    {
+      "path": "../../credentials/credentials"
+    },
+    {
+      "path": "../../core/agent"
+    },
+    {
+      "path": "../../core/agent-default-model"
+    },
+    {
+      "path": "../llm"
+    },
+    {
+      "path": "../llm-pi-ai"
+    },
+    {
+      "path": "../../storage/storage"
+    },
+    {
+      "path": "../../attachment/attachment"
+    },
+    {
+      "path": "../../fs/fs"
+    }
+  ]
+}

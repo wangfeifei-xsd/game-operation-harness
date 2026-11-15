@@ -17,6 +17,22 @@ class Channel extends EventEmitter {
   connected = true
 }
 const secret = (): string => randomBytes(32).toString('base64url')
+const product = { version: 1, generation: 1, environment: 'test', configDirectory: '/private/config', token: secret(), sessionId: 'session_auth', user: { user_id: 'user_auth', login_name: 'account', display_name: '账号', status: 'ACTIVE' } }
+
+it('ends a connected Host after the private startup delivery deadline and removes receipt listeners', async () => {
+  vi.useFakeTimers()
+  const channel = new Channel()
+  const received = receiveDesktopSecret(channel)
+  try {
+    const rejected = expect(received.secret).rejects.toThrow('超时')
+    await vi.advanceTimersByTimeAsync(15_000)
+    await rejected
+    await expect(received.product).rejects.toThrow('超时')
+    expect(received.signal.aborted).toBe(true)
+    expect(channel.listenerCount('message')).toBe(0)
+    expect(channel.listenerCount('disconnect')).toBe(0)
+  } finally { received.dispose(); vi.useRealTimers() }
+})
 
 it('listens before delivery and accepts one exact desktop credential message', async () => {
   const channel = new Channel()
@@ -24,7 +40,7 @@ it('listens before delivery and accepts one exact desktop credential message', a
   onTestFinished(() => { received.dispose() })
   const value = secret()
   channel.emit('message', { type: 'unrelated' })
-  channel.emit('message', { type: 'desktop-auth', secret: value })
+  channel.emit('message', { type: 'desktop-auth', secret: value, product })
   expect(await received.secret).toBe(value)
   expect(received.signal.aborted).toBe(false)
   expect(channel.listenerCount('message')).toBe(1)
@@ -59,7 +75,7 @@ it.each(['disconnected', 'shutdown'] as const)('distinguishes pending authentica
   expect(received.signal.aborted).toBe(true)
   expect(channel.listenerCount('message')).toBe(0)
   expect(channel.listenerCount('disconnect')).toBe(0)
-  channel.emit('message', { type: 'desktop-auth', secret: secret() })
+  channel.emit('message', { type: 'desktop-auth', secret: secret(), product })
   await expect(received.secret).rejects.toBe(received.signal.reason)
 })
 
@@ -67,7 +83,7 @@ it.each(['disconnected', 'shutdown'] as const)('retains %s after credentials arr
   const channel = new Channel()
   const received = receiveDesktopSecret(channel)
   const value = secret()
-  channel.emit('message', { type: 'desktop-auth', secret: value })
+  channel.emit('message', { type: 'desktop-auth', secret: value, product })
   if (kind === 'disconnected') channel.emit('disconnect')
   else channel.emit('message', { type: 'shutdown' })
   expect(await received.secret).toBe(value)
@@ -101,8 +117,8 @@ it.each([true, false])('rejects duplicate credentials before the receiver resume
   const channel = new Channel()
   const received = receiveDesktopSecret(channel)
   const value = secret()
-  channel.emit('message', { type: 'desktop-auth', secret: value })
-  channel.emit('message', { type: 'desktop-auth', secret: same ? value : secret() })
+  channel.emit('message', { type: 'desktop-auth', secret: value, product })
+  channel.emit('message', { type: 'desktop-auth', secret: same ? value : secret(), product })
   expect(await received.secret).toBe(value)
   expect(() => { received.signal.throwIfAborted() }).toThrow('Desktop authentication credential already received')
   expect(received.signal.reason).not.toBeInstanceOf(DesktopAuthenticationEnd)
@@ -114,9 +130,9 @@ it.each([true, false])('ends the channel on duplicate credentials (same: %s)', a
   const channel = new Channel()
   const received = receiveDesktopSecret(channel)
   const value = secret()
-  channel.emit('message', { type: 'desktop-auth', secret: value })
+  channel.emit('message', { type: 'desktop-auth', secret: value, product })
   await received.secret
-  channel.emit('message', { type: 'desktop-auth', secret: same ? value : secret() })
+  channel.emit('message', { type: 'desktop-auth', secret: same ? value : secret(), product })
   expect(received.signal.aborted).toBe(true)
   expect(String(received.signal.reason)).toContain('already received')
   expect(String(received.signal.reason)).not.toContain(value)

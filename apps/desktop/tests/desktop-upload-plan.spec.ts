@@ -1,3 +1,4 @@
+import './product-deployment-fixture.ts'
 import { createHash } from 'node:crypto'
 import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -13,7 +14,7 @@ import { uploadDesktopRelease } from '../scripts/desktop-upload-run.ts'
 import { startCosLoopback } from '../../desktop-publisher/tests/cos-loopback.ts'
 
 const temporaryDirectories: string[] = []
-const TEST_ORIGIN = 'https://desktop-updates.example.com'
+const TEST_ORIGIN = 'https://updates.example.com'
 const TEST_BUCKET = 'test-download-bucket-1250000000'
 const RELEASE_ID = '0123456789abcdef0123456789abcdef'
 const PRODUCTION_BUCKET = 'production-download-bucket-1250000000'
@@ -38,7 +39,7 @@ async function fixture(
   target: DesktopPackageTargetName,
   version = '1.2.3',
   environment: 'test' | 'production' = 'test',
-  channel: 'nightly' | 'stable' = 'nightly',
+  channel: 'nightly' | 'stable' = 'stable',
 ): Promise<Fixture> {
   const root = await mkdtemp(join(tmpdir(), 'dsh-desktop-upload-'))
   temporaryDirectories.push(root)
@@ -50,17 +51,15 @@ async function fixture(
   await writeFile(join(appRoot, 'package.json'), `${JSON.stringify({ version })}\n`)
 
   const [os, arch] = target.split('-') as ['mac' | 'win', 'arm64' | 'x64']
-  const base = `deepseek-harness-${version}-${os}-${arch}`
-  const origin = environment === 'test'
-    ? TEST_ORIGIN
-    : 'https://download.deepseek.com'
+  const base = `agent-assistant-${version}-${os}-${arch}`
+  const origin = TEST_ORIGIN
   await writeFile(join(artifactsRoot, `${target}-release.json`), `${JSON.stringify({
-    schemaVersion: 1,
+    schemaVersion: 1, product: 'agent-assistant', appId: `com.example.agentassistant.${environment === 'test' ? 'test' : 'master'}`, productEnvironment: environment === 'test' ? 'test' : 'master',
     channel,
     target,
     version,
     environment,
-    publicUrl: `${origin}/dsh-desk/${environment === 'test' ? `${RELEASE_ID}/` : ''}feeds/${target}/`,
+    publicUrl: `${origin}/agent-assistant/${environment === 'test' ? 'test' : 'master'}/stable/feeds/${target}/`,
   })}\n`)
 
   if (os === 'mac') {
@@ -135,7 +134,7 @@ describe('desktop upload plan', () => {
           expect(request.method).toBe('PUT')
           expect(request.path).toBe(`/${artifact.key}`)
           expect(request.body).toEqual(await readFile(artifact.path))
-          expect(request.headers['content-disposition']).toBe(`attachment; filename="deepseek-harness-1.2.3-${target}.${target === 'win-x64' ? 'exe' : 'dmg'}"`)
+          expect(request.headers['content-disposition']).toBe(`attachment; filename="agent-assistant-1.2.3-${target}.${target === 'win-x64' ? 'exe' : 'dmg'}"`)
           expect(JSON.parse(await readFile(join(directory, 'result.json'), 'utf8'))).toMatchObject({
             success: true, confirmedPuts: 1, publicReadback: 'not-performed',
           })
@@ -156,9 +155,9 @@ describe('desktop upload plan', () => {
     expect(plan.version).toBe('1.2.3-alpha.4')
     expect(plan.artifacts).toHaveLength(1)
     expect(plan.artifacts[0]).toMatchObject({
-      path: join(paths.artifactsRoot, 'deepseek-harness-1.2.3-alpha.4-win-x64.exe'),
-      key: 'desktop/dsh-latest-windows-x64.exe', channelMetadata: false,
-      contentDisposition: 'attachment; filename="deepseek-harness-1.2.3-alpha.4-win-x64.exe"',
+      path: join(paths.artifactsRoot, 'agent-assistant-1.2.3-alpha.4-win-x64.exe'),
+      key: 'agent-assistant/master/stable/agent-assistant-latest-windows-x64.exe', channelMetadata: false,
+      contentDisposition: 'attachment; filename="agent-assistant-1.2.3-alpha.4-win-x64.exe"',
     })
   })
 
@@ -170,22 +169,16 @@ describe('desktop upload plan', () => {
       DOWNLOAD_TEST_RELEASE_ID: RELEASE_ID, DOWNLOAD_TEST_COS_BUCKET: TEST_BUCKET,
     })
     if (failure === 'checksum') {
-      const path = join(paths.artifactsRoot, 'deepseek-harness-1.2.3-win-x64.exe')
+      const path = join(paths.artifactsRoot, 'agent-assistant-1.2.3-win-x64.exe')
       await writeFile(path, Buffer.alloc((await readFile(path)).length))
     }
     await expect(createDesktopUploadPlan('win-x64', { ...paths, latest: true }))
       .rejects.toThrow(failure === 'checksum' ? /SHA-512/u : /completion record/u)
   })
 
-  it.each(['test', 'production'] as const)('isolates stable-channel packages from nightly in %s', async (environment) => {
-    const nightly = await createDesktopUploadPlan('win-x64', { ...await fixture('win-x64', '1.2.3', environment, 'nightly'), stagingPercentage: 10 })
-    const stable = await createDesktopUploadPlan('win-x64', { ...await fixture('win-x64', '1.2.3', environment, 'stable'), stagingPercentage: 10 })
-    expect(stable.artifacts.filter(file => file.channelMetadata).map(file => file.filename)).toEqual(['stable.yml'])
-    expect(nightly.artifacts.filter(file => file.channelMetadata).map(file => file.filename)).toEqual(['nightly.yml'])
-    expect(stable.artifacts.every(file => !nightly.artifacts.some(other => other.key === file.key))).toBe(true)
-    for (const plan of [nightly, stable]) {
-      expect(plan.artifacts.find(file => file.channelMetadata)!.contents).toContain('stagingPercentage: 10')
-    }
+  it('rejects unpublished nightly even when requested explicitly', async () => {
+    const paths = await fixture('win-x64')
+    await expect(createDesktopUploadPlan('win-x64', { ...paths, environment: { ...paths.environment, DSH_DESKTOP_UPDATE_CHANNEL: 'nightly' } })).rejects.toThrow(/channel/u)
   })
 
   it.each(['mac-arm64', 'mac-x64', 'win-x64'] as const)('publishes manually selected prereleases on stable for %s', async (target) => {
@@ -197,9 +190,9 @@ describe('desktop upload plan', () => {
         const feed = plan.artifacts.find(file => file.channelMetadata)!
         expect(feed.filename).toBe(target === 'win-x64' ? 'stable.yml' : 'stable-mac.yml')
         const payload = plan.artifacts.find(file => file.filename.endsWith(target === 'win-x64' ? '.exe' : '.zip'))!
-        expect(payload.key).toContain(`/bin/${target}/stable/`)
+        expect(payload.key).toContain(`/stable/bin/${target}/`)
         expect(load(feed.contents!)).toMatchObject({ version, files: [{
-          url: `${environment === 'test' ? TEST_ORIGIN : 'https://download.deepseek.com'}/${payload.key}`,
+          url: `${TEST_ORIGIN}/${payload.key}`,
         }] })
         summaries.push({ environment, version, keys: plan.artifacts.map(file => file.key) })
       }
@@ -211,14 +204,14 @@ describe('desktop upload plan', () => {
     const paths = await fixture('win-x64', '1.2.3', 'production')
     const plan = await createDesktopUploadPlan('win-x64', paths)
     expect(plan.artifacts.map(artifact => artifact.key)).toEqual([
-      'dsh-desk/bin/win-x64/deepseek-harness-1.2.3-win-x64.exe',
-      'dsh-desk/bin/win-x64/deepseek-harness-1.2.3-win-x64.exe.blockmap',
-      'dsh-desk/feeds/win-x64/nightly.yml',
+      'agent-assistant/master/stable/bin/win-x64/agent-assistant-1.2.3-win-x64.exe',
+      'agent-assistant/master/stable/bin/win-x64/agent-assistant-1.2.3-win-x64.exe.blockmap',
+      'agent-assistant/master/stable/feeds/win-x64/stable.yml',
     ])
     expect(load(plan.artifacts[2]!.contents!)).toMatchObject({
       version: '1.2.3',
       files: [{
-        url: 'https://download.deepseek.com/dsh-desk/bin/win-x64/deepseek-harness-1.2.3-win-x64.exe',
+        url: 'https://updates.example.com/agent-assistant/master/stable/bin/win-x64/agent-assistant-1.2.3-win-x64.exe',
         sha512: digest('signed NSIS executable fixture'),
       }],
     })
@@ -231,14 +224,14 @@ describe('desktop upload plan', () => {
     expect(plan).toMatchObject({
       environment: 'test',
       version: '1.2.3',
-      publicUrl: `https://desktop-updates.example.com/dsh-desk/${RELEASE_ID}/feeds/mac-arm64/`,
+      publicUrl: 'https://updates.example.com/agent-assistant/test/stable/feeds/mac-arm64/',
       bucket: TEST_BUCKET,
     })
     expect(plan.artifacts.map(artifact => artifact.filename)).toEqual([
-      'deepseek-harness-1.2.3-mac-arm64.dmg',
-      'deepseek-harness-1.2.3-mac-arm64.zip',
-      'deepseek-harness-1.2.3-mac-arm64.zip.blockmap',
-      'nightly-mac.yml',
+      'agent-assistant-1.2.3-mac-arm64.dmg',
+      'agent-assistant-1.2.3-mac-arm64.zip',
+      'agent-assistant-1.2.3-mac-arm64.zip.blockmap',
+      'stable-mac.yml',
     ])
     expect(plan.artifacts.at(-1)).toMatchObject({
       channelMetadata: true,
@@ -248,7 +241,7 @@ describe('desktop upload plan', () => {
   it.each(['mac-arm64', 'mac-x64', 'win-x64'] as const)('publishes every %s object and YAML reference inside the test release directory', async (target) => {
     const paths = await fixture(target)
     const plan = await createDesktopUploadPlan(target, paths)
-    const prefix = `dsh-desk/${RELEASE_ID}`
+    const prefix = 'agent-assistant/test/stable'
     const payload = plan.artifacts.find(artifact => artifact.filename.endsWith(target === 'win-x64' ? '.exe' : '.zip'))!
     for (const artifact of plan.artifacts) {
       expect(artifact.key).toBe(`${prefix}/${artifact.channelMetadata ? 'feeds' : 'bin'}/${target}/${artifact.filename}`)
@@ -263,24 +256,21 @@ describe('desktop upload plan', () => {
       .toMatchFileSnapshot(`./expected/test-release-upload-${target}.json`)
   })
 
-  it('rejects a changed or missing release ID before uploading a completed package', async () => {
+  it('ignores old environment origin overrides and validates the selected product deployment', async () => {
     const paths = await fixture('mac-arm64')
-    await expect(createDesktopUploadPlan('mac-arm64', {
-      ...paths, environment: { ...paths.environment, DOWNLOAD_TEST_RELEASE_ID: 'a'.repeat(32) },
-    })).rejects.toThrow(/completion record/u)
-    await expect(createDesktopUploadPlan('mac-arm64', {
-      ...paths, environment: { ...paths.environment, DOWNLOAD_TEST_RELEASE_ID: undefined },
-    })).rejects.toThrow(/DOWNLOAD_TEST_RELEASE_ID/u)
+    const plan = await createDesktopUploadPlan('mac-arm64', { ...paths, environment: { ...paths.environment, DOWNLOAD_TEST_ORIGIN: 'https://foreign.example', DOWNLOAD_TEST_RELEASE_ID: undefined } })
+    expect(plan.publicUrl).toBe('https://updates.example.com/agent-assistant/test/stable/feeds/mac-arm64/')
+    await expect(createDesktopUploadPlan('mac-arm64', { ...paths, environment: { ...paths.environment, DSH_DESKTOP_PRODUCT_ENVIRONMENT: 'fat' } })).rejects.toThrow(/completion record/u)
   })
 
   it('uploads the prerelease channel metadata emitted by electron-builder', async () => {
     const paths = await fixture('mac-arm64', '1.2.3-alpha.4')
     const plan = await createDesktopUploadPlan('mac-arm64', paths)
     expect(plan.artifacts.map(artifact => artifact.filename)).toEqual([
-      'deepseek-harness-1.2.3-alpha.4-mac-arm64.dmg',
-      'deepseek-harness-1.2.3-alpha.4-mac-arm64.zip',
-      'deepseek-harness-1.2.3-alpha.4-mac-arm64.zip.blockmap',
-      'nightly-mac.yml',
+      'agent-assistant-1.2.3-alpha.4-mac-arm64.dmg',
+      'agent-assistant-1.2.3-alpha.4-mac-arm64.zip',
+      'agent-assistant-1.2.3-alpha.4-mac-arm64.zip.blockmap',
+      'stable-mac.yml',
     ])
   })
 
@@ -288,19 +278,19 @@ describe('desktop upload plan', () => {
     const paths = await fixture('win-x64', '2.0.0', 'production')
     const plan = await createDesktopUploadPlan('win-x64', paths)
     expect(plan.artifacts.map(artifact => artifact.filename)).toEqual([
-      'deepseek-harness-2.0.0-win-x64.exe',
-      'deepseek-harness-2.0.0-win-x64.exe.blockmap',
-      'nightly.yml',
+      'agent-assistant-2.0.0-win-x64.exe',
+      'agent-assistant-2.0.0-win-x64.exe.blockmap',
+      'stable.yml',
     ])
     expect(plan).toMatchObject({
-      publicUrl: 'https://download.deepseek.com/dsh-desk/feeds/win-x64/',
+      publicUrl: 'https://updates.example.com/agent-assistant/master/stable/feeds/win-x64/',
       bucket: PRODUCTION_BUCKET,
     })
   })
 
   it.each(['missing', 'empty'])('rejects a %s Windows blockmap before publishing its feed', async (condition) => {
     const paths = await fixture('win-x64')
-    const path = join(paths.artifactsRoot, 'deepseek-harness-1.2.3-win-x64.exe.blockmap')
+    const path = join(paths.artifactsRoot, 'agent-assistant-1.2.3-win-x64.exe.blockmap')
     if (condition === 'missing') await rm(path)
     else await writeFile(path, '')
     await expect(createDesktopUploadPlan('win-x64', paths)).rejects.toThrow(/missing or empty artifact.*\.exe\.blockmap/u)
@@ -333,15 +323,15 @@ describe('desktop upload plan', () => {
     expect(plan.version).toBe('1.2.3')
     await expect(createDesktopUploadPlan('mac-arm64', { ...paths, packagedProductVersion: '1.2.4' }))
       .rejects.toThrow(/completion record/u)
-    await writeFile(join(paths.artifactsRoot, 'deepseek-harness-1.2.3-mac-arm64.zip'), 'tampered')
+    await writeFile(join(paths.artifactsRoot, 'agent-assistant-1.2.3-mac-arm64.zip'), 'tampered')
     await expect(createDesktopUploadPlan('mac-arm64', { ...paths, packagedProductVersion: '1.2.3' }))
       .rejects.toThrow(/size.*metadata/u)
   })
 
   it('rejects stale architecture metadata and modified updater bytes', async () => {
     const paths = await fixture('mac-arm64')
-    const metadataPath = join(paths.artifactsRoot, 'nightly-mac.yml')
-    const zipPath = join(paths.artifactsRoot, 'deepseek-harness-1.2.3-mac-arm64.zip')
+    const metadataPath = join(paths.artifactsRoot, 'stable-mac.yml')
+    const zipPath = join(paths.artifactsRoot, 'agent-assistant-1.2.3-mac-arm64.zip')
     await writeFile(zipPath, 'modified')
     await expect(createDesktopUploadPlan('mac-arm64', paths)).rejects.toThrow(/size.*metadata/u)
 
@@ -349,7 +339,7 @@ describe('desktop upload plan', () => {
     await writeFile(metadataPath, `${JSON.stringify({
       version: '1.2.3',
       files: [{
-        url: 'deepseek-harness-1.2.3-mac-x64.zip',
+        url: 'agent-assistant-1.2.3-mac-x64.zip',
         size: Buffer.byteLength(x64),
         sha512: digest(x64),
       }],

@@ -600,7 +600,7 @@ exports[`sidebar shell snapshots > renders the expanded column in the default lo
         type="button"
       >
         <span
-          aria-label="游戏运营 Agent"
+          aria-label="Agent 助手"
           class="brandIdentity"
           role="img"
         >
@@ -645,7 +645,7 @@ exports[`sidebar shell snapshots > renders the expanded column in the default lo
                   style="height: 20px; font-size: 12.5px;"
                 >
                   <span>
-                    游戏运营 Agent
+                    Agent 助手
                   </span>
                 </span>
                 <span

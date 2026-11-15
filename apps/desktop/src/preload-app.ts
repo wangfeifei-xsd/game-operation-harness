@@ -3,9 +3,9 @@ import type { FileSaveResult } from '@deepseek-ai/dsh-client-ui-file-actions/typ
 
 import type { DesktopChannelState, DesktopChannelChangeResult } from '@deepseek-ai/dsh-client-ui-settings-general/types'
 import type { DesktopShortcutInput, ShortcutConfigSnapshot, ShortcutSaveResult } from '@deepseek-ai/dsh-client-shortcuts/protocol'
+import { PRODUCT_IPC, type ProductReply } from './product-protocol.ts'
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import { DESKTOP_IPC, SCHEME, type DshDesktopProductApi, type DesktopUpdatePresentation } from './ipc.ts'
-import { PLATFORM_IPC } from './platform-ipc.ts'
 import { markDocumentPlatform, syncWindowFullscreen } from './preload-platform.ts'
 import { syncNativeTheme } from './preload-theme.ts'
 import { syncWindowsAppearance } from './preload-windows.ts'
@@ -87,18 +87,6 @@ function createProductApi(): DshDesktopProductApi {
 }
 
 if (location.protocol === `${SCHEME}:` && location.hostname === 'app') {
-  contextBridge.exposeInMainWorld('dshOnboarding', {
-    hasApiKey: () => ipcRenderer.invoke(DESKTOP_IPC.onboardingApiKey) as Promise<boolean>,
-    setActive: (active: boolean) => { ipcRenderer.send(DESKTOP_IPC.onboardingActive, active) },
-  })
-  ipcRenderer.on(DESKTOP_IPC.enterWorkspace, () => {
-    const body = document.body
-    const previous = body.getAttribute('tabindex')
-    body.tabIndex = -1
-    body.focus({ preventScroll: true })
-    if (previous === null) body.removeAttribute('tabindex')
-    else body.setAttribute('tabindex', previous)
-  })
   syncWindowsAppearance()
   if (process.platform === 'win32') installMandatoryUpdateOverlay()
   contextBridge.exposeInMainWorld('__DSH_DIRECTORY_PICKER__', {
@@ -114,22 +102,37 @@ if (location.protocol === `${SCHEME}:` && location.hostname === 'app') {
     ready: () => ipcRenderer.invoke(DESKTOP_IPC.boot) as Promise<unknown>,
     failed: (message: string) => ipcRenderer.invoke(DESKTOP_IPC.bootFailed, message) as Promise<void>,
   })
-  contextBridge.exposeInMainWorld('dshPlatform', {
-    open: (page: 'usage' | 'top-up', bounds: { x: number; y: number; width: number; height: number }) => ipcRenderer.invoke(PLATFORM_IPC.open, page, bounds),
-    setBounds: (bounds: { x: number; y: number; width: number; height: number }) => ipcRenderer.invoke(PLATFORM_IPC.bounds, bounds),
-    close: () => ipcRenderer.invoke(PLATFORM_IPC.close),
-  })
+
 }
 
 markDocumentPlatform()
 syncWindowFullscreen()
 syncNativeTheme()
 // Main-process IPC also verifies the owning window and top frame.
-contextBridge.exposeInMainWorld('dshDesktop', location.protocol === `${SCHEME}:` && location.hostname === 'app' && process.isMainFrame ? createProductApi() : { protocolVersion: 1 })
+contextBridge.exposeInMainWorld('dshDesktop', location.protocol === `${SCHEME}:` && location.hostname === 'app' &&
+  process.isMainFrame ? createProductApi() : { protocolVersion: 1 })
 
 if (location.protocol === `${SCHEME}:` && location.hostname === 'app') {
   contextBridge.exposeInMainWorld('__DSH_LOCALE__', {
     read: () => ipcRenderer.invoke(DESKTOP_IPC.localeBootstrap),
     onChange: (locale: string) => { ipcRenderer.send(DESKTOP_IPC.localeChanged, locale) },
   })
+}
+
+// 产品账号操作不接收中央 Token；主进程逐项验证当前窗口。
+if (process.isMainFrame && location.href === 'dsh-app://app/') {
+  contextBridge.exposeInMainWorld('agentAssistantAccount', {
+    request: (operation: string, body?: object): Promise<ProductReply> => ipcRenderer.invoke(PRODUCT_IPC.request, operation,
+      body) as Promise<ProductReply>,
+    subscribe: (listener: (state: object) => void): (() => void) => {
+      const receive = (_event: Electron.IpcRendererEvent, state: object): void => { listener(state) }
+      ipcRenderer.on(PRODUCT_IPC.changed, receive)
+      return () => { ipcRenderer.off(PRODUCT_IPC.changed, receive) }
+    },
+  })
+  const activity = (event: Event): void => {
+    if (event.isTrusted) void ipcRenderer.invoke(PRODUCT_IPC.request, 'renew', {}).catch(() => undefined)
+  }
+  document.addEventListener('pointerdown', activity, true)
+  document.addEventListener('keydown', activity, true)
 }

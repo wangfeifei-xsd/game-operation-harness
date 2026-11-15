@@ -1,3 +1,4 @@
+import '../../desktop/tests/product-deployment-fixture.ts'
 import { createHash } from 'node:crypto'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -17,10 +18,10 @@ async function fixture(target: DesktopPublishRoute['target'] = 'mac-arm64') {
   roots.push(directory)
   const bytes = Buffer.from('final installer bytes')
   const route: DesktopPublishRoute = { runId: '12', attempt: '1', commit: 'a'.repeat(40), sourceRef: 'master',
-    channel: 'nightly', runnerName: 'mini', runnerLabel: 'dsh-mini', target, preset: 'production' }
-  const filename = `deepseek-harness-0.2.1-rc.5-${target}.${target === 'win-x64' ? 'exe' : 'dmg'}`
+    channel: 'stable', runnerName: 'mini', runnerLabel: 'dsh-mini', target, preset: 'production' }
+  const filename = `agent-assistant-0.2.1-rc.5-${target}.${target === 'win-x64' ? 'exe' : 'dmg'}`
   await writeFile(join(directory, filename), bytes)
-  const manifest: DesktopRetainedManifest = { schemaVersion: 1, source: {
+  const manifest: DesktopRetainedManifest = { schemaVersion: 1, source: { product: 'agent-assistant', appId: 'com.example.agentassistant.master', productEnvironment: 'master',
     runId: route.runId, attempt: route.attempt, commit: route.commit, sourceRef: route.sourceRef,
     channel: route.channel, runnerName: route.runnerName, target: route.target, preset: route.preset, repository: 'owner/repo', workflowCommit: route.commit, productVersion: '0.2.1', version: '0.2.1-rc.5',
     testReleaseId: null, qualification: target === 'win-x64' ? 'signed' : 'notarized',
@@ -31,7 +32,7 @@ async function fixture(target: DesktopPublishRoute['target'] = 'mac-arm64') {
 it.each(['mac-arm64', 'mac-x64', 'win-x64'] as const)('accepts only the final %s installer without any update files or current checkout version', async (target) => {
   const f = await fixture(target)
   f.manifest = { ...f.manifest, files: [...f.manifest.files,
-    { name: 'missing-update.zip', size: 1, sha512: 'unused' }, { name: 'nightly.yml', size: 1, sha512: 'unused' }] }
+    { name: 'missing-update.zip', size: 1, sha512: 'unused' }, { name: 'stable.yml', size: 1, sha512: 'unused' }] }
   const installer = await prepareWebsiteInstaller(f.directory, f.manifest, f.route, 'owner/repo', 'production-123')
   try {
     expect(installer.plan.version).toBe('0.2.1-rc.5')
@@ -58,8 +59,8 @@ it.each(['preset', 'qualification', 'attempt', 'commit', 'target', 'repository',
   if (field === 'runId') source.runId = '13'
   if (field === 'runnerName') source.runnerName = 'other'
   if (field === 'sourceRef') source.sourceRef = 'dsh-v0.2.1'
-  if (field === 'channel') source.channel = 'stable'
-  await expect(prepareWebsiteInstaller(f.directory, { ...f.manifest, source }, f.route, 'owner/repo', 'production-123')).rejects.toThrow('identity or production qualification mismatch')
+  if (field === 'channel') source.channel = 'nightly'
+  await expect(prepareWebsiteInstaller(f.directory, { ...f.manifest, source }, f.route, 'owner/repo', 'production-123')).rejects.toThrow(field === 'preset' ? '保留构建与产品环境配置不匹配' : 'identity or production qualification mismatch')
 })
 
 it.each(['absent', 'missing-header', 'wrong-header', 'header-not-retained'] as const)('reconciles %s after audit failure without repeating the fixed-object PUT', async (initial) => {

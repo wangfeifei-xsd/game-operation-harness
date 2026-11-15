@@ -1,10 +1,20 @@
+import './product-deployment-fixture.ts'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { DesktopPurgeError, purgeDesktopInstaller } from '../scripts/desktop-edgeone.ts'
 import { createDesktopUploadPlan, type DesktopUploadPlan } from '../scripts/desktop-upload-plan.ts'
 import { loadDesktopPackageEnvironment } from '../scripts/desktop-package-environment.mjs'
 import { tagDesktopRelease } from '../scripts/desktop-release-tag.ts'
 import { uploadDesktopRelease } from '../scripts/desktop-upload-run.ts'
+import { publishDesktopRelease } from '@deepseek-ai/dsh-desktop-publisher/desktop-publish.ts'
 import { runDesktopUploadCommand, uploadDesktopTarget } from '../scripts/upload-target.ts'
+
+vi.mock('@deepseek-ai/dsh-desktop-publisher/desktop-publish.ts', () => ({ publishDesktopRelease: vi.fn(async (plan: DesktopUploadPlan, operations: import('@deepseek-ai/dsh-desktop-publisher/desktop-publish.ts').DesktopPublishOperations) => { if (plan.environment === 'production') await operations.tag(); return { status: 'complete' } }) }))
+vi.mock('@deepseek-ai/dsh-desktop-publisher/desktop-publish-cos.ts', () => ({ desktopPublishCos: vi.fn() }))
+vi.mock('@deepseek-ai/dsh-desktop-publisher/desktop-index-lock.ts', () => ({ withDesktopIndexLock: (_plan: unknown, _credentials: unknown, operation: () => Promise<unknown>) => operation() }))
+vi.mock('@deepseek-ai/dsh-desktop-publisher/desktop-publish-record.ts', () => ({
+  withDesktopChannelLock: (_root: string, _key: string, operation: () => Promise<unknown>) => operation(),
+  createDesktopPublicationRecord: async () => ({ record: async () => {}, finish: async () => {} }),
+}))
 
 vi.mock('../scripts/desktop-edgeone.ts', async importOriginal => ({
   ...await importOriginal<typeof import('../scripts/desktop-edgeone.ts')>(),
@@ -22,7 +32,7 @@ vi.mock('../scripts/desktop-release-tag.ts', async importOriginal => ({
 
 afterEach(() => {
   vi.restoreAllMocks()
-  vi.resetAllMocks()
+  vi.clearAllMocks()
 })
 
 describe('desktop upload command', () => {
@@ -45,24 +55,25 @@ describe('desktop upload command', () => {
     vi.mocked(uploadDesktopRelease).mockResolvedValue('fixture-records')
     vi.mocked(tagDesktopRelease).mockReturnValue({ status: 'created', tag: 'desktop-v1.2.3-alpha.4' })
 
-    await uploadDesktopTarget(['win-x64', ...latest ? ['--latest'] : []])
+    await uploadDesktopTarget(['win-x64', '--product-environment', environment === 'production' ? 'master' : 'test', ...latest ? ['--latest'] : []])
 
-    expect(createDesktopUploadPlan).toHaveBeenCalledWith('win-x64', { environment: credentials, latest })
-    expect(uploadDesktopRelease).toHaveBeenCalledOnce()
-    expect(vi.mocked(uploadDesktopRelease).mock.calls[0]![0]).toBe(plan)
+    expect(createDesktopUploadPlan).toHaveBeenCalledWith('win-x64', { environment: { ...credentials, DSH_DESKTOP_PRODUCT_ENVIRONMENT: environment === 'production' ? 'master' : 'test' }, latest })
+    const publish = latest ? uploadDesktopRelease : publishDesktopRelease
+    expect(publish).toHaveBeenCalledOnce()
+    expect(vi.mocked(publish).mock.calls[0]![0]).toBe(plan)
     if (environment === 'production' && latest) {
       expect(purgeDesktopInstaller).toHaveBeenCalledWith(
         expect.objectContaining({ publicUrl: plan.publicUrl }),
       )
       expect(vi.mocked(purgeDesktopInstaller).mock.invocationCallOrder[0])
-        .toBeGreaterThan(vi.mocked(uploadDesktopRelease).mock.invocationCallOrder[0]!)
+        .toBeGreaterThan(vi.mocked(publish).mock.invocationCallOrder[0]!)
     } else {
       expect(purgeDesktopInstaller).not.toHaveBeenCalled()
     }
     if (tagged) {
       expect(tagDesktopRelease).toHaveBeenCalledWith(expect.objectContaining({ version: plan.version, commit: plan.commit }))
       expect(vi.mocked(tagDesktopRelease).mock.invocationCallOrder[0])
-        .toBeGreaterThan(vi.mocked(uploadDesktopRelease).mock.invocationCallOrder[0]!)
+        .toBeGreaterThan(vi.mocked(publish).mock.invocationCallOrder[0]!)
     }
     else {
       expect(tagDesktopRelease).not.toHaveBeenCalled()
@@ -81,12 +92,12 @@ describe('cache-only submission command', () => {
   })
 
   it('submits a purge without reading or uploading an installer', async () => {
-    await uploadDesktopTarget(['--latest', '--purge-only', 'mac-arm64'])
+    await uploadDesktopTarget(['--latest', '--purge-only', 'mac-arm64', '--product-environment', 'master'])
     expect(createDesktopUploadPlan).not.toHaveBeenCalled()
     expect(uploadDesktopRelease).not.toHaveBeenCalled()
     expect(tagDesktopRelease).not.toHaveBeenCalled()
     expect(purgeDesktopInstaller).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
-      publicUrl: 'https://download.deepseek.com/desktop/dsh-latest-macos-arm64.dmg',
+      publicUrl: 'https://updates.example.com/agent-assistant/master/stable/agent-assistant-latest-macos-arm64.dmg',
     }))
   })
 
@@ -103,7 +114,7 @@ describe('cache-only submission command', () => {
       bucket: 'fixture-bucket', secretIdEnvName: 'DOWNLOAD_PROD_COS_SECRET_ID', secretKeyEnvName: 'DOWNLOAD_PROD_COS_SECRET_KEY', artifacts: [],
     })
     vi.mocked(purgeDesktopInstaller).mockRejectedValue(new DesktopPurgeError('desktop purge: submission not confirmed'))
-    await expect(uploadDesktopTarget(['mac-arm64', '--latest'])).rejects.toThrow('desktop purge: submission not confirmed')
+    await expect(uploadDesktopTarget(['mac-arm64', '--latest', '--product-environment', 'master'])).rejects.toThrow('desktop purge: submission not confirmed')
     expect(output).toHaveBeenCalledWith('desktop upload: installer uploaded; submitting cache purge.\n')
     expect(uploadDesktopRelease).toHaveBeenCalledOnce()
     expect(purgeDesktopInstaller).toHaveBeenCalledOnce()
@@ -120,7 +131,7 @@ describe('cache-only submission command', () => {
     vi.stubEnv('DOWNLOAD_PROD_COS_SECRET_KEY', 'injected-key')
     try {
       vi.mocked(purgeDesktopInstaller).mockRejectedValue(new DesktopPurgeError('desktop purge: safe recovery message'))
-      await runDesktopUploadCommand(['mac-arm64', '--latest', '--purge-only', ...launcher ? ['--credential-launcher', '--environment', 'production', '--bucket', 'fixture-bucket'] : []])
+      await runDesktopUploadCommand(['mac-arm64', '--latest', '--purge-only', '--product-environment', 'master', ...launcher ? ['--credential-launcher', '--environment', 'production', '--bucket', 'fixture-bucket'] : []])
       expect(launcher ? stdout : stderr).toHaveBeenCalledExactlyOnceWith('desktop purge: safe recovery message\n')
       expect(launcher ? stderr : stdout).not.toHaveBeenCalled()
       expect(process.exitCode).toBe(1)

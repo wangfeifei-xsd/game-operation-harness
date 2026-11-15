@@ -65,7 +65,7 @@ async function main() {
     const count = server.requests.length
     assert.equal((await f.coordinator.check(true)).phase, 'available')
     assert.equal(server.requests.length - count, 1, 'Checking must not download')
-    assert.equal(server.requests.at(-1).path, '/nightly.yml')
+    assert.equal(server.requests.at(-1).path, '/stable.yml')
     return f.coordinator.download('1.0.1-nightly.1')
   }
   async function rejected(f, code) {

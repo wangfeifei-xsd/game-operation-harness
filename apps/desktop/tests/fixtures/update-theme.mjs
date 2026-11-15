@@ -25,7 +25,7 @@ async function main() {
   const deadline = setTimeout(() => { console.error('Theme qualification deadline exceeded'); app.exit(1) }, 30000)
   protocol.handle('dsh-app', async request => {
     const name = new URL(request.url).pathname.slice(1)
-    const file = new URL(`${name === 'design-platform.css' ? '../../lib/welcome' : '../../renderer'}/${name}`, import.meta.url)
+    const file = new URL(`${name === 'design-platform.css' ? '../../lib/shell' : '../../renderer'}/${name}`, import.meta.url)
     const mime = name.endsWith('.css') ? 'text/css' : name.endsWith('.js') ? 'text/javascript'
       : name.endsWith('.svg') ? 'image/svg+xml' : 'text/html'
     return new Response(await readFile(file), { headers: { 'content-type': mime } })
@@ -36,7 +36,7 @@ async function main() {
   ipcMain.handle(MANDATORY_IPC.status, () => ({ locale, policy: { blocking: true, checking: false },
     update: { phase: 'error', failedOperation: 'download', version: '1.0.0', technicalDetails: 'Details' }, deferred: false }))
   try {
-    assert.equal(await readFile(new URL('../../lib/welcome/design-platform.css', import.meta.url), 'utf8'),
+    assert.equal(await readFile(new URL('../../lib/shell/design-platform.css', import.meta.url), 'utf8'),
       await readFile(new URL('../../../../packages/client/ui-theme/src/styles/design-platform.css', import.meta.url), 'utf8'))
     for (const document of ['update-dialog', 'mandatory-update']) {
       for (const initial of ['light', 'dark']) {

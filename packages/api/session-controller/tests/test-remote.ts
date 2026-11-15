@@ -255,6 +255,7 @@ async function installControllers(
   if (ctx.get('agentDefaultModel') === undefined) {
     ctx.provide('agentDefaultModel', {
       currentSelection: defaults.defaultModelSelection,
+      requireSelection: defaults.defaultModelSelection,
       saveSelection: async (selection: AgentModelSelection) => {
         await defaults.saveDefaultModelSelection?.(selection)
       },

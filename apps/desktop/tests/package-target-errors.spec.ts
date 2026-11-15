@@ -1,3 +1,4 @@
+import './product-deployment-fixture.ts'
 import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'

@@ -221,7 +221,7 @@ function inheritedConfig(runtime: Fiber['runtime'] & object, inherited: unknown)
 
 /** Project Config schemas into forms and own optional instance-level UI policy. */
 export class SettingsForms extends Service {
-  static inject = ['configEditor', 'profileContext']
+  static inject = ['loader', 'profileContext']
   private revisions = new Map<string, { raw: string | undefined; revision: number; ns: SettingsNamespace; autoGenerate: boolean }>()
   private closed = false
   private scheduled = false
@@ -239,6 +239,7 @@ export class SettingsForms extends Service {
    * The document is renamed before the first write, so a partial import never repeats; a section the running
    * composition rejects is logged and remains only in the renamed file. */
   private async importLegacyDocument(): Promise<void> {
+    if (!this.writable) return
     const profile = this.ownerContext.profileContext
     const path = join(profile.home, 'settings.yaml')
     if (!existsSync(path)) return
@@ -287,13 +288,17 @@ export class SettingsForms extends Service {
   }
 
   /** Whether the active profile accepts form edits. */
-  get writable(): boolean { return true }
+  get writable(): boolean { return this.ownerContext.get('configEditor') !== undefined }
   /** Current profile patch shown by the native configuration editor. */
-  get documentPath(): string { return this.ownerContext.configEditor.documentPath }
-  /** Locate the profile patch for native editing.
-   * @returns The existing profile patch path.
+  get documentPath(): string {
+    const editor = this.ownerContext.get('configEditor')
+    if (editor === undefined) throw new Error('Settings are read-only: no configuration editor is mounted')
+    return editor.documentPath
+  }
+  /** 查找原生编辑器使用的配置文件；只读 Host 通过拒绝 Promise 报错。
+   * @returns 当前配置文件路径。
    */
-  prepareDocument(): Promise<string> { return Promise.resolve(this.documentPath) }
+  prepareDocument(): Promise<string> { return Promise.resolve().then(() => this.documentPath) }
 
   /** Read active plugin schemas and their live values.
    * @param options Redaction required for remote callers.
@@ -301,7 +306,11 @@ export class SettingsForms extends Service {
    */
   describe(options?: SettingsDescribeOptions): SettingsDescriptor[] {
     const active = new Set<string>()
-    const descriptors = this.ownerContext.configEditor.configuration().flatMap(({ entry, inherited, override }) => {
+    const editor = this.ownerContext.get('configEditor')
+    const configuration = editor?.configuration() ?? [...this.ownerContext.loader.entries()].map(entry => ({
+      entry, inherited: undefined, override: undefined,
+    }))
+    const descriptors = configuration.flatMap(({ entry, inherited, override }) => {
       const schema = this.schema(entry)
       if (schema === undefined || entry.fiber === undefined
         || entry.fiber.runtime === null || entry.fiber.state !== FiberState.ACTIVE) return []
@@ -326,8 +335,10 @@ export class SettingsForms extends Service {
         autoGenerate,
         ns: entry.options.id as SettingsNamespace, schema: form.toJSON(), revision, applies: 'live' as const,
         value: options?.redactSecrets ? redacted.value : value,
-        base: options?.redactSecrets ? redactSecrets(form as z<never>, base).value : base,
-        user: options?.redactSecrets ? redactSecrets(form as z<never>, user).value : user,
+        ...editor === undefined ? {} : {
+          base: options?.redactSecrets ? redactSecrets(form as z<never>, base).value : base,
+          user: options?.redactSecrets ? redactSecrets(form as z<never>, user).value : user,
+        },
         ...options?.redactSecrets ? { secrets: redacted.secrets } : {},
       }]
     })
@@ -380,7 +391,9 @@ export class SettingsForms extends Service {
     change: (current: Record<string, unknown>, base: Record<string, unknown>, schema: z) => Record<string, unknown>,
     expected?: number, paths: readonly (readonly string[])[] = [],
   ): Promise<void> {
-    const entry = this.ownerContext.configEditor.entries().find(row => row.options.id === ns)
+    const editor = this.ownerContext.get('configEditor')
+    if (editor === undefined) throw new Error('Settings are read-only: no configuration editor is mounted')
+    const entry = editor.entries().find(row => row.options.id === ns)
     const schema = entry === undefined ? undefined : this.schema(entry)
     if (entry === undefined || schema === undefined) throw new Error(`No configurable plugin entry "${ns}"`)
     const form = volatileForm(schema)
@@ -388,7 +401,7 @@ export class SettingsForms extends Service {
     for (const path of paths) {
       if (path.length && !isVolatilePath(schema, path)) throw new Error(`Config field "${path.join('.')}" is not volatile`)
     }
-    await this.ownerContext.configEditor.edit(entry, (raw, inherited) => {
+    await editor.edit(entry, (raw, inherited) => {
       const descriptor = this.describe().find(row => row.ns === ns)
       if (descriptor === undefined) throw new Error(`Plugin entry "${ns}" is no longer configurable`)
       if (expected !== undefined && descriptor.revision !== expected) {

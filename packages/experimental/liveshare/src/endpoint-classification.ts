@@ -219,6 +219,13 @@ export const VIEWER_ENDPOINT_CLASSES = {
   'userQuestions/answer': 'owner-only', // owner answers a pending question
   'userQuestions/attachWait': 'owner-only', // owner answers a pending question
   'llm/discoverModels': 'owner-only', // owner discovers models
+  // 模型配置和连接检查仅供当前 Host 所有者操作。
+  'modelConfig/list': 'owner-only',
+  'modelConfig/save': 'owner-only',
+  'modelConfig/removeModel': 'owner-only',
+  'modelConfig/setDefault': 'owner-only',
+  'modelConfig/setEnabled': 'owner-only',
+  'modelConfig/testConnection': 'owner-only',
   'web/listProviders': 'owner-only', // owner web search and fetch settings
   'agentPresets/list': 'owner-only', // owner agent presets
   'agentPresets/read': 'owner-only', // owner agent presets

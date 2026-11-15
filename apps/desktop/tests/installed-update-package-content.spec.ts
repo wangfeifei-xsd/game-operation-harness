@@ -1,3 +1,4 @@
+import './installed-update-fixture.ts'
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import type { WriteStream } from 'node:fs'
 import { finished } from 'node:stream/promises'
@@ -36,7 +37,7 @@ const { createPackageWithOptions, uncache } = builderRequire('@electron/asar') a
   createPackageWithOptions: (source: string, destination: string, options: { unpack: string }) => Promise<WriteStream>
   uncache: (archive: string) => boolean
 }
-const versions = ['0.1.6-nightly.20260914.1', '0.1.6-nightly.20260914.2'] as const
+const versions = ['1.0.1', '1.0.2'] as const
 const publisher = 'CN=Fixture,O=Fixture,C=CN'
 
 async function fixture(body: (context: {
@@ -55,19 +56,20 @@ async function fixture(body: (context: {
     await prepareInstalledUpdateBootstrap(manifest)
     const source = join(root, 'source')
     await mkdir(join(source, 'lib'), { recursive: true })
-    await mkdir(join(source, 'lib/welcome'), { recursive: true })
-    await writeFile(join(source, 'lib/welcome/design-platform.css'), 'body { --fixture-token: white; }\n')
+    await mkdir(join(source, 'lib/shell'), { recursive: true })
+    await writeFile(join(source, 'lib/shell/design-platform.css'), 'body { --fixture-token: white; }\n')
+    await mkdir(join(source, 'lib/auth'), { recursive: true })
+    await writeFile(join(source, 'lib/auth/index.html'), '<p>fixture auth</p>')
     await mkdir(join(source, 'renderer'))
-    for (const name of ['main.js', 'preload-app.cjs', 'preload-mandatory.cjs', 'preload-update-dialog.cjs']) {
+    for (const name of ['main.js', 'preload-app.cjs', 'preload-auth.cjs', 'preload-mandatory.cjs', 'preload-update-dialog.cjs']) {
       await writeFile(join(source, 'lib', name), '// inert fixture\n')
     }
     await writeFile(join(source, 'renderer/index.html'), '<p>test</p>')
     await prepareInstalledUpdateApplication(manifest, source)
     await cp(join(run.root, 'application/files'), source, { recursive: true })
-    await writeFile(join(source, 'package.json'), JSON.stringify({ name: `dsh-update-test-${run.id}`, version,
+    await writeFile(join(source, 'package.json'), JSON.stringify({ name: `agent-assistant-update-test-${run.id}`, version,
       dshDesktopAppId: run.appId, main: 'qualification-bootstrap.mjs', type: 'module',
-      dshMandatoryUpdatePolicy: { origin: 'https://policy.example.com', allowedPageOrigins: ['https://policy.example.com'],
-        authentication: 'feishu-test', allowedAuthOrigins: ['https://login.example.com'] } }))
+      dshMandatoryUpdatePolicy: null }))
     for (const name of ['electron-updater', 'semver']) {
       await mkdir(join(source, 'node_modules', name), { recursive: true })
       await cp(require.resolve(`${name}/package.json`), join(source, 'node_modules', name, 'package.json'))
@@ -82,9 +84,9 @@ async function fixture(body: (context: {
     await cp(dsh, join(source, 'dsh'), { recursive: true })
     const payload = join(root, 'payload')
     await mkdir(join(payload, 'resources'), { recursive: true })
-    await writeFile(join(payload, 'resources/app-update.yml'), JSON.stringify({ provider: 'generic', channel: 'nightly',
-      url: `${run.origin}/${run.feedKey.slice(0, -'nightly.yml'.length)}`, publisherName: [publisher],
-      updaterCacheDirName: `dsh-update-test-${run.id}-updater` }))
+    await writeFile(join(payload, 'resources/app-update.yml'), JSON.stringify({ provider: 'generic', channel: 'stable',
+      url: `${run.origin}/${run.feedKey.slice(0, -'stable.yml'.length)}`, publisherName: [publisher],
+      updaterCacheDirName: `agent-assistant-update-test-${run.id}-updater` }))
     const seal = async () => {
       // ASAR 3 returns the output stream after end(), before its writes finish.
       const output = await createPackageWithOptions(source, archive, { unpack: '**/*.exe' })
@@ -106,7 +108,7 @@ describe('installed update archive contents', () => {
   it.each(versions)('reads real ASAR and runtime inventories for %s without claiming installation', async (version) => {
     await fixture(async ({ manifest, payload }) => {
       expect(await verifyInstalledUpdatePackageContent(manifest, version, payload, publisher)).toMatchObject({
-        version, applicationFiles: 8, dependenciesFrozen: false, installed: false,
+        version, applicationFiles: 12, dependenciesFrozen: false, installed: false,
         resignedExecutables: [join(payload, 'resources/app.asar.unpacked/dsh/tool.exe')],
       })
     }, version)
@@ -121,7 +123,7 @@ describe('installed update archive contents', () => {
         await writeFile(path, JSON.stringify(data))
         await seal()
         await expect(verifyInstalledUpdatePackageContent(manifest, version, payload, publisher))
-          .rejects.toThrow(field === 'dshMandatoryUpdatePolicy' ? 'desktop policy' : 'identity')
+          .rejects.toThrow('identity')
       })
     })
 
@@ -225,12 +227,12 @@ describe('installed update verification records', () => {
         const root = join(manifest, '..')
         const output = join(root, version, 'installer')
         await mkdir(output)
-        const name = `deepseek-harness-${version}-win-x64.exe`
+        const name = `agent-assistant-${version}-win-x64.exe`
         const bytes = Buffer.from('inert installer fixture, never executed')
         const installer = join(output, name)
         await writeFile(installer, bytes)
         await writeFile(join(output, `${name}.blockmap`), 'inert blockmap')
-        await writeFile(join(output, 'nightly.yml'), JSON.stringify({ version,
+        await writeFile(join(output, 'stable.yml'), JSON.stringify({ version,
           files: [{ url: name, size: bytes.length, sha512: createHash('sha512').update(bytes).digest('base64') }] }))
         const certificate = join(root, 'public.cer')
         const tool = join(root, 'reviewed-archive.exe')

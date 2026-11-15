@@ -1,15 +1,15 @@
 [
   {
-    "key": "dsh-desk/0123456789abcdef0123456789abcdef/bin/mac-x64/deepseek-harness-1.2.3-mac-x64.dmg"
+    "key": "agent-assistant/test/stable/bin/mac-x64/agent-assistant-1.2.3-mac-x64.dmg"
   },
   {
-    "key": "dsh-desk/0123456789abcdef0123456789abcdef/bin/mac-x64/deepseek-harness-1.2.3-mac-x64.zip"
+    "key": "agent-assistant/test/stable/bin/mac-x64/agent-assistant-1.2.3-mac-x64.zip"
   },
   {
-    "key": "dsh-desk/0123456789abcdef0123456789abcdef/bin/mac-x64/deepseek-harness-1.2.3-mac-x64.zip.blockmap"
+    "key": "agent-assistant/test/stable/bin/mac-x64/agent-assistant-1.2.3-mac-x64.zip.blockmap"
   },
   {
-    "key": "dsh-desk/0123456789abcdef0123456789abcdef/feeds/mac-x64/nightly-mac.yml",
-    "contents": "version: 1.2.3\npath: >-\n  https://desktop-updates.example.com/dsh-desk/0123456789abcdef0123456789abcdef/bin/mac-x64/deepseek-harness-1.2.3-mac-x64.zip\nfiles:\n  - url: >-\n      https://desktop-updates.example.com/dsh-desk/0123456789abcdef0123456789abcdef/bin/mac-x64/deepseek-harness-1.2.3-mac-x64.zip\n    size: 24\n    sha512: >-\n      IgtiHRPFjickTxiSTW6k0ltyBNOF/gpMGj/xflzVV2iRIzUSFPY6BG45u9fR4GmAJSVtN+FMh3NZx7mddUfJLw==\n"
+    "key": "agent-assistant/test/stable/feeds/mac-x64/stable-mac.yml",
+    "contents": "version: 1.2.3\npath: >-\n  https://updates.example.com/agent-assistant/test/stable/bin/mac-x64/agent-assistant-1.2.3-mac-x64.zip\nfiles:\n  - url: >-\n      https://updates.example.com/agent-assistant/test/stable/bin/mac-x64/agent-assistant-1.2.3-mac-x64.zip\n    size: 24\n    sha512: >-\n      IgtiHRPFjickTxiSTW6k0ltyBNOF/gpMGj/xflzVV2iRIzUSFPY6BG45u9fR4GmAJSVtN+FMh3NZx7mddUfJLw==\nagentAssistant:\n  product: agent-assistant\n  appId: com.example.agentassistant.test\n  environment: test\n  channel: stable\n  target: mac-x64\n"
   }
 ]

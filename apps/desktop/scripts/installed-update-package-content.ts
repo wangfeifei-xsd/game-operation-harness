@@ -8,7 +8,7 @@ import { readAsar, type Node as AsarNode } from 'app-builder-lib/out/asar/asar.j
 import { readInstalledUpdateRun } from './installed-update-qualification.ts'
 import { verifyInstalledUpdateApplication } from './prepare-installed-update-application.ts'
 import { inventoryDesktopRuntime, readDesktopRuntime, runtimePath, verifyDesktopRuntime } from '../src/runtime-tree.ts'
-import { resolveDesktopPolicyConfig } from '../src/mandatory-update-policy.ts'
+import { readDesktopProductConfiguration } from '../src/product-config.ts'
 
 const require = createRequire(import.meta.url)
 const builderRequire = createRequire(require.resolve('app-builder-lib/package.json'))
@@ -37,10 +37,9 @@ export async function verifyInstalledUpdatePackageContent(manifest: string, vers
   await verifyInstalledUpdateApplication(run.root)
   const archive = await readAsar(join(payload, 'resources/app.asar'))
   const metadata = object(await archive.readJson('package.json'))
-  const policy = resolveDesktopPolicyConfig(metadata.dshMandatoryUpdatePolicy)
-  if (metadata.name !== `dsh-update-test-${run.id}` || metadata.version !== version
+  if (metadata.name !== `agent-assistant-update-test-${run.id}` || metadata.version !== version
     || metadata.dshDesktopAppId !== run.appId || metadata.main !== 'qualification-bootstrap.mjs'
-    || metadata.type !== 'module' || policy?.authentication !== 'feishu-test') {
+    || metadata.type !== 'module' || metadata.dshMandatoryUpdatePolicy != null) {
     throw new Error('installed update: packaged application identity, version, entry, or policy differs')
   }
   const inventory = JSON.parse(await readFile(join(run.root, 'application/result.json'), 'utf8')) as {
@@ -81,14 +80,16 @@ export async function verifyInstalledUpdatePackageContent(manifest: string, vers
     dependencies.push({ name, version: actual.version })
   }
   const update = object(load(await readFile(join(payload, 'resources/app-update.yml'), 'utf8')))
-  const url = `${run.origin}/${run.feedKey.slice(0, -'nightly.yml'.length)}`
-  if (update.provider !== 'generic' || update.url !== url || update.channel !== 'nightly'
-    || update.updaterCacheDirName !== `dsh-update-test-${run.id}-updater`
+  const url = `${run.origin}/${run.feedKey.slice(0, -'stable.yml'.length)}`
+  if (update.provider !== 'generic' || update.url !== url || update.channel !== 'stable'
+    || update.updaterCacheDirName !== `agent-assistant-update-test-${run.id}-updater`
     || !Array.isArray(update.publisherName) || update.publisherName.length !== 1 || update.publisherName[0] !== publisher) {
     throw new Error('installed update: packaged feed, cache identity, channel, or publisher differs')
   }
   const extracted = await mkdtemp(join(dirname(payload), 'asar-'))
   extractAll(join(payload, 'resources/app.asar'), extracted)
+  const product = readDesktopProductConfiguration(true, extracted, []).config
+  if (JSON.stringify(product) !== JSON.stringify(run.deployment)) throw new Error('installed update: packaged product deployment differs')
   const prepared = await verifyDesktopRuntime(join(run.root, version, 'dsh'), version, { platform: 'win32', arch: 'x64' })
   const runtime = readDesktopRuntime(join(extracted, 'dsh'))
   if (JSON.stringify(runtime.release) !== JSON.stringify(prepared.release)

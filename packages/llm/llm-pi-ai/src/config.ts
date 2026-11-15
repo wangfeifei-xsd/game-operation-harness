@@ -103,6 +103,8 @@ export type {
 
 /** Configuration for one pi-ai provider route; the `providers` dict key IS the route. */
 export interface PiAiProviderProfile {
+  /** 私有路由引用的内置目录；仅提供模型元数据，不决定地址或凭据。 */
+  catalogProvider?: string
   /** Credential reference (environment-variable name) resolved per request through `ctx.credentials`. */
   apiKeyEnv?: string
   /** Name shown by configuration surfaces; defaults to the route key. */
@@ -504,6 +506,7 @@ export function resolveProfiles(
     try {
       catalog = resolveRouteModels({
         provider,
+        ...source.catalogProvider === undefined ? {} : { catalogProvider: source.catalogProvider },
         ...source.api === undefined ? {} : { api: source.api },
         ...source.baseURL === undefined ? {} : { baseURL: source.baseURL },
         ...source.models === undefined ? {} : { models: source.models },

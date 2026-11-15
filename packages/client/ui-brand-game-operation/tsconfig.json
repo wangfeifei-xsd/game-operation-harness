@@ -8,6 +8,7 @@
     "src"
   ],
   "references": [
+    {"path": "../ui-theme/tsconfig.client.json"},
     {
       "path": "../../../vendor/cordis"
     },
@@ -28,6 +29,12 @@
     },
     {
       "path": "../locale/tsconfig.client.json"
+    },
+    {
+      "path": "../ui-harness-account"
+    },
+    {
+      "path": "../../host/webserver"
     }
   ]
 }

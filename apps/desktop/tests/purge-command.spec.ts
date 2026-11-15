@@ -35,12 +35,22 @@ it('forwards the documented pnpm purge command through both package scripts to t
   await mkdir(publisher)
   await writeFile(join(publisher, 'package.json'), JSON.stringify({ type: 'module', exports: { './*': './*' } }))
   await copyFile(join(root, 'apps/desktop-publisher/src/desktop-auto-update-environment.mjs'), join(publisher, 'desktop-auto-update-environment.mjs'))
+  await writeFile(join(publisher, 'product-deployment.mjs'),
+    'export const desktopProductDeployment = (env) => ({ environment: env.DSH_DESKTOP_PRODUCT_ENVIRONMENT })')
   await writeFile(join(publisher, 'desktop-cos.ts'), "export const createDesktopCos = () => { throw new Error('unexpected COS') }")
+  for (const [filename, exported] of [
+    ['desktop-publish-cos.ts', 'desktopPublishCos'], ['desktop-publish.ts', 'publishDesktopRelease'],
+    ['desktop-index-lock.ts', 'withDesktopIndexLock'],
+  ] as const) {
+    await writeFile(join(publisher, filename), `export const ${exported} = () => { throw new Error('unexpected publication') }`)
+  }
+  await writeFile(join(publisher, 'desktop-publish-record.ts'),
+    "export const createDesktopPublicationRecord = () => { throw new Error('unexpected record') }; export const withDesktopChannelLock = createDesktopPublicationRecord")
   await copyFile(join(root, 'apps/desktop/scripts/upload-target.ts'), join(scripts, 'upload-target.ts'))
   for (const filename of ['desktop-build-paths.mjs']) {
     await copyFile(join(root, 'apps/desktop/scripts', filename), join(scripts, filename))
   }
-  // Only command forwarding and parsing are under test; all external work fails closed.
+  // 只验证命令转发与参数解析；其余外部操作均拒绝执行。
   const stubs = {
     'desktop-package-environment.mjs': "export const loadDesktopPackageEnvironment = () => ({ DSH_DESKTOP_AUTO_UPDATE_ENV: 'production' })",
     'desktop-upload-plan.ts': "export const createDesktopUploadPlan = () => { throw new Error('unexpected installer read') }",
@@ -59,10 +69,10 @@ it('forwards the documented pnpm purge command through both package scripts to t
   await Promise.all(Object.entries(stubs).map(([name, contents]) => writeFile(join(scripts, name), contents)))
   const env = Object.fromEntries(Object.entries(process.env).filter(([name]) =>
     !/KEY|SECRET|TOKEN|PASSWORD|^NODE_OPTIONS$|^DSH_|^DOWNLOAD_|^PACKAGE_/iu.test(name)))
-  const args = [join(root, 'node_modules/pnpm/bin/pnpm.mjs'), 'run', 'purge:latest', 'mac-arm64']
+  const args = [join(root, 'node_modules/pnpm/bin/pnpm.mjs'), 'run', 'purge:latest', 'mac-arm64', '--product-environment', 'master']
   const result = await execute(process.execPath, args, { cwd: directory, env, timeout: 30_000 }).catch((error: unknown) => {
     expect(error).not.toMatchObject({ killed: true })
     throw error
   })
   expect(result.stdout).toContain('purge-submit: mac-arm64')
-})
+}, 30_000)

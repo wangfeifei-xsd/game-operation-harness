@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url'
 import { randomBytes } from 'node:crypto'
 import { once } from 'node:events'
 import WebSocket from 'ws'
-import { createProcessInspector } from '@deepseek-ai/dsh-subprocess-local'
+import { createProcessInspector } from '@deepseek-ai/dsh-subprocess-local/process-inspector'
 import { afterAll, beforeAll, expect, it } from 'vitest'
 import { parseHarnessConfig } from '../../src/harness-config.ts'
 
@@ -84,7 +84,7 @@ beforeAll(async () => {
       response.setHeader('content-type', 'application/json')
       const reply = (status: number, value: object): void => { response.writeHead(status); response.end(JSON.stringify(value)) }
       if (!available) { reply(503, { error: { code: 'UNAVAILABLE', message: '认证服务暂不可用' } }); return }
-      if (request.url?.endsWith('/bootstrap')) { reply(200, { deployment_id: 'harness-dev' }); return }
+      if (request.url?.endsWith('/bootstrap')) { reply(200, { deployment_id: 'harness-dev', registration_enabled: true, password_min_length: 12, password_max_length: 256 }); return }
       if (request.url?.endsWith('/auth/login')) {
         const chunks: Buffer[] = []
         for await (const chunk of request) {
@@ -162,11 +162,22 @@ it('serves the authenticated product tree and stops every old identity before sw
   const html = await request('/')
   const page = await html.text()
   expect(html.status, output).toBe(200)
-  expect(page).toContain('/harness/assets/panel.js')
+  expect(page.includes('<meta name="agent-assistant-account" content="enabled">')).toBe(true)
   for (const token of tokens.keys()) expect(page).not.toContain(token)
   expect(page).not.toContain('x-harness-parent-secret')
   expect(html.headers.get('cache-control')).toBe('no-store')
   expect(page).not.toMatch(/http:\/\/127\.0\.0\.1:\d+/u)
+  expect(await invoke('modelConfig/list', {})).toContain('"models":[]')
+  const oldAccount = await request('/api/account/getState', {
+    type: 'client-request', rpcId: 'removed-account', method: 'account/getState', payload: { args: {} },
+  })
+  expect(await oldAccount.text()).not.toContain('"ok":true')
+  await invoke('modelConfig/save', { input: {
+    name: '隔离模型', providerKey: 'other', protocol: 'openai-completions',
+    baseUrl: 'http://127.0.0.1:1/v1', apiKey: 'alpha-model-key', model: 'fixture-model',
+    contextWindow: 8192, maxOutputTokens: 1024, timeoutSeconds: 60, imageInput: false,
+  }, expectedRevision: 0 })
+  expect(await invoke('modelConfig/list', {})).not.toContain('alpha-model-key')
   expect(await invoke('credentials/set', { ref: 'HARNESS_FIXTURE', value: 'alpha-only-secret' })).toContain('"ok":true')
   expect(await invoke('credentials/describe', { refs: ['HARNESS_FIXTURE'] })).toContain('"configured":true')
   const created = await invoke('session/create', { request: { sessionId: 'harness_fixture_alpha', cwd: directory } })
@@ -187,6 +198,7 @@ it('serves the authenticated product tree and stops every old identity before sw
   expect(second.status, await second.text()).toBe(200)
   expect(await invoke('credentials/describe', { refs: ['HARNESS_FIXTURE'] })).toContain('"configured":false')
   expect(await invoke('session/list', { _request: {} })).not.toContain('harness_fixture_alpha')
+  expect(await invoke('modelConfig/list', {})).toContain('"models":[]')
   expect((await readFile(join(directory, 'data/dev/users/user_alpha/profiles/harness-runtime/package.json'), 'utf8'))).toContain('dsh-web-app')
   expect((await readFile(join(directory, 'data/dev/users/user_beta/profiles/harness-runtime/package.json'), 'utf8'))).toContain('dsh-web-app')
   remoteLogout = false
@@ -206,6 +218,7 @@ it('serves the authenticated product tree and stops every old identity before sw
   expect((await request('/harness/api/login', { login_name: 'alpha' })).status).toBe(200)
   expect(await invoke('credentials/describe', { refs: ['HARNESS_FIXTURE'] })).toContain('"configured":true')
   expect(await invoke('session/list', { _request: {} })).toContain('harness_fixture_alpha')
+  expect(await invoke('modelConfig/list', {})).toContain('隔离模型')
   available = false
   const unavailable = await request('/harness/api/renew', {})
   expect(unavailable.status).toBe(503)

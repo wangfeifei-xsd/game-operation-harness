@@ -177,10 +177,10 @@ export class SessionCommandController {
         }
         await this.ctx.llm.resolveCallConfig(selected)
         agent.model.select(selected)
-        void this.ctx.agentDefaultModel.saveSelection(selected).catch((error: unknown) => {
-          this.ctx.logger.warn(
-            `session-controller: model selection changed for the Session but the default was not saved: ${String(error)}`,
-          )
+        void this.ctx.agentDefaultModel.saveSelection(selected).catch(() => {
+          // 会话选择已经提交，默认持久化失败单独反馈，不撤销当前会话的选择。
+          this.ctx.logger.warn('session-controller: model selection changed for the Session but the default was not saved')
+          this.ctx.emit('api-session/default-model-save-failed', agent.id)
         })
         return { selected: { ...selected } }
       } catch (error) {
@@ -275,7 +275,7 @@ export class SessionCommandController {
     const childId = brandString<SessionId>(`session-${randomUUID()}`)
     const composition = await this.agents.composeAgent(this.agents.presetForObservation(source))
     try {
-      const { provider, model } = this.ctx.agentDefaultModel.currentSelection()
+      const { provider, model } = this.ctx.agentDefaultModel.requireSelection()
       await this.ctx.agents.create({
         sessionId: childId,
         seed,

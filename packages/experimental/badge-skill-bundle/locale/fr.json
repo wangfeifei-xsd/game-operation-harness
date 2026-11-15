@@ -1,7 +1,7 @@
 {
   "meta": {
-    "title": "Game operation badge",
-    "description": "Add the cat brand badge to outputs when requested.",
+    "title": "Badge de Agent 助手",
+    "description": "Ajoute le badge du chat aux réponses sur demande.",
     "detail": "docs/DETAIL.md"
   }
 }

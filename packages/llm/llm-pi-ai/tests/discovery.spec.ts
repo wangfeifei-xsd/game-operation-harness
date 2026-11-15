@@ -422,7 +422,7 @@ describe('draft-provider model discovery', () => {
     const ctx = await harness()
     // Port 9 is the discard service: nothing accepts a connection there.
     await expect(ctx.llm.discoverModels('llm-pi-ai', { baseURL: 'http://127.0.0.1:9/v1' }))
-      .rejects.toMatchObject({ code: 'DISCOVERY_FAILED' })
+      .rejects.toMatchObject({ code: 'TRANSPORT' })
   })
 
   it.each(['azure-openai-responses', 'openai-codex-responses'])(

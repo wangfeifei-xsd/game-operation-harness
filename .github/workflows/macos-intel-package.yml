@@ -14,11 +14,17 @@ on:
         options: [test, production]
         default: test
         required: true
-      update_channel:
-        description: '升级通道：人工选择 nightly 或 stable，与版本后缀无关；默认通道由此打包输入确定'
+      product_environment:
+        description: '产品部署环境；必须与发布存储选择匹配，master 使用 production，其他环境使用 test'
         type: choice
-        options: [nightly, stable]
-        default: nightly
+        options: [dev, test, fat, master]
+        default: test
+        required: true
+      update_channel:
+        description: '升级通道：首版仅开放 stable，与版本后缀无关'
+        type: choice
+        options: [stable]
+        default: stable
         required: true
       version_mode:
         description: '版本模式：default 按环境自动选择（test 取 build-number，production 取 follow-dsh）；follow-dsh 跟随 dsh 包版本号；build-number 自动追加构建编号；manual 手填'
@@ -77,6 +83,7 @@ jobs:
       PACKAGE_SOURCE_REF: ${{ inputs.source_ref }}
       # TODO: Remove this legacy source_ref mode mapping on 2027-01-04 with the parser aliases.
       PACKAGE_VERSION_MODE: ${{ inputs.version_mode == 'follow-dsh' && 'product' || inputs.version_mode == 'build-number' && 'auto' || inputs.version_mode }}
+      DSH_DESKTOP_PRODUCT_ENVIRONMENT: ${{ inputs.product_environment }}
       DSH_DESKTOP_UPDATE_CHANNEL: ${{ inputs.update_channel }}
       DSH_TELEMETRY_DISABLED: '1'
       DSH_PACKAGING_PRESET: ${{ inputs.preset }}
@@ -139,7 +146,7 @@ jobs:
         run: |
           args=()
           if [[ "$PACKAGE_SKIP_NOTARIZATION" = true ]]; then args+=(--skip-notarization); fi
-          pnpm run package:desktop:mac:x64 --check --build-version "$PACKAGE_VERSION" "${args[@]}"
+          pnpm run package:desktop:mac:x64 --check --environment "$DSH_DESKTOP_PRODUCT_ENVIRONMENT" --build-version "$PACKAGE_VERSION" "${args[@]}"
       - name: Build and stage notarized Computer Use helpers
         # A source whose dsh ships the Computer Use bundle packs the workspace provider into the Desktop runtime,
         # which therefore needs the same notarized helper npm publication stages.
@@ -163,7 +170,7 @@ jobs:
         run: |
           args=()
           if [[ "$PACKAGE_SKIP_NOTARIZATION" = true ]]; then args+=(--skip-notarization); fi
-          pnpm run package:desktop:mac:x64 --build-version "$PACKAGE_VERSION" "${args[@]}"
+          pnpm run package:desktop:mac:x64 --environment "$DSH_DESKTOP_PRODUCT_ENVIRONMENT" --build-version "$PACKAGE_VERSION" "${args[@]}"
       - name: Retain complete package outside the checkout
         id: retained
         env:

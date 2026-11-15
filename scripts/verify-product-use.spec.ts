@@ -69,6 +69,20 @@ describe('product package use', () => {
     expect(verifyProductUse(fixture(), {})).toMatchObject({ failures: [], optionalPackages: [], configCount: 1 })
   })
 
+  it.each(['harness', 'harness-runtime', 'desktop'])('permits an empty composition only for the login coordinator: %s', (name) => {
+    const root = fixture()
+    const source = readFileSync(join(root, profile), 'utf8')
+    write(root, profile, source.replace('PROFILE_TEMPLATES = {', `PROFILE_TEMPLATES = {"${name}":{"bundles":[]},`))
+    expect(failures(root)).toBe(name === 'harness' ? '' : `${profile}: shipped profile has no bundles`)
+  })
+
+  it('rejects bundles loaded by the login coordinator', () => {
+    const root = fixture()
+    const source = readFileSync(join(root, profile), 'utf8')
+    write(root, profile, source.replace('PROFILE_TEMPLATES = {', `PROFILE_TEMPLATES = {"harness":{"bundles":["${base}"]},`))
+    expect(failures(root)).toContain('harness must not load bundles before login')
+  })
+
   it('rejects an orphan even when an app manifest installs it', () => {
     const root = fixture()
     pkg(root, candidateDir, candidate)

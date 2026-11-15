@@ -31,7 +31,8 @@ function saveRequest(value: unknown): { url: URL; name?: string; mediaType?: str
  */
 export function installFileActions(
   assertOwner: (event: IpcMainInvokeEvent) => BrowserWindow, hostUrl: () => string | undefined = () => undefined,
-): void {
+  authorize: (event: IpcMainInvokeEvent) => Promise<unknown> = () => Promise.resolve(),
+): (browserSession: Electron.Session) => void {
   const timeoutMs = resolveDurationMs(process.env, 'DSH_DESKTOP_IMAGE_READ_TIMEOUT_MS', 30_000)
   const maxBytes = Number(process.env.DSH_DESKTOP_IMAGE_READ_MAX_BYTES ?? 64 * 1024 * 1024)
   if (!Number.isSafeInteger(maxBytes) || maxBytes < 1) throw new Error('DSH_DESKTOP_IMAGE_READ_MAX_BYTES must be a positive integer')
@@ -43,7 +44,7 @@ export function installFileActions(
     started: () => void
     item?: Electron.DownloadItem
   }>()
-  session.defaultSession.on('will-download', (_event, item, contents) => {
+  const bindSession = (browserSession: Electron.Session): void => { browserSession.on('will-download', (_event, item, contents) => {
     const url = item.getURLChain()[0]
     if (url === undefined || !new URL(url).hash.startsWith('#dsh-download=')) return
     const entry = pending.get(url)
@@ -96,8 +97,12 @@ export function installFileActions(
       entry.finish(error instanceof Error ? error : new Error('File download unavailable'))
     }
   })
+  }
+  bindSession(session.defaultSession)
   const downloadTimeoutMs = resolveDurationMs(process.env, 'DSH_DESKTOP_FILE_DOWNLOAD_TIMEOUT_MS', 300_000)
-  ipcMain.handle(DESKTOP_IPC.fileSave, (event, value: unknown): Promise<FileSaveResult> => {
+  ipcMain.handle(DESKTOP_IPC.fileSave, async (event, value: unknown): Promise<FileSaveResult> => {
+    assertOwner(event)
+    await authorize(event)
     const owner = assertOwner(event)
     const request = saveRequest(value)
     // Fragments do not change the fetched resource; each native request has its own completion identity.
@@ -134,6 +139,8 @@ export function installFileActions(
     })
   })
   ipcMain.handle(DESKTOP_IPC.clipboardImageRead, async (event, value: unknown) => {
+    assertOwner(event)
+    await authorize(event)
     const owner = assertOwner(event)
     if (typeof value !== 'string') throw new Error('Invalid image URL')
     const checkedUrl = (value: string): URL => {
@@ -189,4 +196,5 @@ export function installFileActions(
       contents.removeListener('did-start-navigation', navigate)
     }
   })
+  return bindSession
 }

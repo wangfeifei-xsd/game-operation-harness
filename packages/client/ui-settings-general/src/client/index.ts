@@ -210,6 +210,7 @@ export function apply(ctx: ClientContext): void {
       const shellHandle = createSettingsShellStore()
       const shellInstance = shellHandle.create()
       const shellStore: typeof shellHandle = { ...shellHandle, create: () => shellInstance }
+      const disposeOpen = ctx.on('settings/open', (sectionId) => { shellInstance.actions.openSection(sectionId) })
       const disposeCommand = ctx.shortcuts.register({
         id: 'settings.open' as ShortcutCommandId, label: () => t('shortcut.open'), aliases: ['settings', 'preferences'],
         defaults: {
@@ -245,7 +246,7 @@ export function apply(ctx: ClientContext): void {
         },
         inject: shellInjected,
       }, SettingsRoot)
-      return () => { disposeCommand(); disposeSlot() }
+      return () => { disposeOpen(); disposeCommand(); disposeSlot() }
     }))
 
   ctx.slots.inject('settings.trigger', () =>

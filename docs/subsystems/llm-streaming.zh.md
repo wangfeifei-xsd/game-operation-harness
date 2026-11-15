@@ -872,6 +872,102 @@ interface LlmCallConfigAdapterDefaults {
 
 `PiAiRequestHeaderContext` 包含已准备调用的 provider、model、解析后的模型 `baseURL`，以及可选 Session id 和辅助用途。它不可变且不含消息或认证字段，与本次请求独有的 `Headers` 一起传入同步的 `llm-pi-ai/request-headers` waterfall。[适配器的请求头文档](../../packages/llm/llm-pi-ai/README.zh.md#request-headers)定义贡献的所有权、应用标识的优先级与失败行为。此扩展点仅适用于 pi-ai 推理请求。
 
+## 产品模型配置
+
+`ctx.harnessModelConfig` 在已认证 Host 的数据目录内管理独立模型记录、带修订的快照、只写的不可变凭据及可为空的默认选择。所有变更校验预期修订并由单一写入者串行提交，进程对该目录持有生命周期文件锁。替换凭据先于配置提交写入，提交后清理失败会明确反馈，不回滚已接受的记录。适配器为每个请求共同捕获端点、密钥、模型及参数，后续变更从新请求生效。`ctx.modelConfigController` 提供已认证的配置操作，不返回密钥。连接检查实际请求网络模型目录，并明确报告过期修订。
+
+```ts type-equiv
+/** 一条独立模型配置的稳定身份。 */
+type HarnessModelId = Branded<'HarnessModelId'>
+```
+
+```ts type-equiv
+/** 已实现的供应商协议。 */
+type ModelProtocol = 'openai-completions' | 'openai-responses' | 'anthropic-messages' | 'google-generative-ai'
+```
+
+```ts type-equiv
+/** 内置供应商及其允许协议。 */
+interface ModelProviderDefinition {
+  key: string
+  name: string
+  protocols: ModelProtocol[]
+  defaultProtocol: ModelProtocol
+  baseUrl: string
+  catalogProvider?: string
+}
+```
+
+```ts type-equiv
+/** 表单输入；API Key 仅沿输入方向传输。 */
+interface ModelConfigInput {
+  id?: HarnessModelId
+  name: string
+  providerKey: string
+  protocol: ModelProtocol
+  baseUrl: string
+  model: string
+  apiKey?: string
+  timeoutSeconds: number
+  contextWindow?: number | undefined
+  maxOutputTokens?: number | undefined
+  imageInput: boolean
+  reasoningEffort?: string | undefined
+}
+```
+
+```ts type-equiv
+/** 页面可见模型；不包含凭据地址或值。 */
+interface ModelConfigView extends Omit<ModelConfigInput, 'id' | 'apiKey'> {
+  id: HarnessModelId
+  enabled: boolean
+  credentialConfigured: boolean
+  effectiveContextWindow: number
+  effectiveMaxOutputTokens: number
+  reasoningEfforts: string[]
+}
+```
+
+```ts type-equiv
+/** 页面完整快照；清理失败不撤销已提交的业务修改。 */
+interface ModelConfigSnapshot {
+  revision: number
+  providers: ModelProviderDefinition[]
+  modelHints: {
+    providerKey: string
+    model: string
+    protocol: string
+    contextWindow: number
+    maxOutputTokens: number
+    reasoningEfforts: string[]
+  }[]
+  models: ModelConfigView[]
+  defaultId: HarnessModelId | null
+  cleanupPending: boolean
+  runtimeError: string | null
+}
+```
+
+```ts type-equiv
+/** 模型配置的条件变更。 */
+interface ModelConfigMutation {
+  id: HarnessModelId
+  expectedRevision: number
+  replacementDefaultId?: HarnessModelId
+}
+```
+
+```ts type-equiv
+/** 真实目录网络检查结果；不表示生成或工具能力通过。 */
+interface ModelConnectionResult {
+  revision: number
+  status: 'connected' | 'failed' | 'unsupported' | 'stale'
+  message: string
+  elapsedMs: number
+  checkedAt: string
+}
+```
+
 ## 服务与提供方约定
 
 `LlmAdapter` 是提供方约定：创建子类、实现 `stream()`，再用 `ctx.llm.registerAdapter(providers, adapter)` 注册一个适配器实例。`GenerateOptions.provider` 选择已注册适配器；`GenerateOptions.model` 会传给该适配器，无需在生命周期启动时注册。重复提供方路由会原子失败。可选的 `providerRetryPolicy()` 会按路由捕获并填入 normal 默认值，`providerInfo()` 与异步 `listModels()` 方法则为 `LlmRuntime.listProviders()` / `listModels()` 提供分离的 selector 元数据。该目录仅供参考，不是请求白名单：适配器仍是权威，并可接受未列出的模型 id。单次异步 `resolveModel()` 查询返回确切模型身份，以及可选的对正确性敏感的上下文容量、适配器配置的 `defaultMaxTokens`、由模型持有的有序推理强度 ID 和可选的部署默认值；字段缺失表示元数据不可用或保留提供方持有的行为，而不表示目录成员关系无效。解析器会接收可选的取消信号，并且必须在信号中止后迅速完成结算。`LlmRuntime.resolveModelInfo()` 会校验聚合结果并返回分离值。在最终适配器边界，`resolveCallConfig()` 仅在 `maxTokens` 缺失时填入输出默认值，并校验和填入推理强度，因此直接调用也无法绕过任何一项已配置行为；直接分派会在等待解析前捕获一项适配器注册。agent loop 则使用 `prepareCall()`，使模型解析、请求头持久记录和分派全程使用同一项注册，保留来自同一次查询的分离上下文元数据，并报告适配器填入的配置字段。适配器查找发生在 `llm/stream` waterfall 的终端 continuation，因此 listener 可以在查找前短路调用，或路由一个可变的一次性请求。AgentLoop 在外层 waterfall 返回流句柄时观察到一次请求尝试；这个有限边界不能证明惰性终端适配器已构造完成或开始提供方 I/O。`block-start` / `block-end` 的 `index` 关联与 assembler 共同意味着适配器只需 emit 格式正确的分片——块重组不是每个适配器各自的问题。`ctx.llm.stream()` 与 `llm/stream` waterfall 在一个轮次中的位置见 [architecture.md](../architecture.zh.md#turn-flow)。
@@ -1022,6 +1118,80 @@ async prepare(request: DeepSeekLlmApiExtensionRequest): Promise<PreparedDeepSeek
 ```
 
 Source: [`packages/llm/deepseek-llm-api-extensions/src/index.ts`](../../packages/llm/deepseek-llm-api-extensions/src/index.ts)
+
+<a id="ctxharnessmodelconfig--harnessmodelconfig"></a>
+
+### `ctx.harnessModelConfig` — `HarnessModelConfig`
+
+每个已解析数据根只有一个实例，所有修改进入同一队列。
+
+```ts cordis-catalog
+/** 从唯一配置快照恢复；损坏数据不会被空数据覆盖。 */
+async initialize(): Promise<void>
+
+/**
+ * 一次读取页面所需字段，凭据仅返回是否存在。
+ * @returns 不含密钥和凭据地址的页面快照。
+ */
+async list(): Promise<ModelConfigSnapshot>
+
+/**
+ * 新建或编辑模型，配置持久化成功后才发布。
+ * @param input - 表单完整值；编辑时省略 Key 表示保留。
+ * @param expectedRevision - 页面读取到的修订。
+ * @returns 提交后的快照及清理状态。
+ */
+save(input: ModelConfigInput, expectedRevision: number): Promise<ModelConfigSnapshot>
+
+/**
+ * 修改启用状态，停用默认模型须在同次变更选择替代。
+ * @param request - 条件变更与可选替代模型。
+ * @param enabled - 新启用状态。
+ * @returns 提交后的完整快照。
+ */
+setEnabled(request: ModelConfigMutation, enabled: boolean): Promise<ModelConfigSnapshot>
+
+/**
+ * 删除配置并在提交后清理独占凭据。
+ * @param request - 条件删除与可选替代默认模型。
+ * @returns 提交后的完整快照。
+ */
+remove(request: ModelConfigMutation): Promise<ModelConfigSnapshot>
+
+/**
+ * 设置后续会话的默认模型。
+ * @param request - 条件设置请求。
+ * @returns 提交后的完整快照。
+ */
+setDefault(request: ModelConfigMutation): Promise<ModelConfigSnapshot>
+
+/**
+ * 读取唯一默认来源，空配置返回空。
+ * @returns 当前有效默认选择。
+ */
+defaultSelection(): ModelSelection | null
+
+/**
+ * 聊天手工选择后保存同一业务默认值，不依赖 profile 编辑器。
+ * @param selection - 经过 Host 目录校验的选择。
+ */
+async saveDefaultSelection(selection: ModelSelection): Promise<void>
+
+/**
+ * 发起真实目录网络请求，不使用本地目录冒充网络成功。
+ * @param request - 已保存模型及所读修订。
+ * @param signal - 可选的取消信号。
+ * @returns 连接状态、耗时和 UTC 检查时间。
+ */
+testConnection(request: ModelConfigMutation, signal?: AbortSignal): Promise<ModelConnectionResult>
+
+/** 等待修改和检查结束后关闭单元；退出后拒绝新请求。 */
+async close(): Promise<void>
+```
+
+Types: [ModelSelection](core.zh.md)
+
+Source: [`packages/llm/harness-model-config/src/index.ts`](../../packages/llm/harness-model-config/src/index.ts)
 
 <a id="ctxllm--llmruntime"></a>
 
@@ -1195,6 +1365,60 @@ Types: [FileAttachmentRef](attachment.zh.md) · [ImageAttachmentRef](attachment.
 
 Source: [`packages/llm/llm/src/index.ts`](../../packages/llm/llm/src/index.ts)
 
+<a id="ctxmodelconfigcontroller--modelconfigcontroller"></a>
+
+### `ctx.modelConfigController` — `ModelConfigController`
+
+当前认证 Host 内的模型配置接口；未授权访问继续由 Gateway 拒绝。
+
+```ts cordis-catalog
+/**
+ * 读取当前 Host 的模型页面。
+ * @returns 不含密钥的页面快照。
+ */
+@Remote list(): Promise<ModelConfigSnapshot>
+
+/**
+ * 提交一条完整模型配置。
+ * @param input - 完整表单，密钥只允许输入。
+ * @param expectedRevision - 页面读取修订。
+ * @returns 已提交页面快照。
+ */
+@Remote save(input: ModelConfigInput, expectedRevision: number): Promise<ModelConfigSnapshot>
+
+/**
+ * 修改模型启用状态。
+ * @param request - 模型及修订、可选替代默认模型。
+ * @param enabled - 新启用状态。
+ * @returns 已提交页面快照。
+ */
+@Remote setEnabled(request: ModelConfigMutation, enabled: boolean): Promise<ModelConfigSnapshot>
+
+/**
+ * 选择后续会话的默认模型。
+ * @param request - 模型及页面修订。
+ * @returns 已提交页面快照。
+ */
+@Remote setDefault(request: ModelConfigMutation): Promise<ModelConfigSnapshot>
+
+/**
+ * 删除模型及其独占凭据引用。
+ * @param request - 模型及修订、可选替代默认模型。
+ * @returns 已提交页面快照。
+ */
+@Remote removeModel(request: ModelConfigMutation): Promise<ModelConfigSnapshot>
+
+/**
+ * 检查已保存端点的模型目录。
+ * @param request - 保存后的模型及页面修订。
+ * @param signal - 客户端取消与连接断开信号。
+ * @returns 真实网络连接检查结果。
+ */
+@Remote testConnection(request: ModelConfigMutation, signal: AbortSignal): Promise<ModelConnectionResult>
+```
+
+Source: [`packages/api/model-config-controller/src/index.ts`](../../packages/api/model-config-controller/src/index.ts)
+
 <a id="llm-events"></a>
 
 ### `llm/*` events
@@ -1289,4 +1513,25 @@ Prepare headers for one pi-ai inference call, excluding model discovery. Listene
 ```
 
 Source: [`packages/llm/llm-pi-ai/src/index.ts`](../../packages/llm/llm-pi-ai/src/index.ts)
+
+<a id="model-config-events"></a>
+
+### `model-config/*` events
+
+<a id="model-configchanged--emit"></a>
+
+#### `model-config/changed` — emit
+
+模型配置完成持久化后的失效通知。
+
+```ts cordis-catalog
+/**
+ * 模型配置完成持久化后的失效通知。
+ * @mode emit
+ * @param revision - 已提交修订。
+ */
+'model-config/changed'(revision: number): void
+```
+
+Source: [`packages/llm/harness-model-config/src/types.ts`](../../packages/llm/harness-model-config/src/types.ts)
 <!-- END GENERATED cordis-surface -->

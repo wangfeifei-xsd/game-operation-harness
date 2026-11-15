@@ -10,7 +10,7 @@ function fixture(platform: NodeJS.Platform = 'darwin') {
   vi.stubGlobal('process', { ...process, platform })
   const setPermissionCheckHandler = vi.fn<Session['setPermissionCheckHandler']>()
   const setPermissionRequestHandler = vi.fn<Session['setPermissionRequestHandler']>()
-  const primary = {} as WebContents
+  const primary = { isDestroyed: () => false } as WebContents
   installMicrophonePermissions({ setPermissionCheckHandler, setPermissionRequestHandler }, () => primary)
   return { primary, check: setPermissionCheckHandler.mock.calls[0]![0]!, request: setPermissionRequestHandler.mock.calls[0]![0]! }
 }
@@ -40,9 +40,11 @@ it.each([true, false])('waits for the first macOS authorization decision: %s', a
   access.askForMediaAccess.mockReturnValueOnce(decision.promise)
   try {
     f.request(f.primary, 'media', done, { isMainFrame: true, requestingUrl: 'dsh-app://app/', mediaTypes: ['audio'] })
+    await Promise.resolve()
     expect(access.askForMediaAccess).toHaveBeenCalledExactlyOnceWith('microphone')
     expect(done).not.toHaveBeenCalled()
   } finally { decision.resolve(allowed); await decision.promise }
+  await vi.waitFor(() => { expect(done).toHaveBeenCalled() })
   expect(done).toHaveBeenCalledExactlyOnceWith(allowed)
 })
 it('requests macOS microphone access and reports operating-system rejection', async () => {
@@ -60,10 +62,10 @@ it('requests macOS microphone access and reports operating-system rejection', as
   f.request(f.primary, 'clipboard-sanitized-write', done, details)
   expect(done).toHaveBeenLastCalledWith(true)
 })
-it.each(['win32', 'linux'] as const)('leaves system authorization to Chromium on %s', (platform) => {
+it.each(['win32', 'linux'] as const)('leaves system authorization to Chromium on %s', async (platform) => {
   const f = fixture(platform), done = vi.fn()
   expect(f.check(f.primary, 'media', 'dsh-app://app', { isMainFrame: true, mediaType: 'audio' })).toBe(true)
   f.request(f.primary, 'media', done, { isMainFrame: true, requestingUrl: 'dsh-app://app/', mediaTypes: ['audio'] })
-  expect(done).toHaveBeenCalledWith(true)
+  await vi.waitFor(() => { expect(done).toHaveBeenCalledWith(true) })
   expect(access.askForMediaAccess).not.toHaveBeenCalled()
 })

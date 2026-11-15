@@ -12,7 +12,12 @@ import Hmr from '@deepseek-ai/dsh-hmr'
 import DefaultModel from '@deepseek-ai/dsh-agent-default-model'
 import Settings from '../src/index.ts'
 
-export async function configurationFixture(options: { schema?: z; apply?: (ctx: Context, config: unknown) => void; hmr?: boolean } = {}) {
+export async function configurationFixture(options: {
+  schema?: z
+  apply?: (ctx: Context, config: unknown) => void
+  hmr?: boolean
+  editor?: boolean
+} = {}) {
   const home = realpathSync(mkdtempSync(join(tmpdir(), 'settings-config-')))
   const dir = join(home, 'profiles', 'test')
   onTestFinished(() => { rmSync(home, { recursive: true, force: true }) })
@@ -20,9 +25,10 @@ export async function configurationFixture(options: { schema?: z; apply?: (ctx: 
   const bundle = join(dir, 'node_modules', 'test-bundle')
   mkdirSync(bundle, { recursive: true })
   writeFileSync(join(home, 'package.json'), '{"name":"test-installation"}\n')
-  writeFileSync(join(bundle, 'package.json'), JSON.stringify({ name: 'test-bundle', version: '1.0.0', dsh: { bundle: { patch: 'cordis.patch.yml' } } }))
+  writeFileSync(join(bundle, 'package.json'), JSON.stringify({ name: 'test-bundle', version: '1.0.0',
+    dsh: { bundle: { patch: 'cordis.patch.yml' } } }))
   writeFileSync(join(bundle, 'cordis.patch.yml'), JSON.stringify([{ insert: [
-    { id: 'config-editor', name: 'cordis:editor' },
+    { id: 'config-editor', name: 'cordis:editor', disabled: options.editor === false },
     { id: 'settings', name: 'cordis:settings' },
     { id: 'default-model', name: 'cordis:model', config: { provider: 'test', model: 'original' } },
     { id: 'first', name: 'cordis:probe', config: { ordinary: 'fixed', token: 'private' } },
@@ -34,7 +40,9 @@ export async function configurationFixture(options: { schema?: z; apply?: (ctx: 
     installAnchor: join(home, 'package.json'), cwd: home, home, overlays: [], telemetryDisabledEnv: undefined,
   }
   const Probe = {
-    Config: options.schema ?? z.object({ ordinary: z.string().required(), count: z.number().min(1).default(2).volatile(), token: z.string().role('secret').volatile(), list: z.array(z.object({ name: z.string().required(), token: z.string().role('secret') })).volatile() }),
+    Config: options.schema ?? z.object({ ordinary: z.string().required(), count: z.number().min(1).default(2).volatile(),
+      token: z.string().role('secret').volatile(), list: z.array(z.object({ name: z.string().required(),
+        token: z.string().role('secret') })).volatile() }),
     apply: options.apply ?? (() => {}),
   }
   const start = async (): Promise<Context> => {

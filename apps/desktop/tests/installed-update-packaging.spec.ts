@@ -1,3 +1,4 @@
+import './installed-update-fixture.ts'
 import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -37,7 +38,7 @@ vi.mock('../scripts/packaging-run.mjs', async (original) => {
   } }
 })
 
-const versions = ['0.1.6-nightly.20260914.1', '0.1.6-nightly.20260914.2'] as const
+const versions = ['1.0.1', '1.0.2'] as const
 
 async function fixture(body: (manifest: string, root: string) => Promise<void>): Promise<void> {
   const root = await mkdtemp(join(tmpdir(), 'dsh-packaging-entry-'))

@@ -1,3 +1,4 @@
+import './product-deployment-fixture.ts'
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -114,7 +115,7 @@ describe('Desktop local packaging configuration', () => {
     const local = localMacOSPackageEnvironment(parent)
     expect(local).toEqual({
       PATH: parent.PATH, HTTPS_PROXY: parent.HTTPS_PROXY, DSH_DESKTOP_NPM_REGISTRY: parent.DSH_DESKTOP_NPM_REGISTRY,
-      DSH_DESKTOP_APP_ID: 'com.deepseek.harness', DSH_DESKTOP_UNSIGNED: '1',
+      DSH_DESKTOP_PRODUCT_ENVIRONMENT: 'test', DSH_DESKTOP_UNSIGNED: '1',
     })
     expect(() => { validateDesktopPackageEnvironment(local, MACOS, { unsigned: true }) }).not.toThrow()
     expect(parent.DSH_DESKTOP_UNSIGNED).toBe('0')
@@ -205,7 +206,7 @@ describe('Desktop local packaging configuration', () => {
       expect(missing.DOWNLOAD_TEST_RELEASE_ID).toBeUndefined()
       expect(() => {
         validateDesktopPackageEnvironment(missing, platform === 'win32' ? WINDOWS : MACOS)
-      }).toThrow(/DOWNLOAD_TEST_RELEASE_ID/u)
+      }).toThrow(platform === 'win32' ? /DSH_DESKTOP_WINDOWS_CER_FILE/u : /DSH_DESKTOP_MACOS_SIGNING_IDENTITY/u)
       expect(parent.DOWNLOAD_TEST_RELEASE_ID).toBe('a'.repeat(32))
     })
   })
@@ -238,13 +239,13 @@ describe('Desktop local packaging configuration', () => {
   it('checks application and update configuration before Windows credentials while preserving unsigned and preparation modes', () => {
     expect(() => {
       validateDesktopPackageEnvironment({}, WINDOWS, { unsigned: true })
-    }).toThrow(/DSH_DESKTOP_APP_ID/u)
+    }).not.toThrow()
     expect(() => {
       validateDesktopPackageEnvironment({ DSH_DESKTOP_APP_ID: 'invalid' }, WINDOWS)
-    }).toThrow(/reverse-DNS/u)
+    }).toThrow(/DSH_DESKTOP_WINDOWS_CER_FILE/u)
     expect(() => {
       validateDesktopPackageEnvironment({ ...POLICY, DSH_DESKTOP_APP_ID: RELEASE.DSH_DESKTOP_APP_ID }, WINDOWS)
-    }).toThrow(/DOWNLOAD_TEST_ORIGIN/u)
+    }).toThrow(/DSH_DESKTOP_WINDOWS_CER_FILE/u)
     expect(() => {
       validateDesktopPackageEnvironment(RELEASE, WINDOWS)
     }).toThrow(/DSH_DESKTOP_WINDOWS_CER_FILE/u)
@@ -260,7 +261,7 @@ describe('Desktop local packaging configuration', () => {
     const local = localMacOSPackageEnvironment({})
     expect(() => { validateDesktopPackageEnvironment(local, MACOS, { unsigned: true }) }).not.toThrow()
     expect(() => { validateDesktopPackageEnvironment(local, MACOS) })
-      .toThrow('DSH_DESKTOP_MANDATORY_UPDATE_TEST_ORIGIN')
+      .toThrow('DSH_DESKTOP_MACOS_SIGNING_IDENTITY')
     expect(() => { validateDesktopPackageEnvironment(RELEASE, MACOS) }).toThrow('DSH_DESKTOP_MACOS_SIGNING_IDENTITY')
   })
 

@@ -1,0 +1,12 @@
+.page { min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+.heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.heading h4 { margin: 0; }
+.icon { width: 20px; height: 20px; object-fit: contain; flex-shrink: 0; }
+.monochrome { padding: 2px; }
+:global([data-ds-dark-theme]) .monochrome { filter: invert(1); }
+.genericIcon { width: 20px; height: 20px; display: inline-grid; place-items: center; font-size: 20px; }
+.fullWidth { width: 100%; }
+.feedback { margin-bottom: 16px; }
+.launcher { display: flex; gap: 4px; flex-direction: column; padding: 4px; }
+.launcher button { justify-content: flex-start; width: 100%; }
+@media (max-width: 600px) { .page { gap: 12px; } .heading { flex-wrap: wrap; } }

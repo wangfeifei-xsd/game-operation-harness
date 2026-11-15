@@ -6,6 +6,7 @@ import { readFile } from 'node:fs/promises'
 import type { Duplex } from 'node:stream'
 import type { Context } from '@deepseek-ai/cordis'
 import httpProxy from 'http-proxy'
+import { readDesktopDownloadIndex } from '@deepseek-ai/dsh-host-harness-product/downloads'
 import { HarnessAuthError } from './harness-auth-client.ts'
 import { HarnessCoordinator } from './harness-coordinator.ts'
 import type { HarnessConfig } from './harness-config.ts'
@@ -105,8 +106,10 @@ export const harnessEntry = {
       if (path === '/harness/login' && request.method === 'GET') {
         allocateCookie()
         response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', 'referrer-policy': 'same-origin' })
-        response.end('<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Harness</title><link rel="stylesheet" href="/harness/assets/style.css"></head><body><div id="root"></div><script type="module" src="/harness/assets/auth.js"></script></body></html>'); return
+        response.end('<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Agent 助手</title><link rel="stylesheet" href="/harness/assets/style.css"></head><body><div id="root"></div><script type="module" src="/harness/assets/auth.js"></script></body></html>'); return
       }
+      if (path === '/harness/api/bootstrap' && request.method === 'GET') { reply(response, 200, await coordinator.auth.publicBootstrap()); return }
+      if (path === '/harness/api/downloads' && request.method === 'GET') { reply(response, 200, await readDesktopDownloadIndex(config)); return }
       if (path === '/harness/api/session' && request.method === 'GET') { const selected = allocateCookie(); reply(response, 200, await coordinator.status(selected)); return }
       if (path === '/harness/api/login' && request.method === 'POST') { reply(response, 200, { authenticated: true, ...await coordinator.login(await body(request), allocateCookie()) }); return }
       if (path === '/harness/api/logout' && request.method === 'POST') {

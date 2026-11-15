@@ -23,6 +23,12 @@ const purgeSchema = z.object({ zoneId: z.string(), publicUrl: z.url(), submitted
 const stateSchema = z.object({ approval: z.string(), upload: z.enum(['pending', 'upload-intent', 'uploaded']),
   uploadConfirmed: z.boolean().optional(), purge: purgeSchema.optional(), purgeAttempt: z.string().optional() })
 
+function canonical(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(canonical)
+  if (value !== null && typeof value === 'object') return Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b)).map(([key, item]) => [key, canonical(item)]))
+  return value
+}
+
 /**
  * Bind website approval to the retained manifest and exact production bucket.
  * @param manifest Retained build metadata already matched to GitHub evidence.
@@ -30,7 +36,7 @@ const stateSchema = z.object({ approval: z.string(), upload: z.enum(['pending', 
  * @returns Non-secret digest passed through the production approval job.
  */
 export function websiteApproval(manifest: unknown, bucket: string): string {
-  return createHash('sha256').update(JSON.stringify({ manifest, bucket })).digest('hex')
+  return createHash('sha256').update(JSON.stringify(canonical({ manifest, bucket }))).digest('hex')
 }
 
 /**
@@ -85,7 +91,7 @@ export async function publishWebsiteCi(mode: 'upload' | 'purge', env: NodeJS.Pro
   }
   if (state.upload !== 'uploaded') throw new Error('website publication: upload completion is not confirmed; recover the upload job first')
   const { desktopWebsiteInstallerUrl } = await import('./desktop-auto-update-environment.mjs')
-  const publicUrl = desktopWebsiteInstallerUrl(route.target)
+  const publicUrl = desktopWebsiteInstallerUrl(route.target, { DSH_DESKTOP_PRODUCT_ENVIRONMENT: manifest.source.productEnvironment })
   const { teo } = await import('tencentcloud-sdk-nodejs-teo')
   const client = new teo.v20220901.Client({ credential: credentials, region: '',
     profile: { httpProfile: { endpoint: 'teo.tencentcloudapi.com', reqTimeout: 30 } } })

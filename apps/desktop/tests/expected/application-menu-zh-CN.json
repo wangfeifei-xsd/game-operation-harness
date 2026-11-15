@@ -1,10 +1,14 @@
 [
   {
-    "label": "关于 游戏运营 Agent",
+    "label": "关于 Agent 助手",
     "role": "about"
   },
   {
     "type": "separator"
+  },
+  {
+    "label": "退出账号",
+    "enabled": false
   },
   {
     "label": "检查更新…"
@@ -24,7 +28,7 @@
   },
   {
     "role": "hide",
-    "label": "隐藏 游戏运营 Agent"
+    "label": "隐藏 Agent 助手"
   },
   {
     "role": "hideOthers",
@@ -39,6 +43,6 @@
   },
   {
     "role": "quit",
-    "label": "退出 游戏运营 Agent"
+    "label": "退出 Agent 助手"
   }
 ]

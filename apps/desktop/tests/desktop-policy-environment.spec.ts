@@ -1,3 +1,4 @@
+import './product-deployment-fixture.ts'
 import { expect, it } from 'vitest'
 import { resolveDesktopPolicyEnvironment } from '../scripts/desktop-policy-environment.mjs'
 import { validateDesktopPackageEnvironment } from '../scripts/desktop-package-environment.mjs'
@@ -22,7 +23,7 @@ it('requires only the selected origin, defaults to test, and accepts explicit pa
     DSH_DESKTOP_MANDATORY_UPDATE_CONFIG: JSON.stringify({ allowedAuthOrigins: ['https://login.example.com'],
       allowedPageOrigins: ['https://download.example.com'], intervalMs: 5000 }) })
   expect(policy).toMatchObject({ authentication: 'feishu-test', intervalMs: 5000, allowedPageOrigins: ['https://download.example.com'] })
-  expect(() => resolveDesktopPolicyEnvironment({ ...origins, DSH_DESKTOP_AUTO_UPDATE_ENV: 'prod' })).toThrow('production')
+  expect(() => resolveDesktopPolicyEnvironment({ ...origins, DSH_DESKTOP_AUTO_UPDATE_ENV: 'prod' })).toThrow('产品环境')
 })
 
 it.each([undefined, '', 'http://test.example.com', 'https://user:secret@test.example.com',
@@ -47,14 +48,8 @@ it('rejects login origins in production', () => {
     .toThrow('must not configure allowedAuthOrigins')
 })
 
-it.each([{ unsigned: true }, { prepareOnly: true }, {}])('requires policy outside local macOS builds in %j', (options) => {
-  for (const platform of ['win32', 'darwin'] as const) {
-    if (platform === 'darwin' && options.unsigned) {
-      expect(() => { validateDesktopPackageEnvironment({ DSH_DESKTOP_APP_ID: 'com.example.test' }, { platform, arch: 'x64' }, options) })
-        .not.toThrow()
-      continue
-    }
-    expect(() => { validateDesktopPackageEnvironment({ DSH_DESKTOP_APP_ID: 'com.example.test' }, { platform, arch: 'x64' }, options) })
-      .toThrow('DSH_DESKTOP_MANDATORY_UPDATE_TEST_ORIGIN')
-  }
+it.each([
+  ['win32', { unsigned: true }], ['darwin', { unsigned: true }], ['win32', { prepareOnly: true }],
+] as const)('allows local %s packaging without an upstream policy in %j', (platform, options) => {
+  expect(() => { validateDesktopPackageEnvironment({}, { platform, arch: 'x64' }, options) }).not.toThrow()
 })

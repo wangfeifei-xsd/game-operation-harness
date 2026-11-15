@@ -26,6 +26,10 @@ kind: "package-library"
 node apps/desktop-publisher/tests/preinstall.mjs
 ```
 
+产品部署读取 `config/environments/<environment>.json`，由 `DSH_DESKTOP_PRODUCT_ENVIRONMENT` 选择。历史发布存储将 `master` 映射为 `production`，其余产品环境映射为 `test`，不会替代产品环境；只接受 `stable` 频道。发布打包和上传拒绝缺失应用身份、普通更新源或下载索引、保留构建产品身份不匹配，以及安装包内置供应商凭据。配置见[产品配置](../../docs/harness-product.zh.md#configuration)。
+
+同一上传计划管理安装包字节、原生更新元数据及公开的 `downloads.json` 索引。发布校验本地哈希，上传不可变文件，核对远端字节，推进原生源后才更新下载索引。跨机器对象锁串行化各目标的索引写入；同版目标合并，旧版本和同版目标内容变更被拒绝。索引写入不完整时报告失败，保留已上传对象以便核对恢复。回滚只接受携带本产品身份的保留版本。
+
 ## 实现
 
 <details>

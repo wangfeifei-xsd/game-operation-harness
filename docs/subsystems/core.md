@@ -499,6 +499,20 @@ interface TurnBoundaryProjection {
 }
 ```
 
+## Product default model source
+
+`ctx.agentDefaultModel.registerSource()` installs the single product owner of the default selection. `read()` returns null when no enabled model is configured; execution uses `requireSelection()` to report that state before a model request. `save()` persists the default independently of a Session selection. A persistence failure keeps the accepted Session selection and emits `api-session/default-model-save-failed` for visible feedback. Product mode never falls back to a static profile or legacy credentials.
+
+```ts type-equiv
+/** 产品来源负责默认选择的读取和持久化。 */
+interface DefaultModelSource {
+  /** @returns 空配置返回空。 */
+  read(): ModelSelection | null
+  /** @param next - 经目录校验的模型选择。 */
+  save(next: ModelSelection): Promise<void>
+}
+```
+
 <!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers -->
 
 <a id="cordis-surface"></a>
@@ -511,14 +525,27 @@ Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnp
 
 ### `ctx.agentDefaultModel` — `AgentDefaultModelConfig`
 
-Owns the default model selection independently of any Host or transport. Each operation reads the owning Config references.
+默认选择的唯一读写入口，产品可以注册可持久化且允许空值的来源。
 
 ```ts cordis-catalog
+/**
+ * 注册唯一产品来源，卸载后产品模式仍拒绝静态回退。
+ * @param source - 默认值的业务所有者。
+ * @returns 撤销该注册的函数。
+ */
+registerSource(source: DefaultModelSource): () => void
+
+/**
+ * 执行入口读取必需的模型选择。
+ * @returns 有效选择；无模型时抛出可识别错误。
+ */
+requireSelection(): ModelSelection
+
 /**
  * Read the current default model selection.
  * @returns a detached provider, model, and optional reasoning selection.
  */
-currentSelection(): ModelSelection
+currentSelection(): ModelSelection | null
 
 /**
  * Save the complete default model selection. A deployment without a configuration

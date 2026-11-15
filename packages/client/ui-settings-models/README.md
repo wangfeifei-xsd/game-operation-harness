@@ -25,6 +25,12 @@ Desktop product events use the optional [product analytics service](../product-a
 -----
 
 <a id="use-this-package"></a>
+## Direct product model configuration
+
+Harness Web/PWA and Electron enable `directModels: true`. **Model configuration** opens **Settings → Models** directly. The antd list and single-model form use the dedicated model Remote, built-in supplier names and local icons. Keys are write-only; blank edits retain the saved key. Revision conflicts preserve the draft until the user confirms reloading. The list, chat picker and default selection update after a committed change. Connection checks use saved records and show only results for the current revision. No provider authorization, balance or recharge UI registers in this mode. Model records persist through the [Host model service](../../llm/harness-model-config/README.md), independently of the general configuration editor.
+
+The remaining provider and onboarding documentation describes the upstream `web` profile with `directModels: false`.
+
 ## Use this package
 
 Saving credentials or a custom provider preserves the selected model. The user can select an available model from the composer.

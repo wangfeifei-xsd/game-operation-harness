@@ -5,6 +5,7 @@ export default defineConfig({
     index: 'lib/types/index.js',
     runner: 'lib/types/bin.js',
     output: 'lib/types/output.js',
+    'process-inspector': 'lib/types/process-inspector.js',
   },
   outDir: 'lib',
   format: ['esm'],

@@ -10,6 +10,10 @@ import { loadDesktopPackageEnvironment } from './desktop-package-environment.mjs
 import { createDesktopUploadPlan, type DesktopUploadPlan } from './desktop-upload-plan.ts'
 import { desktopReleaseTag, tagDesktopRelease } from './desktop-release-tag.ts'
 import { uploadDesktopRelease } from './desktop-upload-run.ts'
+import { desktopPublishCos } from '@deepseek-ai/dsh-desktop-publisher/desktop-publish-cos.ts'
+import { publishDesktopRelease } from '@deepseek-ai/dsh-desktop-publisher/desktop-publish.ts'
+import { withDesktopIndexLock } from '@deepseek-ai/dsh-desktop-publisher/desktop-index-lock.ts'
+import { createDesktopPublicationRecord, withDesktopChannelLock } from '@deepseek-ai/dsh-desktop-publisher/desktop-publish-record.ts'
 import { DesktopPurgeError, purgeDesktopInstaller, resolveDesktopPurgeConfig } from './desktop-edgeone.ts'
 
 const SUPPORTED_TARGETS = new Set<DesktopPackageTargetName>(['mac-arm64', 'mac-x64', 'win-x64'])
@@ -74,18 +78,20 @@ export async function uploadDesktopTarget(args: string[]): Promise<void> {
     latest: { type: 'boolean' },
     'purge-only': { type: 'boolean' },
     'credential-launcher': { type: 'boolean' }, environment: { type: 'string' }, bucket: { type: 'string' },
+    'product-environment': { type: 'string', default: 'test' },
   } })
   const target = positionals[0]
   if (target === undefined || positionals.length !== 1) {
     throw new DesktopUploadUsageError('desktop upload: expected exactly one target')
   }
   const name = targetName(target)
+  if (!['dev', 'test', 'fat', 'master'].includes(values['product-environment'])) throw new DesktopUploadUsageError('产品环境必须为 dev、test、fat 或 master')
   if (values['purge-only'] && !values.latest) {
     throw new DesktopUploadUsageError('desktop upload: --purge-only requires --latest')
   }
   let fileEnvironment: NodeJS.ProcessEnv
   try {
-    fileEnvironment = loadDesktopPackageEnvironment(desktopTargetPlatform(name).platform)
+    fileEnvironment = { ...loadDesktopPackageEnvironment(desktopTargetPlatform(name).platform), DSH_DESKTOP_PRODUCT_ENVIRONMENT: values['product-environment'] }
   } catch (error) {
     throw new DesktopUploadUsageError('Cannot load target dotenv; check the target dotenv file and release settings.')
   }
@@ -112,17 +118,29 @@ export async function uploadDesktopTarget(args: string[]): Promise<void> {
   }
   const plan = await createDesktopUploadPlan(name, { environment, latest: values.latest === true })
   const purge = plan.environment === 'production' && values.latest ? purgeConfig(environment, name, plan.publicUrl) : undefined
-  const cos = createDesktopCos({
+  const credentials = {
     secretId: requiredEnvironmentValue(environment, plan.secretIdEnvName),
     secretKey: requiredEnvironmentValue(environment, plan.secretKeyEnvName),
-  })
+  }
   process.stdout.write(`desktop upload: ${plan.target} ${plan.version} -> ${plan.publicUrl}\n`)
-  await uploadDesktopRelease(plan, cos, recordsRoot)
+  if (values.latest) await uploadDesktopRelease(plan, createDesktopCos(credentials), recordsRoot)
+  else await withDesktopChannelLock(resolve(recordsRoot, '../publish-locks'), `${plan.bucket}/${plan.publicUrl}`, async () => {
+    const journal = await createDesktopPublicationRecord(recordsRoot, { repository: 'local', runId: 'manual', attempt: '1',
+      actor: 'local', destination: `${plan.bucket}/${plan.publicUrl}`, operation: 'publish', reason: '手动发布' })
+    let status: 'complete' | 'failed' | 'published-tag-pending' = 'failed'
+    try {
+      const result = await withDesktopIndexLock(plan, credentials, () => publishDesktopRelease(plan, {
+        transport: desktopPublishCos(plan, credentials), record: event => journal.record(event),
+        tag: async () => { recordProductionRelease(plan) },
+      }))
+      status = result.status
+      if (result.status === 'published-tag-pending') throw new Error('安装包与下载索引已发布，发布标签待补齐')
+    } finally { await journal.finish(status) }
+  })
   if (purge !== undefined) {
     process.stdout.write('desktop upload: installer uploaded; submitting cache purge.\n')
     await purgeDesktopInstaller(purge)
   }
-  if (plan.environment === 'production' && !values.latest) recordProductionRelease(plan)
 }
 
 /**
@@ -146,7 +164,7 @@ function recordProductionRelease(plan: DesktopUploadPlan): void {
     if (result.recovery !== undefined) {
       process.stderr.write(`desktop upload: record it with: ${result.recovery.join(' && ')}\n`)
     }
-    return
+    throw new Error(`desktop upload: published tag is pending: ${result.tag}`)
   }
   process.stdout.write(`desktop upload: ${result.tag} ${result.status === 'created' ? 'records' : 'already recorded'} ${plan.commit}\n`)
 }

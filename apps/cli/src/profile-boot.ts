@@ -272,6 +272,8 @@ export interface RunProfileOptions {
      */
     prepare(ctx: Context): Promise<void>
   }
+  /** 最终 profile 补丁转换；保留入口自己的配置层与身份。 */
+  transformPatches?: (patches: PatchOptions[]) => PatchOptions[]
   /** The profile name to boot. */
   profile: string
   /** Loaded application profile; bypasses named profile initialization when supplied. */
@@ -362,7 +364,7 @@ export async function runProfile(options: RunProfileOptions): Promise<{ ctx: Con
       ? readProfilePatches(NAME, profileContext, composed.profile)
       : [...(options.product.transform?.(readBundlePatches(NAME, profileContext, composed.profile))
         ?? readBundlePatches(NAME, profileContext, composed.profile)), ...options.product.patches]
-    const ctx = await boot(NAME, rootConfig, patches, async (hostCtx) => {
+    const ctx = await boot(NAME, rootConfig, options.transformPatches?.(patches) ?? patches, async (hostCtx) => {
       app.current = hostCtx
       hostCtx.provide('profileContext', profileContext)
       // Before any config-tree entry mounts, so plugins resolve all launch-time

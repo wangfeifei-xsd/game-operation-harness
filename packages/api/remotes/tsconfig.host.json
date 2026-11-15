@@ -94,6 +94,9 @@
     },
     {
       "path": "../../web/web"
+    },
+    {
+      "path": "../../llm/harness-model-config"
     }
   ]
 }

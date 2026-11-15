@@ -24,6 +24,8 @@
   // this client-registered project must not also hold them (one program
   // cannot see both sides of the cordis Context merges).
   "exclude": [
+    "tests/harness-model-config.e2e.ts",
+    "tests/harness-product-fixture.ts",
     "tests/home-cat.e2e.ts",
     "tests/sidebar-drawer.e2e.ts",
     "tests/creation-recommendations.e2e.ts",
@@ -267,6 +269,8 @@
     "tests/workflow-run.e2e.ts"
   ],
   "references": [
+    { "path": "../../packages/host/harness-product" },
+    { "path": "../../packages/client/ui-harness-account" },
     { "path": "../../packages/experimental/auto-review" },
     {
       "path": "../../packages/client/store"

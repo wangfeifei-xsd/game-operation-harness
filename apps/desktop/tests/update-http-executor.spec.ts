@@ -1,10 +1,12 @@
 import { EventEmitter } from 'node:events'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ClientRequest } from 'electron'
+import type { RequestOptions } from 'node:http'
+import { ElectronHttpExecutor } from 'electron-updater/out/electronHttpExecutor.js'
 import { DesktopUpdateHttpExecutor } from '../src/updates/electron-updater/http-executor.ts'
 
 beforeEach(() => { vi.useFakeTimers() })
-afterEach(() => { vi.useRealTimers() })
+afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks() })
 
 function fixture() {
   const request = Object.assign(new EventEmitter(), { abort: vi.fn(() => { request.emit('abort') }) })
@@ -67,4 +69,45 @@ describe('Electron updater inactivity deadline', () => {
   it.each([0, 999, 1.5, NaN, 2_147_483_648])('rejects invalid inactivity configuration: %s', (value) => {
     expect(() => new DesktopUpdateHttpExecutor(value)).toThrow('idle timeout')
   })
+})
+
+const productUrl = 'https://updates.example.com/agent-assistant/test/stable/'
+const trusted = { protocol: 'https:', hostname: 'updates.example.com', path: '/agent-assistant/test/stable/feeds/mac-arm64/stable-mac.yml' }
+
+class ProductExecutor extends DesktopUpdateHttpExecutor {
+  redirects(request: ClientRequest, reject: (error: Error) => void, handler: (options: RequestOptions) => void): void {
+    this.addRedirectHandlers(request, trusted, reject, 0, handler)
+  }
+}
+
+it.each([
+  { hostname: 'other.example.com' }, { protocol: 'http:' }, { auth: 'user:password' },
+  { path: '/agent-assistant/master/stable/feed.yml' }, { path: '/agent-assistant/test/stable/../feed.yml' },
+  { path: '/agent-assistant/test/stable/bin/%2f..%2fprivate' }, { headers: { Host: 'other.example.com' } },
+])('rejects an updater request outside its controlled source: %j', (override) => {
+  const native = vi.spyOn(ElectronHttpExecutor.prototype, 'createRequest')
+  const executor = new DesktopUpdateHttpExecutor(1000, undefined, productUrl)
+  expect(() => executor.createRequest({ ...trusted, ...override }, () => {})).toThrow()
+  expect(native).not.toHaveBeenCalled()
+})
+
+it.each([true, false])('accepts only a redirect within the product deployment: trusted=%s', (allowed) => {
+  const abort = vi.fn()
+  const request = Object.assign(new EventEmitter() as ClientRequest, { abort })
+  const reject = vi.fn()
+  const handler = vi.fn()
+  const executor = new ProductExecutor(1000, undefined, productUrl)
+  executor.redirects(request, reject, handler)
+  request.emit('redirect', 302, 'GET', allowed ? `${productUrl}bin/mac-arm64/agent-assistant.zip` : 'https://other.example.com/agent-assistant.zip')
+  expect(abort).toHaveBeenCalledOnce()
+  expect(handler).toHaveBeenCalledTimes(allowed ? 1 : 0)
+  expect(reject).toHaveBeenCalledTimes(allowed ? 0 : 1)
+})
+
+it('forces manual redirects before calling the native Electron transport', () => {
+  const request = new EventEmitter() as ClientRequest
+  const native = vi.spyOn(ElectronHttpExecutor.prototype, 'createRequest').mockReturnValue(request)
+  const executor = new DesktopUpdateHttpExecutor(1000, undefined, productUrl)
+  expect(executor.createRequest(trusted, () => {})).toBe(request)
+  expect(native).toHaveBeenCalledWith(expect.objectContaining({ redirect: 'manual' }), expect.any(Function))
 })

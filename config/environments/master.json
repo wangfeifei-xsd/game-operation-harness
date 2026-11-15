@@ -22,8 +22,6 @@
     "noProxy": "localhost,127.0.0.1,::1"
   },
   "providers": {
-    "deepseekBaseUrl": "https://api.deepseek.com/anthropic",
-    "accountBaseUrl": "https://api.deepseek.com/anthropic",
     "searchBaseUrl": "https://api.deepseek.com/anthropic",
     "credentials": {}
   },
@@ -35,5 +33,19 @@
   "sandbox": {
     "mode": "workspace-write",
     "approval": "ask"
+  },
+  "desktop": {
+    "appId": "local.agentassistant.master",
+    "protocol": "agent-assistant",
+    "channel": "stable",
+    "downloadIndexUrl": null,
+    "updates": {
+      "enabled": false,
+      "url": null
+    },
+    "mandatoryUpdate": {
+      "enabled": false,
+      "url": null
+    }
   }
 }

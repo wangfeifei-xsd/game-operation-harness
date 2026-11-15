@@ -31,7 +31,7 @@ export async function qualifyUpdateDialogs(root, fixture) {
     assert.ok(['design-platform.css', 'shell-theme.js', 'update-dialog.html', 'update-dialog.js', 'update-dialog.css', 'update-close.svg'].includes(name))
     const mime = name.endsWith('.js') ? 'text/javascript' : name.endsWith('.css') ? 'text/css'
       : name.endsWith('.svg') ? 'image/svg+xml' : 'text/html'
-    return new Response(await readFile(new URL(`${name === 'design-platform.css' ? '../../lib/welcome' : '../../renderer'}/${name}`, import.meta.url)), { headers: { 'content-type': mime } })
+    return new Response(await readFile(new URL(`${name === 'design-platform.css' ? '../../lib/shell' : '../../renderer'}/${name}`, import.meta.url)), { headers: { 'content-type': mime } })
   })
   const parent = new BrowserWindow({ show: true, width: 900, height: 650 })
   const dialogs = new DesktopUpdateDialog(fileURLToPath(new URL('../../lib/preload-update-dialog.cjs', import.meta.url)), locale, new DesktopUpdateOverlays())

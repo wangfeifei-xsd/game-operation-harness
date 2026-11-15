@@ -19,7 +19,9 @@ describe('Harness file deployment', () => {
       const config = readHarnessConfig('dev')
       expect(config.environment).toBe('dev')
       expect(config.storage.root).toMatch(/game-operation-harness\/dev$/u)
-      expect(config.providers.deepseekBaseUrl).toBe('https://api.deepseek.com/anthropic')
+      expect(config.providers).not.toHaveProperty('deepseekBaseUrl')
+      expect(config.providers).not.toHaveProperty('accountBaseUrl')
+      expect(Object.keys(config.providers.credentials).every(key => key === 'HARNESS_SEARCH_API_KEY')).toBe(true)
       expect(harnessUserHome(config, 'user_a')).toBe(join(config.storage.root, 'users/user_a'))
       expect(() => harnessUserHome(config, '../other')).toThrow('中央身份标识无效')
     } finally { vi.unstubAllEnvs() }

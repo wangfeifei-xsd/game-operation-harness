@@ -1,5 +1,14 @@
 /** Shared upload contracts for Desktop packaging and publication. */
 import type { DesktopAutoUpdateTarget } from './desktop-auto-update-environment.mjs'
+import type { DesktopDownloadDeployment, DesktopDownloadFile } from '@deepseek-ai/dsh-host-harness-product/downloads'
+
+/** 由已校验安装文件派生的公开下载记录；上传端在核对远端字节后才能发布。 */
+export interface DesktopDownloadPublication {
+  readonly deployment: DesktopDownloadDeployment
+  readonly key: string
+  readonly installerKey: string
+  readonly file: DesktopDownloadFile
+}
 
 /** One local file and its final object metadata. */
 export interface DesktopUploadArtifact {
@@ -25,6 +34,8 @@ export interface DesktopUploadPlan {
   readonly secretIdEnvName: string
   readonly secretKeyEnvName: string
   readonly artifacts: readonly DesktopUploadArtifact[]
+  /** 普通发布完成后更新索引；固定别名上传不改变索引。 */
+  readonly downloadIndex?: DesktopDownloadPublication
   /** Commit the artifacts were packaged from, absent for a package built before builds recorded it. */
   readonly commit?: string
   /** Whether that checkout carried uncommitted changes. */

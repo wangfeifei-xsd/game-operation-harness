@@ -4,11 +4,11 @@ Status: implemented
 
 English | [中文](2026-09-14-deepseek-account-login.zh.md)
 
-Sign-in captures the initiating UI's client metadata per attempt so browser authorization follows the Desktop or Settings language without depending on the Platform default.
+Sign-in captures the initiating UI's client metadata per attempt so browser authorization follows the initiating Settings language without depending on the Platform default.
 
 ## Problem
 
-Desktop login must preserve local cancellation across the browser, UI, and Host and report success only after credentials are saved.
+Supplier account browser login must preserve local cancellation across the browser, UI, and Host and report success only after credentials are saved.
 
 ## Decision
 
@@ -34,7 +34,7 @@ API keys and account grants remain separately stored. Account tokens have no pro
 
 The account plugin supplies choice, waiting, failure and timeout dialogs through settings.models.sign-in. The model package owns credential readiness and the existing API-key editor; the settings shell coordinates explicit reopening so login and API-key onboarding do not mount competing dialogs.
 
-Platform embedding transfers a grant from Host to Electron over private Node IPC and then once to the trusted Platform main frame through a sandboxed preload. Preload performs one synchronous IPC before page scripts execute; the main process only validates the sender and returns prepared memory. Platform reads the token synchronously thereafter without a readiness API. A failed initialization retains embedded mode and a throwing getter. Account UI projections remain credential-free. The Platform document can read this credential, so its script security is part of account protection; context isolation protects native capabilities, not a token intentionally returned to the document. Replacing or removing the grant destroys the document and clears browser authentication; [account-scoped page storage](2026-09-22-platform-browser-storage.md) survives.
+Harness Web/PWA and Electron product compositions exclude supplier account authorization. The upstream Web profile retains the account service and browser flow. The removed Desktop Platform view is documented only in the historical [account-scoped page-storage note](../../archived/architecture/2026-09-22-platform-browser-storage.md).
 
 Support questionnaires receive only available environment metadata through explicit prefill fields. Account UIDs, tokens and masked contact details stay out of questionnaire URLs.
 
@@ -46,25 +46,19 @@ Profile and recharge-wallet queries use independent getProfile and getBalance op
 
 Deployment authentication uses explicit Host-only requestHeaders on the configured Platform origin. The provider rejects redirects and reserved-header overrides so deployment cookies cannot replace account authorization or follow a browser destination. Environment-specific authentication protocols remain outside the account provider.
 
-The bundled account UI mounts the account launcher, settings and sign-in onboarding in both Desktop and plain Web. The Host sends login_source (desktop or web) in auth_init so Platform can choose the completion experience; the UI sends desktop when the Desktop preload bridge is present and web otherwise. Web failures close the authorization tab while the original tab receives Host state; no Web UI return URL is used. The backend accepts localhost callbacks. DSH preserves the browser-supplied localhost hostname and port without DNS resolution or conversion to an IP literal.
+The upstream Web profile mounts the supplier account launcher, settings and sign-in onboarding. The Host sends login_source (desktop or web) in auth_init so Platform can choose the completion experience; the UI sends desktop when the Desktop preload bridge is present and web otherwise. Web failures close the authorization tab while the original tab receives Host state; no Web UI return URL is used. The backend accepts localhost callbacks. DSH preserves the browser-supplied localhost hostname and port without DNS resolution or conversion to an IP literal.
 
 The macOS development launcher registers an isolated, ad-hoc-signed application bundle for `dsh://open`. The bundle retains the workspace entry and development paths for Launch Services cold starts without copying credentials or changing the package-manager-owned Electron application. Protocol registration targets the latest launched development or packaged application.
 
 Exchange user data supplies the first profile read after credential commit, avoiding a second request before displaying the username. The Host retains only projected UI fields in the active attempt, matched to its token and consumed once; later reads use current. Missing or malformed user data does not discard successful authorization.
 
-The embedded Platform document stays hidden during loading because native child views cover renderer overlays. Only the current document may become visible after loading; returning or signing out invalidates pending visibility changes. Native ownership also ends when the application document reloads or is replaced, its renderer terminates, or its window closes. React effect cleanup alone is insufficient because document teardown may never execute it. Same-document and subframe navigation preserve the view.
-
-Separate accountRequestHeaders route account data and embedded Platform traffic independently of authorization and logout. Cookie overrides merge by name, retaining deployment authentication. Host passes the resolved headers over private process IPC; Electron injects them only at the configured origin and omits them from bootstrap.
-
 Bonus notices use Platform-provided text and order identities. Reads occur when an account becomes active — signed-in startup and successful sign-in — and once per Settings entry or return from the top-up view, with no periodic polling. The card is painted as soon as the server offers it, including underneath the open Settings panel, so display is never deferred. The client acknowledges an order after a presented frame or the user closes it; nothing is written to browser storage, so a later sign-in re-displays an order the server still offers. Failed acknowledgments retry with capped exponential backoff for the rest of the signed-in session. Platform acknowledgments suppress delivery on other devices, but concurrent displays before acknowledgment are possible because the API does not reserve delivery. Fetch success alone never records a display.
-
-The Host binds private Platform sessions to the account provider lifetime. Removal or watch termination clears Electron’s session; replacement subscribes to the new provider, and disposed reads cannot publish old credentials.
 
 The client distinguishes plugin disposal from terminal account-stream failure. RemoteStream aborts its signal after either outcome, so the plugin owns a separate disposal flag to preserve failure feedback while suppressing reports after unload.
 
 ## Verification
 
-Provider tests exercise real loopback callbacks, invalid state, delayed exchange cancellation, credential persistence, sign-out, and official-origin restrictions. Desktop tests cover the native action bridge and localized entry. Manual development integration uses the platform dev middleware Mock and the real Electron Host, including cancellation before browser approval. Production backend credentials and installer scheme registration require release-environment validation.
+Provider tests exercise real loopback callbacks, invalid state, delayed exchange cancellation, credential persistence, sign-out, and official-origin restrictions. Product-composition tests verify that supplier authorization is absent. Production backend credentials require release-environment validation.
 
 ## Related
 

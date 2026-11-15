@@ -9,6 +9,7 @@ import { retainDesktopRelease, type DesktopRetainedSource } from '@deepseek-ai/d
 import { validateDesktopBuildVersion } from './desktop-build-version.mjs'
 import { desktopPublishRunnersSchema } from '@deepseek-ai/dsh-desktop-publisher/desktop-publish-targets.ts'
 import { desktopPublishQualificationError } from '@deepseek-ai/dsh-desktop-publisher/desktop-publish-qualification.mjs'
+import { desktopProductDeployment } from '@deepseek-ai/dsh-desktop-publisher/product-deployment.mjs'
 
 export { desktopReleasesRoot } from '@deepseek-ai/dsh-desktop-publisher/desktop-releases-root.ts'
 
@@ -53,11 +54,13 @@ export async function retainDesktopCi(env: NodeJS.ProcessEnv, appRoot = resolve(
   const qualification = windows ? (env.PACKAGE_SIGNING === 'signed' ? 'signed' : 'unsigned')
     : (env.PACKAGE_SKIP_NOTARIZATION === 'true' ? 'unnotarized' : 'notarized')
   const product: { version: string } = JSON.parse(await readFile(join(appRoot, 'package.json'), 'utf8'))
+  const deployment = desktopProductDeployment(settings)
   const version = validateDesktopBuildVersion(required(env, 'PACKAGE_VERSION'), product.version)
   const source: DesktopRetainedSource = {
     repository: required(env, 'GITHUB_REPOSITORY'), runId: required(env, 'GITHUB_RUN_ID'),
     attempt: required(env, 'GITHUB_RUN_ATTEMPT'), commit: required(env, 'PACKAGE_SOURCE_SHA'),
     workflowCommit: required(env, 'GITHUB_SHA'), sourceRef: required(env, 'PACKAGE_SOURCE_REF'),
+    product: 'agent-assistant', appId: deployment.desktop.appId, productEnvironment: deployment.environment,
     channel: resolveDesktopUpdateChannel(settings),
     runnerName: required(env, 'RUNNER_NAME'), target, preset, productVersion: product.version, version,
     testReleaseId: preset === 'test' ? (settings.DOWNLOAD_TEST_RELEASE_ID || null) : null,
@@ -68,7 +71,7 @@ export async function retainDesktopCi(env: NodeJS.ProcessEnv, appRoot = resolve(
   const mode = qualification === 'unsigned' ? 'unsigned-artifacts' : qualification === 'unnotarized' ? 'unnotarized-artifacts' : 'artifacts'
   const artifacts = appRoot === resolve(import.meta.dirname, '..')
     ? join(paths.root, mode) : join(appRoot, '.desktop-build', 'targets', target, mode)
-  const base = `deepseek-harness-${version}-${windows ? 'win-x64' : target}`
+  const base = `agent-assistant-${version}-${windows ? 'win-x64' : target}`
   const debugSuffix = qualification === 'unnotarized' ? '-unnotarized' : qualification === 'unsigned' ? '-unsigned' : ''
   const names = windows ? [`${base}${debugSuffix}.exe`] : [`${base}${debugSuffix}.dmg`, `${base}${debugSuffix}.zip`]
   if (qualification === 'signed' || qualification === 'notarized') {

@@ -34,7 +34,7 @@ API Key 与账号记录独立保存。账号 token 没有主动刷新流程；�
 
 账号插件通过 settings.models.sign-in 提供选择、等待、失败和超时对话框。模型包保留凭证就绪检查和现有 API Key 编辑器；设置外壳协调显式重开，避免登录与 API Key 引导同时挂载冲突的对话框。
 
-Platform 内嵌通过私有 Node IPC 将授权从 Host 传给 Electron，再经沙箱 preload 一次性传给受信任的 Platform 主 frame。preload 在页面脚本执行前执行一次同步 IPC；主进程仅校验调用来源并返回已准备的内存数据。Platform 此后同步读取 token，无需就绪接口。初始化失败时保留内嵌模式，由 getter 抛错。账号 UI 投影仍不包含凭证。Platform 文档能够读取此凭证，因此其脚本安全也是账号保护的一部分；上下文隔离保护原生能力，不能隐藏有意返回给文档的 token。替换或移除授权会销毁文档并清理浏览器认证；[账号范围内的页面存储](2026-09-22-platform-browser-storage.zh.md)会保留。
+Harness Web/PWA 和 Electron 产品组合排除供应商账号授权。上游 Web profile 保留账号服务与浏览器流程。已移除的 Desktop Platform 视图仅保留在历史[账号范围页面存储记录](../../archived/architecture/2026-09-22-platform-browser-storage.md)中。
 
 支持问卷仅通过显式预填字段接收已有的环境信息，URL 不包含账号 UID、token 或脱敏联系方式。
 
@@ -46,25 +46,19 @@ DSH 授权通过 x-dsh-auth-token 请求头鉴权 Platform、推理和 Files 请
 
 开发环境认证通过配置的平台来源上的显式 Host 请求头 requestHeaders 完成。提供者拒绝重定向和保留请求头覆盖，防止开发环境 Cookie 替换账号授权或跟随浏览器跳转地址。特定环境的认证协议不属于账号提供者。
 
-内置账号界面在 Desktop 和普通 Web 中都挂载账号入口、设置和登录引导。Host 在 auth_init 中发送 login_source（desktop 或 web），以便 Platform 选择完成页体验；存在 Desktop preload 桥接时界面发送 desktop，否则发送 web。Web 登录失败时关闭授权标签页，原标签页通过 Host 状态获知结果；不使用 Web UI 返回 URL。后端接受 localhost 回调。DSH 保留浏览器提供的 localhost 主机名和端口，不做 DNS 解析或 IP 字面量转换。
+上游 Web profile 挂载供应商账号入口、设置和登录引导。Host 在 auth_init 中发送 login_source（desktop 或 web），以便 Platform 选择完成页体验；存在 Desktop preload 桥接时界面发送 desktop，否则发送 web。Web 登录失败时关闭授权标签页，原标签页通过 Host 状态获知结果；不使用 Web UI 返回 URL。后端接受 localhost 回调。DSH 保留浏览器提供的 localhost 主机名和端口，不做 DNS 解析或 IP 字面量转换。
 
 macOS 开发启动器为 `dsh://open` 注册独立、经临时签名的应用包。该应用包保留工作区入口和开发路径，使 Launch Services 能够冷启动；凭证不会被复制，也不修改包管理器安装的 Electron 应用。协议注册指向最近启动的开发版或打包版应用。
 
 exchange 的 user 数据在凭证提交后供首次资料读取使用，展示用户名无需再等待一次请求。Host 仅在当前尝试中保留筛选后的 UI 字段，与 token 匹配并读取一次后移除；后续读取使用 current。缺失或格式无效的 user 不会使已成功的授权失效。
 
-内嵌 Platform 文档在加载期间保持隐藏，因为原生子视图会覆盖渲染层浮层。加载完成后仅当前文档可显示；返回或退登会使待执行的显示操作失效。应用文档刷新或替换、其渲染进程终止或窗口关闭时，原生视图的所有权也随之结束。仅依赖 React effect 清理不足以保证释放，因为文档销毁时可能不执行它。同文档导航和子框架导航保留视图。
-
-独立的 accountRequestHeaders 将账号资料及内嵌 Platform 流量与授权、退登分开路由。Cookie 覆盖按名称合并，保留部署认证。Host 通过私有进程 IPC 传递合并后的请求头；Electron 仅在配置来源注入，并从 bootstrap 排除。
-
 赠金通知使用 Platform 提供的文案和订单标识。账号进入登录态（已登录启动、登录成功）时读取一次，每次进入设置页或从充值视图返回时再读取一次，不进行定时轮询。服务端下发的通知立即绘制，包括在打开的设置面板之下，因此展示从不延后。客户端在通知卡完成一帧绘制后或用户关闭卡片时确认订单。不写入任何浏览器存储，因此之后再次登录会重新展示服务端仍在下发的订单。确认失败会在本次登录会话内按带上限的指数退避重试。Platform 的确认记录阻止其他设备继续获取通知，但接口不预留展示资格，因此确认前仍可能并发展示。仅获取成功不会记录为已展示。
-
-Host 将私有 Platform 会话绑定到账号提供者的生命周期。提供者移除或订阅结束时清空 Electron 会话；替换后订阅新的提供者，已释放的读取不得发布旧凭据。
 
 客户端区分插件卸载和账户状态流的终止错误。RemoteStream 在两种情况下都会中止其信号，因此插件独立记录卸载状态，保留错误反馈并抑制卸载后的报告。
 
 ## 验证
 
-提供者测试覆盖真实本机回调、错误 state、延迟兑换取消、凭证持久化、退出和官方来源限制。桌面测试覆盖原生操作桥接与本地化入口。手动开发联调使用平台 dev middleware Mock 和真实 Electron Host，包括在浏览器批准前取消。生产后端凭证及安装器 scheme 注册仍需发布环境验证。
+提供者测试覆盖真实本机回调、错误 state、延迟兑换取消、凭证持久化、退出和官方来源限制。产品组合测试验证供应商授权没有装配。生产后端凭证仍需发布环境验证。
 
 ## 相关记录
 

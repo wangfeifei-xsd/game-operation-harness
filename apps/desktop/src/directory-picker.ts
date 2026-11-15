@@ -1,13 +1,14 @@
 /** Window-owned workspace directory dialogs for the local Desktop renderer. */
 
-import { dialog, ipcMain, type BrowserWindow } from 'electron'
+import { dialog, ipcMain, type BrowserWindow, type IpcMainInvokeEvent } from 'electron'
 import { DESKTOP_IPC, assertDesktopSender } from './ipc.ts'
 
 /**
  * Install the application-lifetime directory picker IPC handler.
  * @param getWindow - Current local application window; shell pages and subframes cannot open dialogs.
  */
-export function installDesktopDirectoryPicker(getWindow: () => BrowserWindow | undefined): void {
+export function installDesktopDirectoryPicker(getWindow: () => BrowserWindow | undefined,
+  authorize: (event: IpcMainInvokeEvent) => Promise<unknown> = () => Promise.resolve()): void {
   const pending = new WeakMap<BrowserWindow, Promise<string | null>>()
   ipcMain.handle(DESKTOP_IPC.directoryPick, async (event) => {
     const window = getWindow()
@@ -16,13 +17,15 @@ export function installDesktopDirectoryPicker(getWindow: () => BrowserWindow | u
       throw new Error('dsh desktop: rejected directory picker from an unowned renderer')
     }
     assertDesktopSender(event, ['app'])
+    await authorize(event)
+    if (window !== getWindow() || window.isDestroyed()) throw new Error('账号窗口已关闭')
     const existing = pending.get(window)
     if (existing !== undefined) return existing
     if (window.isMinimized()) window.restore()
     window.show()
     window.focus()
     const result = dialog.showOpenDialog(window, { properties: ['openDirectory', 'createDirectory'] }).then(
-      ({ canceled, filePaths }) => window.isDestroyed() || canceled ? null : filePaths[0] ?? null,
+      ({ canceled, filePaths }) => window !== getWindow() || window.isDestroyed() || canceled ? null : filePaths[0] ?? null,
     ).finally(() => { pending.delete(window) })
     pending.set(window, result)
     return result

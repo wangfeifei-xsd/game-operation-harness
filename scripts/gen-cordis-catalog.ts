@@ -72,6 +72,8 @@ export const SERVICE_PAGE: Record<string, string> = {
   agentLoop: 'core.md',
   mcpManager: 'mcp.md',
   agentDefaultModel: 'core.md',
+  harnessModelConfig: 'llm-streaming.md',
+  modelConfigController: 'llm-streaming.md',
   agentPresets: 'core.md',
   agents: 'core.md',
   approval: 'approval.md',
@@ -266,6 +268,7 @@ export const EVENT_SCOPE_PAGE: Record<string, string> = {
   'schedule': 'schedule.md',
   'llm': 'llm-streaming.md',
   'llm-pi-ai': 'llm-streaming.md',
+  'model-config': 'llm-streaming.md',
   'mcp-manager': 'mcp.md',
   'permission-presets': 'permission-presets.md',
   'session': 'session.md',
@@ -297,6 +300,7 @@ export const EVENT_SCOPE_PAGE: Record<string, string> = {
  * exemption cannot mask another declaration in that scope.
  */
 export const EVENT_WALK_EXEMPTIONS: Record<string, string> = {
+  'settings/open': '客户端设置导航事件 — packages/client/ui-settings/README.md 负责其接口',
   'account-ui/change': 'client-side account lifecycle signal — packages/client/ui-settings-account/README.md owns the API',
   'account-ui/refresh': 'client-side account refresh signal — packages/client/ui-settings-account/README.md owns the API',
   'workspace/archive-notice': 'client-face archive follow-up copy — packages/client/ui-workspace/README.md owns the API',
@@ -321,6 +325,15 @@ export const EVENT_WALK_EXEMPTIONS: Record<string, string> = {
  * appear on more than one page.
  */
 export const LINK_MAP: Readonly<Record<string, string>> = {
+  DefaultModelSource: 'core.md',
+  HarnessModelId: 'llm-streaming.md',
+  ModelProtocol: 'llm-streaming.md',
+  ModelProviderDefinition: 'llm-streaming.md',
+  ModelConfigInput: 'llm-streaming.md',
+  ModelConfigView: 'llm-streaming.md',
+  ModelConfigSnapshot: 'llm-streaming.md',
+  ModelConfigMutation: 'llm-streaming.md',
+  ModelConnectionResult: 'llm-streaming.md',
   AuthenticationProvider: '../../packages/client/connection/README.md#browser-authentication-and-request-trust',
   PeerId: 'typert.md',
   Principal: 'typert.md',

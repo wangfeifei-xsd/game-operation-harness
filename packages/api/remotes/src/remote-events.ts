@@ -7,6 +7,7 @@
  */
 
 import type {} from '@deepseek-ai/dsh-api-session-controller/remote-events'
+import type {} from '@deepseek-ai/dsh-harness-model-config/types'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type {} from '@deepseek-ai/dsh-deepseek-account/types'
 import type {} from '@deepseek-ai/dsh-permission-presets/types'
@@ -30,6 +31,7 @@ export const API_REMOTE_FORWARDED_EVENTS = [
   { event: 'api-session/activity', mode: 'emit', resources: { session: (sessionId): SessionId => sessionId } },
   { event: 'api-session/added', mode: 'emit', resources: { session: (summary): SessionId => summary.sessionId } },
   { event: 'api-session/error', mode: 'emit', resources: { session: (sessionId): SessionId => sessionId } },
+  { event: 'api-session/default-model-save-failed', mode: 'emit', resources: { session: (sessionId): SessionId => sessionId } },
   { event: 'api-session/removed', mode: 'emit', resources: { session: (sessionId): SessionId => sessionId } },
   { event: 'api-session/status', mode: 'emit', resources: { session: (sessionId): SessionId => sessionId } },
   { event: 'commands/change', mode: 'emit' },
@@ -44,6 +46,7 @@ export const API_REMOTE_FORWARDED_EVENTS = [
   { event: 'cordis/dynamic-retract', mode: 'emit' },
   { event: 'cordis/inspect-query', mode: 'emit' },
   { event: 'cordis/inspect-query-resolved', mode: 'emit' },
+  { event: 'model-config/changed', mode: 'emit' },
   { event: 'llm/adapters-updated', mode: 'emit' },
   { event: 'llm/models-updated', mode: 'emit' },
   { event: 'permission-presets/catalog-changed', mode: 'emit' },

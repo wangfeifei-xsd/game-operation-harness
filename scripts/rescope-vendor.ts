@@ -168,6 +168,11 @@ const GENERIC_SKIPS: readonly GenericSkip[] = [
   { file: 'packages/experimental/inspector/tests/cordis-tree.host.spec.ts', upstream: ['cordis'] },
   { file: 'packages/experimental/inspector/tests/plugin.client.spec.ts', upstream: ['cordis'] },
   { file: 'scripts/gen-cordis-catalog.ts', upstream: ['cordis'] },
+  // 这些文件中的 cordis 表示产品 preset；导入仍须使用已改名的包。
+  { file: 'apps/web/tests/creator-persona.e2e.ts', upstream: ['cordis'] },
+  { file: 'docs/upgrade-guide/v0.2.2-rc.1/subagent-interrupt-default/guide.md', upstream: ['cordis'] },
+  { file: 'docs/upgrade-guide/v0.2.2-rc.1/subagent-interrupt-default/guide.zh.md', upstream: ['cordis'] },
+  { file: 'packages/experimental/cua/tests/agent-scopes.spec.ts', upstream: ['cordis'] },
   // The UI locale namespace and input-trigger source id are product keys.
   { file: 'packages/client/ui-settings-plugin-inventory/src/client/PluginInventorySettingsTab.tsx', upstream: ['cordis'] },
   { file: 'packages/extensions/ui-cordis/src/client/CordisActionRow.tsx', upstream: ['cordis'] },
@@ -674,7 +679,7 @@ export function exactEditState(text: string, find: string, replace: string, expe
 export function listRescopeFiles(repoRoot: string, env?: NodeJS.ProcessEnv): string[] {
   return execFileSync('git', ['ls-files', '-z'], { cwd: repoRoot, env, encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 })
     .split('\0')
-    .filter(file => file !== '' && !isRescopeExcluded(file))
+    .filter(file => file !== '' && !isRescopeExcluded(file) && existsSync(resolve(repoRoot, file)))
 }
 
 function main(): void {

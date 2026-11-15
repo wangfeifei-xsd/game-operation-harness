@@ -2,7 +2,7 @@
 import { fork, type ChildProcess } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { setTimeout as delay } from 'node:timers/promises'
-import { createProcessInspector, type ProcessIdentity } from '@deepseek-ai/dsh-subprocess-local'
+import { createProcessInspector, type ProcessIdentity } from '@deepseek-ai/dsh-subprocess-local/process-inspector'
 import { HarnessAuthError, type HarnessUser } from './harness-auth-client.ts'
 import type { HarnessConfig } from './harness-config.ts'
 
@@ -10,6 +10,7 @@ import type { HarnessConfig } from './harness-config.ts'
 export interface HarnessStart {
   kind: 'harness/start'
   generation: number
+  sessionId: string
   token: string
   secret: string
   user: HarnessUser

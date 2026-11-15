@@ -1,7 +1,7 @@
 /** Recorded npm evidence stays intact while authored files and exact edits remain checked. */
 
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -26,8 +26,10 @@ it('lists the complete eligible corpus when tracked paths exceed one MiB', () =>
     const blob = execFileSync('git', ['hash-object', '-w', '--stdin'], { cwd: root, env, input: '', encoding: 'utf8' }).trim()
     const paths = Array.from({ length: 12_000 }, (_, i) => `packages/example/src/${String(i).padStart(5, '0')}-${'x'.repeat(80)}.ts`)
     expect(Buffer.byteLength(paths.join('\0'))).toBeGreaterThan(1024 * 1024)
-    // Index-only entries exercise Git's complete output without creating thousands of source files.
-    const entries = [...paths, 'scripts/dependency-catalog/package-lock.json']
+    mkdirSync(join(root, 'packages/example/src'), { recursive: true })
+    for (const path of paths) writeFileSync(join(root, path), '')
+    // 已追踪但删除的文件不参与扫描。
+    const entries = [...paths, 'packages/example/src/deleted.ts', 'scripts/dependency-catalog/package-lock.json']
     execFileSync('git', ['update-index', '--index-info'], {
       cwd: root, env, input: entries.map(path => `100644 ${blob}\t${path}\n`).join(''),
     })
@@ -85,6 +87,10 @@ describe('exactEditState', () => {
 
 describe('product identifiers', () => {
   it.each([
+    'apps/web/tests/creator-persona.e2e.ts',
+    'docs/upgrade-guide/v0.2.2-rc.1/subagent-interrupt-default/guide.md',
+    'docs/upgrade-guide/v0.2.2-rc.1/subagent-interrupt-default/guide.zh.md',
+    'packages/experimental/cua/tests/agent-scopes.spec.ts',
     'apps/cli/tests/optional-bundle-transitions.e2e.ts',
     'apps/web/tests/agent-preset-selection.e2e.ts',
     'apps/web/tests/developer-tools-settings.e2e.ts',

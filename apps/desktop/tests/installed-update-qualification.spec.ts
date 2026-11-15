@@ -1,3 +1,4 @@
+import './installed-update-fixture.ts'
 import { createHash, randomUUID } from 'node:crypto'
 import { execFile } from 'node:child_process'
 import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
@@ -8,7 +9,7 @@ import { describe, expect, it } from 'vitest'
 import { collectInstalledUpdateJournals, createInstalledUpdateRun, inspectInstalledUpdateJournals } from '../scripts/installed-update-qualification.ts'
 import { DesktopUpdateJournal } from '../src/update-journal.ts'
 
-const versions = ['0.1.6-alpha.1.20260916.1', '0.1.6-alpha.1.20260916.2'] as const
+const versions = ['1.0.1', '1.0.2'] as const
 const source = { version: '0.1.6-alpha.1', commit: 'a'.repeat(40), dirtyFiles: [' M apps/desktop/example.ts'] }
 interface CollectionReport {
   readonly evidence: unknown
@@ -43,15 +44,15 @@ describe('installed-update qualification materials', () => {
       expect(first.root).not.toBe(next.root)
       expect(first.appId).not.toBe(next.appId)
       expect(first.feedKey).not.toBe(next.feedKey)
-      expect(first.origin).toBe('https://download-test.deepseek.com')
+      expect(first.origin).toBe('https://updates.example.com')
       expect(first.environment).toBe('test')
-      expect(first.feedKey).toBe(`dsh-desk/feeds/qualification/${first.id}/win-x64/nightly.yml`)
+      expect(first.feedKey).toBe(`agent-assistant/qualification/${first.id}/test/stable/feeds/win-x64/stable.yml`)
       expect(JSON.parse(await readFile(join(first.root, 'run.json'), 'utf8'))).toEqual(first)
       expect(await readdir(first.root)).toEqual(['run.json'])
     })
   })
 
-  it.each([['1.0.0', '1.0.1'], [versions[1], versions[0]], [versions[0], versions[0]],
+  it.each([['1.0.0-beta.1', '1.0.0'], [versions[1], versions[0]], [versions[0], versions[0]],
     ['garbage', versions[1]], ['0.1.6-nightly.abc', versions[1]], ['0.1.6-nightly.01', versions[1]]])(
     'rejects unusable version pair %s to %s before allocating material', async (old, next) => {
       await fixture(async (directory) => {
@@ -61,11 +62,10 @@ describe('installed-update qualification materials', () => {
     },
   )
 
-  it.each(['alpha.1', 'beta.2', 'rc.3', 'test'])('accepts dated %s versions', async (prefix) => {
+  it.each(['alpha.1', 'beta.2', 'rc.3', 'test'])('rejects prerelease %s versions', async (prefix) => {
     await fixture(async (directory) => {
       const pair = [`0.1.6-${prefix}.20260916.1`, `0.1.6-${prefix}.20260916.2`] as const
-      const run = await createInstalledUpdateRun(directory, pair, source)
-      expect(run.versions).toEqual(pair)
+      await expect(createInstalledUpdateRun(directory, pair, source)).rejects.toThrow('stable')
     })
   })
 
@@ -178,7 +178,7 @@ describe('installed-update qualification materials', () => {
   it('collects exact validated journal bytes in independent snapshots without copying other files or declaring acceptance', async () => {
     await fixture(async (directory) => {
       const run = await createInstalledUpdateRun(directory, versions, source)
-      const journals = join(directory, 'dsh-update-qualification', run.id, 'journals')
+      const journals = join(directory, 'agent-assistant-update-qualification', run.id, 'journals')
       const original = new DesktopUpdateJournal(journals, versions[0])
       failedDownload(original)
       await writeFile(join(journals, '.env'), 'private-value')
@@ -210,7 +210,7 @@ describe('installed-update qualification materials', () => {
       const run = await createInstalledUpdateRun(directory, versions, source)
       const manifest = join(run.root, 'run.json')
       await expect(collectInstalledUpdateJournals(manifest, directory)).rejects.toThrow('matching installed-app')
-      const journals = join(directory, 'dsh-update-qualification', run.id, 'journals')
+      const journals = join(directory, 'agent-assistant-update-qualification', run.id, 'journals')
       await mkdir(journals, { recursive: true })
       await writeFile(join(journals, `1-${randomUUID()}.jsonl`), 'private-value\n')
       await expect(collectInstalledUpdateJournals(manifest, journals)).rejects.not.toThrow('private-value')
@@ -221,7 +221,7 @@ describe('installed-update qualification materials', () => {
   it.each(['file', 'snapshot'])('rejects an oversized %s before collecting bytes', async (variant) => {
     await fixture(async (directory) => {
       const run = await createInstalledUpdateRun(directory, versions, source)
-      const journals = join(directory, 'dsh-update-qualification', run.id, 'journals')
+      const journals = join(directory, 'agent-assistant-update-qualification', run.id, 'journals')
       await mkdir(journals, { recursive: true })
       const record = JSON.stringify({ schemaVersion: 1, sequence: 0, pid: 1, time: '2026-09-14T00:00:00.000Z',
         version: versions[0], event: 'started' })
@@ -234,21 +234,15 @@ describe('installed-update qualification materials', () => {
     })
   })
 
-  it('runs the documented source CLI and retains an incomplete report instead of claiming operator acceptance', async () => {
+  it('runs journal inspection through the source CLI without loading product or signing credentials', async () => {
     await fixture(async (directory) => {
-      const run = await createInstalledUpdateRun(directory, versions, source)
-      const journals = join(directory, 'dsh-update-qualification', run.id, 'journals')
-      new DesktopUpdateJournal(journals, versions[0]).action('workspace-ready')
-      // This test owns the documented source-script entry, not a built application or Cordis profile.
-      const result = await promisify(execFile)(process.execPath, ['--import', 'tsx', 'apps/desktop/scripts/prepare-installed-update.ts',
-        'collect', join(run.root, 'run.json'), journals], { cwd: resolve(import.meta.dirname, '../../..'), windowsHide: true,
+      new DesktopUpdateJournal(directory, versions[0]).action('workspace-ready')
+      const inspection = promisify(execFile)(process.execPath, ['--import', 'tsx', 'apps/desktop/scripts/prepare-installed-update.ts',
+        'inspect', ...versions, directory], { cwd: resolve(import.meta.dirname, '../../..'), windowsHide: true,
         env: Object.fromEntries(Object.entries(process.env)
           .filter(([key]) => !/KEY|SECRET|TOKEN|PASSWORD|^NODE_OPTIONS$|^NODE_PATH$/iu.test(key))) })
-      const output = JSON.parse(result.stdout) as { collection: string; operatorAcceptance: string }
-      expect(output.operatorAcceptance).toBe('pending')
-      expect(JSON.parse(await readFile(join(output.collection, 'report.json'), 'utf8'))).toMatchObject({
-        evidence: { recordedFlow: 'incomplete', filesRead: 1 }, operatorAcceptance: 'pending',
-      })
+      await expect(inspection).rejects.toMatchObject({ code: 2, stderr: '' })
+      await expect(inspection).rejects.toHaveProperty('stdout', expect.stringContaining('"recordedFlow": "incomplete"'))
     })
   })
 })

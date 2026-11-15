@@ -1,3 +1,4 @@
+import './installed-update-fixture.ts'
 import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -7,7 +8,7 @@ import { prepareInstalledUpdateRuntime } from '../scripts/prepare-installed-upda
 import { verifyDesktopRuntime } from '../src/runtime-tree.ts'
 import { runtimeFixture } from './runtime-fixture.ts'
 
-const versions = ['0.1.6-nightly.20260914.1', '0.1.6-nightly.20260914.2'] as const
+const versions = ['1.0.1', '1.0.2'] as const
 const source = { version: '0.1.5-rc.2', commit: 'a'.repeat(40), dirtyFiles: [] }
 
 async function fixture<T>(body: (directory: string) => Promise<T>): Promise<T> {

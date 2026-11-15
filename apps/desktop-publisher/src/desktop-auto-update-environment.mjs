@@ -1,3 +1,4 @@
+import { desktopProductDeployment } from './product-deployment.mjs'
 /** Resolve the Desktop auto-update channel and its Tencent COS destination. */
 
 import { valid } from 'semver'
@@ -6,27 +7,23 @@ import { valid } from 'semver'
 export const DESKTOP_AUTO_UPDATE_ENV = 'DSH_DESKTOP_AUTO_UPDATE_ENV'
 
 /**
- * Resolve the channel embedded in the installer; omitted local settings retain nightly.
+ * Resolve the channel embedded in the installer; 首版仅允许 stable.
  * @param {NodeJS.ProcessEnv} env Packaging or upload settings.
  * @returns {'nightly' | 'stable'} Validated channel.
  */
 export function resolveDesktopUpdateChannel(env) {
-  const channel = env.DSH_DESKTOP_UPDATE_CHANNEL || 'nightly'
-  if (channel !== 'nightly' && channel !== 'stable') throw new Error('desktop auto-update: invalid update channel')
+  const channel = env.DSH_DESKTOP_UPDATE_CHANNEL || 'stable'
+  if (channel !== 'stable') throw new Error('desktop auto-update: invalid update channel')
   return channel
 }
 
 const UPDATE_ENVIRONMENTS = {
   test: {
-    originEnvName: 'DOWNLOAD_TEST_ORIGIN',
-    fixedOrigin: undefined,
     bucketEnvName: 'DOWNLOAD_TEST_COS_BUCKET',
     secretIdEnvName: 'DOWNLOAD_TEST_COS_SECRET_ID',
     secretKeyEnvName: 'DOWNLOAD_TEST_COS_SECRET_KEY',
   },
   production: {
-    originEnvName: undefined,
-    fixedOrigin: 'https://download.deepseek.com',
     bucketEnvName: 'DOWNLOAD_PROD_COS_BUCKET',
     secretIdEnvName: 'DOWNLOAD_PROD_COS_SECRET_ID',
     secretKeyEnvName: 'DOWNLOAD_PROD_COS_SECRET_KEY',
@@ -43,7 +40,7 @@ const UPDATE_TARGETS = new Set(['mac-arm64', 'mac-x64', 'win-x64'])
 export function desktopLatestInstallerFilename(target) {
   if (!UPDATE_TARGETS.has(target)) throw new Error(`desktop upload: unsupported target ${target}`)
   const windows = target === 'win-x64'
-  return `dsh-latest-${windows ? 'windows' : 'macos'}-${target === 'mac-arm64' ? 'arm64' : 'x64'}.${windows ? 'exe' : 'dmg'}`
+  return `agent-assistant-latest-${windows ? 'windows' : 'macos'}-${target === 'mac-arm64' ? 'arm64' : 'x64'}.${windows ? 'exe' : 'dmg'}`
 }
 
 /**
@@ -51,8 +48,10 @@ export function desktopLatestInstallerFilename(target) {
  * @param {'mac-arm64' | 'mac-x64' | 'win-x64'} target Supported Desktop target.
  * @returns {string} Fixed production download URL.
  */
-export function desktopWebsiteInstallerUrl(target) {
-  return `${UPDATE_ENVIRONMENTS.production.fixedOrigin}/desktop/${desktopLatestInstallerFilename(target)}`
+export function desktopWebsiteInstallerUrl(target, env = process.env) {
+  const config = desktopProductDeployment(env)
+  if (config.desktop.downloadIndexUrl === null) throw new Error('尚未配置桌面下载索引')
+  return new URL(desktopLatestInstallerFilename(target), config.desktop.downloadIndexUrl).href
 }
 
 /**
@@ -61,11 +60,11 @@ export function desktopWebsiteInstallerUrl(target) {
  * @returns {'test' | 'production'} Validated deployment name.
  */
 export function resolveDesktopAutoUpdateEnvironment(env) {
-  const value = env[DESKTOP_AUTO_UPDATE_ENV]?.trim() || 'test'
-  if (value !== 'test' && value !== 'production') {
-    throw new Error(`desktop auto-update: ${DESKTOP_AUTO_UPDATE_ENV} must be "test" or "production"`)
-  }
-  return value
+  const config = desktopProductDeployment(env)
+  const expected = config.environment === 'master' ? 'production' : 'test'
+  const legacy = env[DESKTOP_AUTO_UPDATE_ENV]?.trim()
+  if (legacy !== undefined && legacy !== expected) throw new Error('发布存储配置与产品环境不匹配')
+  return expected
 }
 
 /**
@@ -99,10 +98,10 @@ export function desktopBuildRecordFilename(target) {
  * Return the electron-builder channel metadata filename for an application version.
  * @param {string} version - Desktop semantic version.
  * @param {NodeJS.Platform} platform - Target platform.
- * @param {'nightly' | 'stable'} channel - Selected channel; omitted means nightly.
+ * @param {'nightly' | 'stable'} channel - 所选频道；默认 stable.
  * @returns {string} Channel metadata filename emitted for the target.
  */
-export function desktopUpdateMetadataFilename(version, platform, channel = 'nightly') {
+export function desktopUpdateMetadataFilename(version, platform, channel = 'stable') {
   if (valid(version) === null) {
     throw new Error(`desktop auto-update: invalid Desktop version ${JSON.stringify(version)}`)
   }
@@ -128,31 +127,6 @@ export function requiredEnvironmentValue(env, name) {
 }
 
 /**
- * Normalize an HTTPS origin and reject paths or credentials.
- * @param {string} value - Candidate origin.
- * @param {string} name - Environment variable used in diagnostics.
- * @returns {string} Normalized HTTPS origin without a trailing slash.
- */
-function httpsOrigin(value, name) {
-  let parsed
-  try {
-    parsed = new URL(value)
-  }
-  catch {
-    throw new Error(`desktop auto-update: ${name} must be an absolute HTTPS origin`)
-  }
-  if (parsed.protocol !== 'https:'
-    || parsed.username !== ''
-    || parsed.password !== ''
-    || parsed.pathname !== '/'
-    || parsed.search !== ''
-    || parsed.hash !== '') {
-    throw new Error(`desktop auto-update: ${name} must be an absolute HTTPS origin without a path, credentials, query, or fragment`)
-  }
-  return parsed.origin
-}
-
-/**
  * Resolve the public updater URL and object prefixes for one release target.
  * @param {NodeJS.ProcessEnv} env - Packaging or upload environment.
  * @param {NodeJS.Platform} platform - Target Node.js platform.
@@ -164,31 +138,16 @@ export function resolveDesktopAutoUpdateConfig(env, platform, arch) {
   const channel = resolveDesktopUpdateChannel(env)
   const environment = resolveDesktopAutoUpdateEnvironment(env)
   const target = resolveDesktopAutoUpdateTarget(platform, arch)
-  const deployment = UPDATE_ENVIRONMENTS[environment]
-  let origin = deployment.fixedOrigin
-  if (origin === undefined) {
-    const { originEnvName } = deployment
-    if (originEnvName === undefined) throw new Error('desktop auto-update: selected deployment has no origin')
-    origin = httpsOrigin(requiredEnvironmentValue(env, originEnvName), originEnvName)
-  }
-  let releasePrefix = 'dsh-desk'
-  if (environment === 'test') {
-    const releaseId = requiredEnvironmentValue(env, 'DOWNLOAD_TEST_RELEASE_ID')
-    if (!/^[a-f0-9]{32}$/u.test(releaseId)) {
-      throw new Error('desktop auto-update: DOWNLOAD_TEST_RELEASE_ID must contain 32 lowercase hexadecimal characters')
-    }
-    releasePrefix += `/${releaseId}`
-  }
+  const config = desktopProductDeployment(env)
+  if (!config.desktop.updates.enabled || config.desktop.updates.url === null) throw new Error('所选环境尚未配置桌面普通更新源')
+  const base = new URL(config.desktop.updates.url)
+  if (!base.pathname.endsWith(`/${config.environment}/${channel}/`)) throw new Error('更新地址必须包含产品环境和频道目录')
+  const origin = base.origin
+  const releasePrefix = base.pathname.replace(/^\/|\/$/gu, '')
   const keyPrefix = `${releasePrefix}/feeds/${target}`
-  return {
-    environment,
-    channel,
-    target,
-    origin,
-    keyPrefix,
-    binaryKeyPrefix: `${releasePrefix}/bin/${target}${channel === 'stable' ? '/stable' : ''}`,
-    publicUrl: `${origin}/${keyPrefix}/`,
-  }
+  return { environment, channel, target, origin, keyPrefix,
+    binaryKeyPrefix: `${releasePrefix}/bin/${target}`, publicUrl: `${origin}/${keyPrefix}/` }
+
 }
 
 /**

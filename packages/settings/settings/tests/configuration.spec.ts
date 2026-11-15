@@ -6,6 +6,19 @@ import { parse } from 'yaml'
 import z from '@deepseek-ai/schemastery'
 import { configurationFixture as fixture } from './configuration-fixture.ts'
 
+it('describes live preferences without a configuration editor and refuses writes or document access', async () => {
+  const { ctx, home } = await fixture({ editor: false, hmr: false })
+  expect(ctx.settings.writable).toBe(false)
+  const first = ctx.settings.describe({ redactSecrets: true }).find(row => row.ns === 'first')!
+  expect(first.value).toEqual({ count: 2, list: [] })
+  expect(first.base).toBeUndefined()
+  expect(first.user).toBeUndefined()
+  expect(JSON.stringify(first)).not.toContain('private')
+  await expect(ctx.settings.update('first', { count: 9 })).rejects.toThrow('read-only')
+  await expect(ctx.settings.prepareDocument()).rejects.toThrow('read-only')
+  expect(existsSync(join(home, 'settings.yaml.imported'))).toBe(false)
+})
+
 it('persists a model edit, updates the real consumer without remounting, and restores it at restart', async () => {
   const { ctx, profile, start } = await fixture()
   const consumer = ctx.agentDefaultModel
@@ -42,7 +55,7 @@ it('refuses an edit shadowed by a higher home layer', async () => {
   const before = readFileSync(profile.patchPath, 'utf8')
   await expect(ctx.settings.update('default-model', { model: 'profile' })).rejects.toThrow('overridden')
   expect(readFileSync(profile.patchPath, 'utf8')).toBe(before)
-  expect(ctx.agentDefaultModel.currentSelection().model).toBe('home')
+  expect(ctx.agentDefaultModel.requireSelection().model).toBe('home')
 }, 15_000)
 
 it('serializes concurrent writes and refuses stale revisions after external changes', async () => {
@@ -318,7 +331,7 @@ it('imports the removed settings.yaml into the profile once and keeps rejected s
   const legacy = join(home, 'settings.yaml')
   writeFileSync(legacy, 'default-model:\n  model: legacy\nfirst:\n  ordinary: rejected\nmissing:\n  count: 1\n')
   const restored = await start()
-  await vi.waitFor(() => { expect(restored.agentDefaultModel.currentSelection().model).toBe('legacy') })
+  await vi.waitFor(() => { expect(restored.agentDefaultModel.requireSelection().model).toBe('legacy') })
   expect(parse(readFileSync(profile.patchPath, 'utf8'))).toContainEqual({ id: 'default-model', name: 'cordis:model', config: { provider: 'test', model: 'legacy' } })
   expect(restored.settings.describe({ redactSecrets: true }).find(row => row.ns === 'first')!.value).toEqual({ count: 2, list: [] })
   expect(existsSync(legacy)).toBe(false)
@@ -336,7 +349,7 @@ it('imports the removed settings.yaml into the profile once and keeps rejected s
   const failures = (): unknown[] => blocked.logger.buffer.filter(message => message.type === 'error').map((message): unknown => message.args[0])
   // The rename fails with EISDIR on POSIX and EPERM on Windows; the reported error names the rename either way.
   await vi.waitFor(() => { expect(failures().some(failure => failure instanceof Error && failure.message.includes('rename'))).toBe(true) })
-  expect(blocked.agentDefaultModel.currentSelection().model).toBe('legacy')
+  expect(blocked.agentDefaultModel.requireSelection().model).toBe('legacy')
 })
 
 it('describes an entry whose required field only the profile supplies, and reports a failed refresh instead of crashing', async () => {

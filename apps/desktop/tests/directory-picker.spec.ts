@@ -37,6 +37,7 @@ describe('Desktop directory picker', () => {
     electron.showOpenDialog.mockImplementation(() => new Promise((resolve) => { settle = resolve }))
     const first = f.handler(f.event)
     const second = f.handler(f.event)
+    await Promise.resolve()
     expect(electron.showOpenDialog).toHaveBeenCalledExactlyOnceWith(f.window, { properties: ['openDirectory', 'createDirectory'] })
     expect(f.window.restore).toHaveBeenCalledOnce()
     expect(f.window.show).toHaveBeenCalledOnce()

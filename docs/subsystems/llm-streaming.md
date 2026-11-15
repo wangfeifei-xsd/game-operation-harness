@@ -866,6 +866,102 @@ The [wire reference](../deepseek-llm-api-wire-extensions.md) defines the exact r
 
 `PiAiRequestHeaderContext` contains the prepared call's provider, model, resolved model `baseURL`, and optional Session id and auxiliary purpose. It is immutable, contains no messages or authentication fields, and accompanies a request-owned `Headers` object in the synchronous `llm-pi-ai/request-headers` waterfall. The [adapter's request-header documentation](../../packages/llm/llm-pi-ai/README.md#request-headers) defines contribution ownership, attribution precedence, and failure behavior. This extension point is specific to pi-ai inference requests.
 
+## Product model configuration
+
+`ctx.harnessModelConfig` owns independent model records, a revisioned snapshot, write-only immutable credentials, and the nullable default selection within the authenticated Host data directory. Every mutation validates its expected revision and commits under one serialized writer; the process owns a lifecycle file lock for that directory. A credential replacement is written before the configuration commit, and cleanup failure after commit is reported without rolling back the accepted record. The adapter captures each request’s endpoint, key, model and controls together; later changes affect subsequent requests. `ctx.modelConfigController` exposes authenticated configuration operations without returning secrets. Connection checks perform a network directory request and report stale revisions explicitly.
+
+```ts type-equiv
+/** 一条独立模型配置的稳定身份。 */
+type HarnessModelId = Branded<'HarnessModelId'>
+```
+
+```ts type-equiv
+/** 已实现的供应商协议。 */
+type ModelProtocol = 'openai-completions' | 'openai-responses' | 'anthropic-messages' | 'google-generative-ai'
+```
+
+```ts type-equiv
+/** 内置供应商及其允许协议。 */
+interface ModelProviderDefinition {
+  key: string
+  name: string
+  protocols: ModelProtocol[]
+  defaultProtocol: ModelProtocol
+  baseUrl: string
+  catalogProvider?: string
+}
+```
+
+```ts type-equiv
+/** 表单输入；API Key 仅沿输入方向传输。 */
+interface ModelConfigInput {
+  id?: HarnessModelId
+  name: string
+  providerKey: string
+  protocol: ModelProtocol
+  baseUrl: string
+  model: string
+  apiKey?: string
+  timeoutSeconds: number
+  contextWindow?: number | undefined
+  maxOutputTokens?: number | undefined
+  imageInput: boolean
+  reasoningEffort?: string | undefined
+}
+```
+
+```ts type-equiv
+/** 页面可见模型；不包含凭据地址或值。 */
+interface ModelConfigView extends Omit<ModelConfigInput, 'id' | 'apiKey'> {
+  id: HarnessModelId
+  enabled: boolean
+  credentialConfigured: boolean
+  effectiveContextWindow: number
+  effectiveMaxOutputTokens: number
+  reasoningEfforts: string[]
+}
+```
+
+```ts type-equiv
+/** 页面完整快照；清理失败不撤销已提交的业务修改。 */
+interface ModelConfigSnapshot {
+  revision: number
+  providers: ModelProviderDefinition[]
+  modelHints: {
+    providerKey: string
+    model: string
+    protocol: string
+    contextWindow: number
+    maxOutputTokens: number
+    reasoningEfforts: string[]
+  }[]
+  models: ModelConfigView[]
+  defaultId: HarnessModelId | null
+  cleanupPending: boolean
+  runtimeError: string | null
+}
+```
+
+```ts type-equiv
+/** 模型配置的条件变更。 */
+interface ModelConfigMutation {
+  id: HarnessModelId
+  expectedRevision: number
+  replacementDefaultId?: HarnessModelId
+}
+```
+
+```ts type-equiv
+/** 真实目录网络检查结果；不表示生成或工具能力通过。 */
+interface ModelConnectionResult {
+  revision: number
+  status: 'connected' | 'failed' | 'unsupported' | 'stale'
+  message: string
+  elapsedMs: number
+  checkedAt: string
+}
+```
+
 ## Service and provider contracts
 
 `LlmAdapter` is the provider contract: subclass, implement `stream()`, and register one adapter instance with `ctx.llm.registerAdapter(providers, adapter)`. `GenerateOptions.provider` selects the registered adapter; `GenerateOptions.model` is passed to that adapter and need not be registered at lifecycle start. Duplicate provider routes fail atomically. Optional `providerRetryPolicy()` is captured per route with normal defaults, while `providerInfo()` and asynchronous `listModels()` feed `LlmRuntime.listProviders()` / `listModels()` with detached selector metadata. That catalog is advisory rather than a request whitelist: the adapter remains authoritative and may accept unlisted model ids. One asynchronous `resolveModel()` query returns exact model identity plus optional correctness-sensitive context capacity, an adapter-configured `defaultMaxTokens`, and ordered model-owned reasoning ids with an optional deployment default; absent fields mean unavailable metadata or provider-owned behavior, not invalid catalog membership. The resolver receives optional cancellation and must settle promptly after abort. `LlmRuntime.resolveModelInfo()` validates and detaches the aggregate. At the final adapter boundary, `resolveCallConfig()` materializes the output default only when `maxTokens` is absent and validates and materializes reasoning, so direct calls cannot bypass either configured behavior; direct dispatch captures one registration before awaiting that resolution. The agent loop instead uses `prepareCall()` to keep the same registration across model resolution, durable header logging, and dispatch, retain detached context metadata from that exact lookup, and report which config fields the adapter defaulted. Adapter lookup happens at the terminal continuation of the `llm/stream` waterfall, so a listener may short-circuit the call or route a mutable one-shot request before lookup. AgentLoop observes a request attempt once the outer waterfall returns a stream handle; that limited boundary does not prove a lazy terminal adapter was constructed or began provider I/O. The `block-start` / `block-end` `index` correlation and the assembler together mean an adapter only has to emit well-formed chunks — block reassembly is not each adapter's problem. [architecture.md](../architecture.md#turn-flow) shows where `ctx.llm.stream()` and the `llm/stream` waterfall sit in one turn.
@@ -1016,6 +1112,80 @@ async prepare(request: DeepSeekLlmApiExtensionRequest): Promise<PreparedDeepSeek
 ```
 
 Source: [`packages/llm/deepseek-llm-api-extensions/src/index.ts`](../../packages/llm/deepseek-llm-api-extensions/src/index.ts)
+
+<a id="ctxharnessmodelconfig--harnessmodelconfig"></a>
+
+### `ctx.harnessModelConfig` — `HarnessModelConfig`
+
+每个已解析数据根只有一个实例，所有修改进入同一队列。
+
+```ts cordis-catalog
+/** 从唯一配置快照恢复；损坏数据不会被空数据覆盖。 */
+async initialize(): Promise<void>
+
+/**
+ * 一次读取页面所需字段，凭据仅返回是否存在。
+ * @returns 不含密钥和凭据地址的页面快照。
+ */
+async list(): Promise<ModelConfigSnapshot>
+
+/**
+ * 新建或编辑模型，配置持久化成功后才发布。
+ * @param input - 表单完整值；编辑时省略 Key 表示保留。
+ * @param expectedRevision - 页面读取到的修订。
+ * @returns 提交后的快照及清理状态。
+ */
+save(input: ModelConfigInput, expectedRevision: number): Promise<ModelConfigSnapshot>
+
+/**
+ * 修改启用状态，停用默认模型须在同次变更选择替代。
+ * @param request - 条件变更与可选替代模型。
+ * @param enabled - 新启用状态。
+ * @returns 提交后的完整快照。
+ */
+setEnabled(request: ModelConfigMutation, enabled: boolean): Promise<ModelConfigSnapshot>
+
+/**
+ * 删除配置并在提交后清理独占凭据。
+ * @param request - 条件删除与可选替代默认模型。
+ * @returns 提交后的完整快照。
+ */
+remove(request: ModelConfigMutation): Promise<ModelConfigSnapshot>
+
+/**
+ * 设置后续会话的默认模型。
+ * @param request - 条件设置请求。
+ * @returns 提交后的完整快照。
+ */
+setDefault(request: ModelConfigMutation): Promise<ModelConfigSnapshot>
+
+/**
+ * 读取唯一默认来源，空配置返回空。
+ * @returns 当前有效默认选择。
+ */
+defaultSelection(): ModelSelection | null
+
+/**
+ * 聊天手工选择后保存同一业务默认值，不依赖 profile 编辑器。
+ * @param selection - 经过 Host 目录校验的选择。
+ */
+async saveDefaultSelection(selection: ModelSelection): Promise<void>
+
+/**
+ * 发起真实目录网络请求，不使用本地目录冒充网络成功。
+ * @param request - 已保存模型及所读修订。
+ * @param signal - 可选的取消信号。
+ * @returns 连接状态、耗时和 UTC 检查时间。
+ */
+testConnection(request: ModelConfigMutation, signal?: AbortSignal): Promise<ModelConnectionResult>
+
+/** 等待修改和检查结束后关闭单元；退出后拒绝新请求。 */
+async close(): Promise<void>
+```
+
+Types: [ModelSelection](core.md)
+
+Source: [`packages/llm/harness-model-config/src/index.ts`](../../packages/llm/harness-model-config/src/index.ts)
 
 <a id="ctxllm--llmruntime"></a>
 
@@ -1189,6 +1359,60 @@ Types: [FileAttachmentRef](attachment.md) · [ImageAttachmentRef](attachment.md)
 
 Source: [`packages/llm/llm/src/index.ts`](../../packages/llm/llm/src/index.ts)
 
+<a id="ctxmodelconfigcontroller--modelconfigcontroller"></a>
+
+### `ctx.modelConfigController` — `ModelConfigController`
+
+当前认证 Host 内的模型配置接口；未授权访问继续由 Gateway 拒绝。
+
+```ts cordis-catalog
+/**
+ * 读取当前 Host 的模型页面。
+ * @returns 不含密钥的页面快照。
+ */
+@Remote list(): Promise<ModelConfigSnapshot>
+
+/**
+ * 提交一条完整模型配置。
+ * @param input - 完整表单，密钥只允许输入。
+ * @param expectedRevision - 页面读取修订。
+ * @returns 已提交页面快照。
+ */
+@Remote save(input: ModelConfigInput, expectedRevision: number): Promise<ModelConfigSnapshot>
+
+/**
+ * 修改模型启用状态。
+ * @param request - 模型及修订、可选替代默认模型。
+ * @param enabled - 新启用状态。
+ * @returns 已提交页面快照。
+ */
+@Remote setEnabled(request: ModelConfigMutation, enabled: boolean): Promise<ModelConfigSnapshot>
+
+/**
+ * 选择后续会话的默认模型。
+ * @param request - 模型及页面修订。
+ * @returns 已提交页面快照。
+ */
+@Remote setDefault(request: ModelConfigMutation): Promise<ModelConfigSnapshot>
+
+/**
+ * 删除模型及其独占凭据引用。
+ * @param request - 模型及修订、可选替代默认模型。
+ * @returns 已提交页面快照。
+ */
+@Remote removeModel(request: ModelConfigMutation): Promise<ModelConfigSnapshot>
+
+/**
+ * 检查已保存端点的模型目录。
+ * @param request - 保存后的模型及页面修订。
+ * @param signal - 客户端取消与连接断开信号。
+ * @returns 真实网络连接检查结果。
+ */
+@Remote testConnection(request: ModelConfigMutation, signal: AbortSignal): Promise<ModelConnectionResult>
+```
+
+Source: [`packages/api/model-config-controller/src/index.ts`](../../packages/api/model-config-controller/src/index.ts)
+
 <a id="llm-events"></a>
 
 ### `llm/*` events
@@ -1283,4 +1507,25 @@ Prepare headers for one pi-ai inference call, excluding model discovery. Listene
 ```
 
 Source: [`packages/llm/llm-pi-ai/src/index.ts`](../../packages/llm/llm-pi-ai/src/index.ts)
+
+<a id="model-config-events"></a>
+
+### `model-config/*` events
+
+<a id="model-configchanged--emit"></a>
+
+#### `model-config/changed` — emit
+
+模型配置完成持久化后的失效通知。
+
+```ts cordis-catalog
+/**
+ * 模型配置完成持久化后的失效通知。
+ * @mode emit
+ * @param revision - 已提交修订。
+ */
+'model-config/changed'(revision: number): void
+```
+
+Source: [`packages/llm/harness-model-config/src/types.ts`](../../packages/llm/harness-model-config/src/types.ts)
 <!-- END GENERATED cordis-surface -->

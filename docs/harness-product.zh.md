@@ -4,7 +4,7 @@
 
 ## 概述
 
-`harness` profile 通过 Creativity 认证提供 Web/PWA 产品服务，登录后才启动会话运行服务，同一实例同时运行一个账号。上游 `web`、headless、SDK 和 Electron profile 保留各自认证方式，不实现 Creativity 账号停用控制。
+`harness` profile 提供 Web/PWA，受保护的 `desktop` profile 提供 Electron；两者均使用 Creativity 认证，登录后才启动账号运行服务，同一实例只运行一个账号，并执行中央停用控制。上游 `web`、headless 与 SDK profile 保留各自独立认证。
 
 公开登录、注册页采用蓝色品牌区与白色表单区的分栏布局，窄屏下品牌区置于表单上方。两种模式均保留密码显隐、字段反馈和滑块验证弹窗。
 
@@ -12,6 +12,7 @@
 
 - [启动产品](#start-the-product)
 - [配置](#configuration)
+- [模型配置](#model-configuration)
 - [运行与数据](#runtime-and-data)
 - [故障与恢复](#failure-and-recovery)
 
@@ -34,11 +35,20 @@ dsh harness --environment test --no-open
 
 构建前直接编辑实际的 `config/environments/dev.json`、`test.json`、`fat.json` 或 `master.json`。文件受 Git 追踪，与独立认证 UI 一起复制到 CLI 的 `lib/resources/environments/`。源码运行读取仓库目录，安装后运行读取分发资源。选择不依赖 cwd 或 Git 分支。每份文件完整，不合并 base/override，不通过环境变量注入，也不从 `.env` 或用户 patch 回填。
 
-`server` 配置 loopback 主机与端口；`creativity` 配置服务根地址、部署标识和请求超时；`auth` 配置心跳与停止时限；`storage` 配置环境数据根。`proxy`、`providers`、`telemetry` 和 `sandbox` 提供其余部署设置。账号保存的个人凭据在本账号运行服务中优先于 `providers.credentials`。操作系统 PATH 与工具进程环境保持工具自身语义。浏览器不会收到这些文件或中央认证 Token。
+`server` 配置 loopback 主机和端口；`creativity` 配置服务地址、部署标识与请求超时；`auth` 配置心跳与停止时限；`storage` 配置环境数据根；`desktop` 配置应用身份、协议、下载索引、普通更新和可选强制升级策略。`proxy`、`providers`、`telemetry`、`sandbox` 提供其余部署设置。`providers` 只保留搜索端点与独立搜索凭据，模型端点和 Key 归账号模型配置所有。操作系统 PATH 与工具环境保持工具自身语义。浏览器不会收到这些文件或中央 Token。
 
 Harness 账号属于平台终端身份；注册、登录与启停不依赖普通业务渠道，接口不暴露渠道标识。
 
 fat、master 的服务地址目前为 `null`，填入真实地址后才能启动。`creativity.deploymentId` 必须与所选服务 `/api/v1/harness/bootstrap` 返回的标识完全一致，不从本机环境名推导；当前 test 站点返回 `harness-dev`，test 配置据此填写。本机账号目录仍按所选环境隔离；独立服务部署各自隔离数据库与 Redis 命名空间。心跳间隔最多 10 秒，中央请求超时最多 5 秒，本地优雅停止最多 5 秒。
+
+<a id="model-configuration"></a>
+## 模型配置
+
+点击“模型配置”直接打开“设置 → 模型”，每条记录在同一表单配置内置供应商、接口地址、API Key、模型标识与高级参数。没有模型时仍可登录、查看历史和打开设置；执行对话前需要选择启用模型。新增、编辑、默认选择、停用与删除由独立模型服务持久化，不开放通用配置编辑器。供应商账号授权、余额、充值与账号模型通知不加载。
+
+模型记录位于当前用户目录的 `storages/harness_models.json`，Key 位于 `.credentials.yaml` 的独立命名空间。旧模型 profile、旧授权和环境模型 Key 不导入、不回退，也不删除其他用户数据。搜索使用自己独立的 Key，模型 Key 不为搜索兜底。服务对数据根持有独占写入锁；修订冲突保留草稿，重新加载需明确确认。连接检查真实请求已保存端点的模型目录，不证明生成能力。详细提交与失败规则见[模型配置服务](../packages/llm/harness-model-config/README.zh.md)。
+
+Electron 共享页面、Remote、服务和图标，模型为空或供应商未授权均不阻塞工作区。同一机器上的 Web/PWA 与 Desktop 使用相同环境/账号目录，并通过独占锁互斥访问；本机复用不提供云同步。原生启动见[Desktop](../apps/desktop/README.zh.md)。
 
 <a id="runtime-and-data"></a>
 ## 运行与数据
@@ -52,4 +62,4 @@ fat、master 的服务地址目前为 `null`，填入真实地址后才能启动
 
 账号停用或无法确认认证时，入口拒绝新访问、断开代理连接并停止所属运行服务。协调器确认进程停止后才释放目录锁。无法确认停止时实例保持关闭，先停止本地进程再重启。父进程崩溃后，私有 Host 在 IPC 断开后停止，目录锁须等待判旧超时。取消登录后晚到的签发结果会被撤销，不恢复旧身份。
 
-退出先停止本地工作，再请求中央撤销。中央失败时显示“本机已退出，远端退出未确认”。重新启用后须重新登录，旧 Token 保持无效。产品注册与供应商授权相互独立，用户仍须提供所选模型需要的供应商凭据。本期不增加模型网关或集中会话存储。浏览器与已安装 PWA 共用本地服务和账号状态，独立 Electron 分发不属于本产品入口。
+退出先停止本机工作，再请求中央撤销；中央故障时准确反馈本机已退出、远端退出未确认。重新启用后需要重新登录，旧 Token 仍无效。产品 Token 不持久化，退出应用或更新重启后回到登录页；注册与模型配置彼此独立。Web/PWA 在登录页和侧栏提供桌面下载入口，未发布时不生成下载链接。Electron 隐藏这些入口，使用自身更新操作。

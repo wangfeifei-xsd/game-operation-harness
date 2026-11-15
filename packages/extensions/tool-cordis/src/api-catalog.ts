@@ -115,11 +115,23 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
   },
   {
     key: 'agentDefaultModel',
-    summary: 'Owns the default model selection independently of any Host or transport.',
-    description: 'Owns the default model selection independently of any Host or transport. Each operation reads the owning Config references.',
+    summary: '默认选择的唯一读写入口，产品可以注册可持久化且允许空值的来源。',
+    description: '默认选择的唯一读写入口，产品可以注册可持久化且允许空值的来源。',
     methods: [
       {
-        signature: 'currentSelection(): ModelSelection',
+        signature: 'registerSource(source: DefaultModelSource): () => void',
+        description: '注册唯一产品来源，卸载后产品模式仍拒绝静态回退。',
+        parameters: [{ name: 'source', description: '默认值的业务所有者。' }],
+        returns: '撤销该注册的函数。',
+      },
+      {
+        signature: 'requireSelection(): ModelSelection',
+        description: '执行入口读取必需的模型选择。',
+        parameters: [],
+        returns: '有效选择；无模型时抛出可识别错误。',
+      },
+      {
+        signature: 'currentSelection(): ModelSelection | null',
         description: 'Read the current default model selection.',
         parameters: [],
         returns: 'a detached provider, model, and optional reasoning selection.',
@@ -1878,6 +1890,70 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'harnessModelConfig',
+    summary: '每个已解析数据根只有一个实例，所有修改进入同一队列。',
+    description: '每个已解析数据根只有一个实例，所有修改进入同一队列。',
+    methods: [
+      {
+        signature: 'async initialize(): Promise<void>',
+        description: '从唯一配置快照恢复；损坏数据不会被空数据覆盖。',
+        parameters: [],
+      },
+      {
+        signature: 'async list(): Promise<ModelConfigSnapshot>',
+        description: '一次读取页面所需字段，凭据仅返回是否存在。',
+        parameters: [],
+        returns: '不含密钥和凭据地址的页面快照。',
+      },
+      {
+        signature: 'save(input: ModelConfigInput, expectedRevision: number): Promise<ModelConfigSnapshot>',
+        description: '新建或编辑模型，配置持久化成功后才发布。',
+        parameters: [{ name: 'input', description: '表单完整值；编辑时省略 Key 表示保留。' }, { name: 'expectedRevision', description: '页面读取到的修订。' }],
+        returns: '提交后的快照及清理状态。',
+      },
+      {
+        signature: 'setEnabled(request: ModelConfigMutation, enabled: boolean): Promise<ModelConfigSnapshot>',
+        description: '修改启用状态，停用默认模型须在同次变更选择替代。',
+        parameters: [{ name: 'request', description: '条件变更与可选替代模型。' }, { name: 'enabled', description: '新启用状态。' }],
+        returns: '提交后的完整快照。',
+      },
+      {
+        signature: 'remove(request: ModelConfigMutation): Promise<ModelConfigSnapshot>',
+        description: '删除配置并在提交后清理独占凭据。',
+        parameters: [{ name: 'request', description: '条件删除与可选替代默认模型。' }],
+        returns: '提交后的完整快照。',
+      },
+      {
+        signature: 'setDefault(request: ModelConfigMutation): Promise<ModelConfigSnapshot>',
+        description: '设置后续会话的默认模型。',
+        parameters: [{ name: 'request', description: '条件设置请求。' }],
+        returns: '提交后的完整快照。',
+      },
+      {
+        signature: 'defaultSelection(): ModelSelection | null',
+        description: '读取唯一默认来源，空配置返回空。',
+        parameters: [],
+        returns: '当前有效默认选择。',
+      },
+      {
+        signature: 'async saveDefaultSelection(selection: ModelSelection): Promise<void>',
+        description: '聊天手工选择后保存同一业务默认值，不依赖 profile 编辑器。',
+        parameters: [{ name: 'selection', description: '经过 Host 目录校验的选择。' }],
+      },
+      {
+        signature: 'testConnection(request: ModelConfigMutation, signal?: AbortSignal): Promise<ModelConnectionResult>',
+        description: '发起真实目录网络请求，不使用本地目录冒充网络成功。',
+        parameters: [{ name: 'request', description: '已保存模型及所读修订。' }, { name: 'signal', description: '可选的取消信号。' }],
+        returns: '连接状态、耗时和 UTC 检查时间。',
+      },
+      {
+        signature: 'async close(): Promise<void>',
+        description: '等待修改和检查结束后关闭单元；退出后拒绝新请求。',
+        parameters: [],
+      },
+    ],
+  },
+  {
     key: 'headlessStartup',
     summary: 'What the runner row reads from HEADLESS_STARTUP_SERVICE.',
     description: 'What the runner row reads from HEADLESS_STARTUP_SERVICE.',
@@ -2352,6 +2428,49 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Delete one item after checking its version; absence succeeds without an event.',
         parameters: [{ name: 'request', description: 'Session, message, and observed item version.' }],
         returns: 'the stable absent postcondition or an explicit failure.',
+      },
+    ],
+  },
+  {
+    key: 'modelConfigController',
+    summary: '当前认证 Host 内的模型配置接口；未授权访问继续由 Gateway 拒绝。',
+    description: '当前认证 Host 内的模型配置接口；未授权访问继续由 Gateway 拒绝。',
+    methods: [
+      {
+        signature: '@Remote list(): Promise<ModelConfigSnapshot>',
+        description: '读取当前 Host 的模型页面。',
+        parameters: [],
+        returns: '不含密钥的页面快照。',
+      },
+      {
+        signature: '@Remote save(input: ModelConfigInput, expectedRevision: number): Promise<ModelConfigSnapshot>',
+        description: '提交一条完整模型配置。',
+        parameters: [{ name: 'input', description: '完整表单，密钥只允许输入。' }, { name: 'expectedRevision', description: '页面读取修订。' }],
+        returns: '已提交页面快照。',
+      },
+      {
+        signature: '@Remote setEnabled(request: ModelConfigMutation, enabled: boolean): Promise<ModelConfigSnapshot>',
+        description: '修改模型启用状态。',
+        parameters: [{ name: 'request', description: '模型及修订、可选替代默认模型。' }, { name: 'enabled', description: '新启用状态。' }],
+        returns: '已提交页面快照。',
+      },
+      {
+        signature: '@Remote setDefault(request: ModelConfigMutation): Promise<ModelConfigSnapshot>',
+        description: '选择后续会话的默认模型。',
+        parameters: [{ name: 'request', description: '模型及页面修订。' }],
+        returns: '已提交页面快照。',
+      },
+      {
+        signature: '@Remote removeModel(request: ModelConfigMutation): Promise<ModelConfigSnapshot>',
+        description: '删除模型及其独占凭据引用。',
+        parameters: [{ name: 'request', description: '模型及修订、可选替代默认模型。' }],
+        returns: '已提交页面快照。',
+      },
+      {
+        signature: '@Remote testConnection(request: ModelConfigMutation, signal: AbortSignal): Promise<ModelConnectionResult>',
+        description: '检查已保存端点的模型目录。',
+        parameters: [{ name: 'request', description: '保存后的模型及页面修订。' }, { name: 'signal', description: '客户端取消与连接断开信号。' }],
+        returns: '真实网络连接检查结果。',
       },
     ],
   },
@@ -3617,9 +3736,9 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: 'prepareDocument(): Promise<string>',
-        description: 'Locate the profile patch for native editing.',
+        description: '查找原生编辑器使用的配置文件；只读 Host 通过拒绝 Promise 报错。',
         parameters: [],
-        returns: 'The existing profile patch path.',
+        returns: '当前配置文件路径。',
       },
       {
         signature: 'describe(options?: SettingsDescribeOptions): SettingsDescriptor[]',
@@ -5175,6 +5294,14 @@ export const EVENT_API: readonly EventApiEntry[] = [
     parameters: [{ name: 'summary', description: 'current list row for the Session.' }],
   },
   {
+    name: 'api-session/default-model-save-failed',
+    mode: 'emit',
+    signature: '\'api-session/default-model-save-failed\'(sessionId: SessionId): void',
+    summary: '会话已切换模型，但默认选择持久化失败；当前会话仍保留新选择。',
+    description: '会话已切换模型，但默认选择持久化失败；当前会话仍保留新选择。',
+    parameters: [{ name: 'sessionId', description: '已成功切换模型的会话。' }],
+  },
+  {
     name: 'api-session/error',
     mode: 'emit',
     signature: '\'api-session/error\'(sessionId: SessionId, message: string): void',
@@ -5477,6 +5604,14 @@ export const EVENT_API: readonly EventApiEntry[] = [
     summary: 'One managed server\'s status transitioned.',
     description: 'One managed server\'s status transitioned. Emitted for every published change while the manager is live and either the entry is configured or registered, or a runtime record remains. Removed entries may emit cleanup failures; `watch` and `list()` report removals. Lifecycle operations do not wait for listeners. Synchronous throws and returned promise rejections are logged without skipping other listeners.',
     parameters: [{ name: 'name', description: 'the configured `servers` key or registered name.' }, { name: 'status', description: 'the status now current for that server.' }],
+  },
+  {
+    name: 'model-config/changed',
+    mode: 'emit',
+    signature: '\'model-config/changed\'(revision: number): void',
+    summary: '模型配置完成持久化后的失效通知。',
+    description: '模型配置完成持久化后的失效通知。',
+    parameters: [{ name: 'revision', description: '已提交修订。' }],
   },
   {
     name: 'permission-presets/catalog-changed',
@@ -6703,6 +6838,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type DeepSeekLlmApiJson = null | boolean | number | string | DeepSeekLlmApiJson[] | {\n    [key: string]: DeepSeekLlmApiJson;\n};',
   },
   {
+    name: 'DefaultModelSource',
+    declaration: 'export interface DefaultModelSource {\n    read(): ModelSelection | null;\n    save(next: ModelSelection): Promise<void>;\n}',
+  },
+  {
     name: 'DeliveryRetentionBounds',
     declaration: 'export interface DeliveryRetentionBounds {\n    readonly days: number;\n    readonly records: number;\n}',
   },
@@ -7297,6 +7436,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'HarnessError',
     declaration: 'export class HarnessError extends Error {\n    readonly code: string;\n    constructor(message: string, code: string, options?: ErrorOptions);\n}',
+  },
+  {
+    name: 'HarnessModelId',
+    declaration: 'export type HarnessModelId = Branded<\'HarnessModelId\'>;',
   },
   {
     name: 'HookBudget',
@@ -7956,7 +8099,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ModelCatalog',
-    declaration: 'export interface ModelCatalog {\n    readonly default: ModelSelection;\n    readonly routableProviders: readonly string[];\n    readonly groups: readonly ModelProviderGroup[];\n    readonly failures: readonly ModelCatalogFailure[];\n}',
+    declaration: 'export interface ModelCatalog {\n    readonly default: ModelSelection | null;\n    readonly routableProviders: readonly string[];\n    readonly groups: readonly ModelProviderGroup[];\n    readonly failures: readonly ModelCatalogFailure[];\n}',
   },
   {
     name: 'ModelCatalogFailure',
@@ -7965,6 +8108,26 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ModelCatalogModel',
     declaration: 'export interface ModelCatalogModel {\n    readonly id: string;\n    readonly name: string;\n    readonly description?: string;\n    readonly reasoning?: ModelReasoning;\n    readonly badge?: LlmModelBadge;\n}',
+  },
+  {
+    name: 'ModelConfigInput',
+    declaration: 'export interface ModelConfigInput {\n    id?: HarnessModelId;\n    name: string;\n    providerKey: string;\n    protocol: ModelProtocol;\n    baseUrl: string;\n    model: string;\n    apiKey?: string;\n    timeoutSeconds: number;\n    contextWindow?: number | undefined;\n    maxOutputTokens?: number | undefined;\n    imageInput: boolean;\n    reasoningEffort?: string | undefined;\n}',
+  },
+  {
+    name: 'ModelConfigMutation',
+    declaration: 'export interface ModelConfigMutation {\n    id: HarnessModelId;\n    expectedRevision: number;\n    replacementDefaultId?: HarnessModelId;\n}',
+  },
+  {
+    name: 'ModelConfigSnapshot',
+    declaration: 'export interface ModelConfigSnapshot {\n    revision: number;\n    providers: ModelProviderDefinition[];\n    modelHints: {\n        providerKey: string;\n        model: string;\n        protocol: string;\n        contextWindow: number;\n        maxOutputTokens: number;\n        reasoningEfforts: string[];\n    }[];\n    models: ModelConfigView[];\n    defaultId: HarnessModelId | null;\n    cleanupPending: boolean;\n    runtimeError: string | null;\n}',
+  },
+  {
+    name: 'ModelConfigView',
+    declaration: 'export interface ModelConfigView extends Omit<ModelConfigInput, \'id\' | \'apiKey\'> {\n    id: HarnessModelId;\n    enabled: boolean;\n    credentialConfigured: boolean;\n    effectiveContextWindow: number;\n    effectiveMaxOutputTokens: number;\n    reasoningEfforts: string[];\n}',
+  },
+  {
+    name: 'ModelConnectionResult',
+    declaration: 'export interface ModelConnectionResult {\n    revision: number;\n    status: \'connected\' | \'failed\' | \'unsupported\' | \'stale\';\n    message: string;\n    elapsedMs: number;\n    checkedAt: string;\n}',
   },
   {
     name: 'ModelMessageSource',
@@ -7977,6 +8140,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ModelModalityMap',
     declaration: 'export interface ModelModalityMap {\n    text: \'text\';\n    image: \'image\';\n}',
+  },
+  {
+    name: 'ModelProtocol',
+    declaration: 'export type ModelProtocol = \'openai-completions\' | \'openai-responses\' | \'anthropic-messages\' | \'google-generative-ai\';',
+  },
+  {
+    name: 'ModelProviderDefinition',
+    declaration: 'export interface ModelProviderDefinition {\n    key: string;\n    name: string;\n    protocols: ModelProtocol[];\n    defaultProtocol: ModelProtocol;\n    baseUrl: string;\n    catalogProvider?: string;\n}',
   },
   {
     name: 'ModelProviderGroup',
