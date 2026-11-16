@@ -28,7 +28,7 @@ pnpm start:web --no-open
 dsh harness --environment test --no-open
 ```
 
-The default repository Web scripts and `use-scripts/start.sh` select `test`, connect to `https://catdev.g-buddy.com`, and expose Harness at `http://127.0.0.1:3081`. `start:web:dev/test/fat/master` select their named files. Before using an environment, deploy the Creativity database migrations and authentication API matching the current version, then configure the matching deployment identifier. Selecting `dev` explicitly connects to local `http://127.0.0.1:8000` and exposes Harness at `http://127.0.0.1:3080`.
+The default repository Web scripts and `use-scripts/start.sh` select `test` and expose Harness at `http://127.0.0.1:3081`. `start:web:dev/test/fat/master` select their named files. All four environments connect to the same remote Creativity service at `https://catdev.g-buddy.com`. The `/creativity/` path serves its administration page; Harness calls `/api/v1/harness` from the origin. Selecting `dev` changes the local Harness listener to `http://127.0.0.1:3080` while using the same remote authentication service.
 
 <a id="configuration"></a>
 ## Configuration
@@ -39,7 +39,7 @@ Edit the actual `config/environments/dev.json`, `test.json`, `fat.json` or `mast
 
 Harness identities are platform-level accounts; registration, login and disablement do not use an ordinary business channel. The API exposes no channel identifier.
 
-The service root remains `null` in fat and master; configure their real addresses before startup. `creativity.deploymentId` must exactly match the selected service's `/api/v1/harness/bootstrap` response rather than derive from the local environment name. The current test service returns `harness-dev`, which the test configuration uses. Local account homes remain isolated by the selected environment; independent service deployments isolate their databases and Redis namespaces. Heartbeats are at most 10 seconds, central request timeouts at most 5 seconds and local shutdown grace at most 5 seconds.
+`creativity.deploymentId` must exactly match the selected service's `/api/v1/harness/bootstrap` response rather than derive from the local environment name. The shared service returns `harness-dev`, which all four configurations use. Remote accounts and disablement apply across these environments; local account homes, application identities and protocols remain isolated by the selected environment. An independently deployed service needs matching database migrations, authentication APIs and a verified deployment identifier before use. Heartbeats are at most 10 seconds, central request timeouts at most 5 seconds and local shutdown grace at most 5 seconds.
 
 <a id="model-configuration"></a>
 ## Model configuration

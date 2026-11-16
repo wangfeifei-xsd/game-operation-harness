@@ -28,7 +28,7 @@ pnpm start:web --no-open
 dsh harness --environment test --no-open
 ```
 
-仓库默认 Web 脚本及 `use-scripts/start.sh` 选择 `test`，连接 `https://catdev.g-buddy.com`；Harness 公开地址为 `http://127.0.0.1:3081`。`start:web:dev/test/fat/master` 分别选择同名文件。使用一个环境前，先部署与当前版本匹配的 Creativity 数据库迁移和认证 API，再配置匹配的部署标识。显式选择 `dev` 时连接本机 `http://127.0.0.1:8000`，Harness 监听 `http://127.0.0.1:3080`。
+仓库默认 Web 脚本及 `use-scripts/start.sh` 选择 `test`，Harness 公开地址为 `http://127.0.0.1:3081`。`start:web:dev/test/fat/master` 分别选择同名文件。四个环境均连接远端 `https://catdev.g-buddy.com` 的同一 Creativity 服务。`/creativity/` 是管理页面路径，Harness 从域名根调用 `/api/v1/harness`。显式选择 `dev` 时，Harness 本机监听改为 `http://127.0.0.1:3080`，认证仍使用同一远端服务。
 
 <a id="configuration"></a>
 ## 配置
@@ -39,7 +39,7 @@ dsh harness --environment test --no-open
 
 Harness 账号属于平台终端身份；注册、登录与启停不依赖普通业务渠道，接口不暴露渠道标识。
 
-fat、master 的服务地址目前为 `null`，填入真实地址后才能启动。`creativity.deploymentId` 必须与所选服务 `/api/v1/harness/bootstrap` 返回的标识完全一致，不从本机环境名推导；当前 test 站点返回 `harness-dev`，test 配置据此填写。本机账号目录仍按所选环境隔离；独立服务部署各自隔离数据库与 Redis 命名空间。心跳间隔最多 10 秒，中央请求超时最多 5 秒，本地优雅停止最多 5 秒。
+`creativity.deploymentId` 必须与所选服务 `/api/v1/harness/bootstrap` 返回的标识完全一致，不从本机环境名推导；共享服务返回 `harness-dev`，四份配置据此填写。远端账号及停用状态在这四个环境间共用，本机账号目录、应用身份和协议仍按所选环境隔离。若独立部署服务，使用前需要部署匹配的数据库迁移和认证 API，并核实部署标识。心跳间隔最多 10 秒，中央请求超时最多 5 秒，本地优雅停止最多 5 秒。
 
 <a id="model-configuration"></a>
 ## 模型配置

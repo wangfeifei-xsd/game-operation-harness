@@ -5,7 +5,7 @@
     "port": 3080
   },
   "creativity": {
-    "baseUrl": "http://127.0.0.1:8000",
+    "baseUrl": "https://catdev.g-buddy.com",
     "deploymentId": "harness-dev",
     "requestTimeoutMs": 5000
   },

@@ -27,11 +27,11 @@ describe('Harness file deployment', () => {
     } finally { vi.unstubAllEnvs() }
   })
 
-  it('connects the test environment to its configured remote deployment', async () => {
-    const config = readHarnessConfig('test')
+  it.each(['dev', 'test', 'fat', 'master'] as const)('connects %s to the shared remote deployment with an isolated home', async (environment) => {
+    const config = readHarnessConfig(environment)
     expect(config.creativity.baseUrl).toBe('https://catdev.g-buddy.com')
     expect(config.creativity.deploymentId).toBe('harness-dev')
-    expect(config.storage.root).toMatch(/game-operation-harness\/test$/u)
+    expect(config.storage.root.endsWith(join('game-operation-harness', environment))).toBe(true)
     const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({ deployment_id: 'harness-dev' }))
     try {
       const client = new HarnessAuthClient(config)
@@ -42,12 +42,11 @@ describe('Harness file deployment', () => {
     } finally { fetch.mockRestore() }
   })
 
-  it.each(['fat', 'master'] as const)('requires the actual %s service address', (environment) => {
-    expect(() => readHarnessConfig(environment)).toThrow('Creativity 地址尚未配置')
+  it.each(['dev', 'test', 'fat', 'master'] as const)('rejects missing service addresses and mismatched environment selection for %s', (environment) => {
     const raw = file(environment)
-    const configured = { ...raw, creativity: { baseUrl: 'https://creativity.example', deploymentId: `harness-${environment}`, requestTimeoutMs: 5000 } }
-    expect(parseHarnessConfig(configured, environment).environment).toBe(environment)
-    expect(() => parseHarnessConfig(configured, 'dev')).toThrow('配置环境不匹配')
+    const unconfigured = { ...raw, creativity: { baseUrl: null, deploymentId: 'harness-dev', requestTimeoutMs: 5000 } }
+    expect(() => parseHarnessConfig(unconfigured, environment)).toThrow('Creativity 地址尚未配置')
+    expect(() => parseHarnessConfig(raw, environment === 'dev' ? 'test' : 'dev')).toThrow('配置环境不匹配')
   })
 
   it('rejects missing, unknown and inconsistent configuration', () => {
