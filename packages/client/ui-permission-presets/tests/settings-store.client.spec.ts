@@ -161,6 +161,19 @@ describe('permission settings store', () => {
     })
   })
 
+  it('keeps deployment permissions read-only while personal preferences are writable', async () => {
+    const mutate = vi.fn()
+    const { controller } = permissionController({
+      describe: () => Promise.resolve(ok({
+        writable: true, hasDocument: true, namespaces: [{ ...view('read-only'), writable: false }],
+      })), mutate,
+    })
+    await controller.load()
+    expect(controller.store.getSnapshot()).toMatchObject({ currentValue: 'read-only', writable: false })
+    await controller.select('workspace-write')
+    expect(mutate).not.toHaveBeenCalled()
+  })
+
   it('follows a mirror refresh without an own read once loaded', async () => {
     const describe = vi.fn()
       .mockResolvedValueOnce(ok({ writable: true, hasDocument: false, namespaces: [view('read-only', 1)] }))

@@ -1,11 +1,14 @@
 /** 产品账号摘要与模型授权分开显示；导航和状态订阅由载体拥有。 */
 import React, { useState } from 'react'
-import { Alert, Button, ConfigProvider, Popconfirm, Space, Typography, theme } from 'antd'
+import { Alert, Avatar, Badge, Button, ConfigProvider, Popconfirm, Typography, theme } from 'antd'
+import LogoutOutlined from '@ant-design/icons/es/icons/LogoutOutlined'
+import UserOutlined from '@ant-design/icons/es/icons/UserOutlined'
 import { DownloadButton } from './DownloadButton.tsx'
 import { copy, errorText, type AuthTransport, type LocalSession } from './shared.ts'
+import css from './AccountControls.module.css'
 
 /**
- * 侧栏底部的账号操作；窄栏以可访问名称保留操作。
+ * 两端共用账号卡片；窄栏以可访问名称保留退出和下载操作。
  * @param props - 已筛选账号状态和载体拥有的退出操作。
  * @returns 账号、退出和可选下载入口。
  */
@@ -23,14 +26,25 @@ export function AccountControls({ session, wide, dark, transport, desktop, logou
     setBusy(true); setError('')
     try { await logout() } catch (failure: unknown) { setError(errorText(failure)) } finally { setBusy(false) }
   }
+  const themeKey = dark ? 'harness-account-dark' : 'harness-account-light'
   return <ConfigProvider theme={{ algorithm: dark ? theme.darkAlgorithm : theme.defaultAlgorithm,
-    token: { fontWeightStrong: 500, colorBgContainer: 'transparent' } }}>
-    <Space orientation="vertical" style={{ width: '100%', padding: wide ? '4px 8px' : '4px 0', minWidth: 0, boxSizing: 'border-box' }}>
-      {wide && session.user?.display_name && <Typography.Text ellipsis={{ tooltip: session.user.display_name }} style={{ maxWidth: '100%' }}>{session.user.display_name}</Typography.Text>}
+    cssVar: { key: themeKey }, token: { fontWeightStrong: 500, fontSize: 13, borderRadius: 8 } }}>
+    <div className={`${css.root} ${themeKey}`} data-wide={wide}>
+      <div className={css.card}>
+        {wide && <>
+          <Avatar className={css.avatar as string} shape="square" size={36} icon={<UserOutlined />} aria-hidden="true" />
+          <div className={css.identity}>
+            {session.user?.display_name && <Typography.Text ellipsis={{ tooltip: session.user.display_name }}
+              className={css.name as string}>{session.user.display_name}</Typography.Text>}
+            {session.authenticated && <Badge className={css.status as string} status="success" text={copy.signedIn} />}
+          </div>
+        </>}
+        <Popconfirm title={copy.logoutConfirm} okText={copy.logout} cancelText={copy.cancel} onConfirm={() => { void signOut() }}>
+          <Button className={css.logout as string} type="text" loading={busy} title={copy.logout} aria-label={copy.logout}
+            icon={<LogoutOutlined />}>{wide ? copy.logout : null}</Button>
+        </Popconfirm>
+      </div>
       {error && <Alert type="error" title={error} />}
-      <Popconfirm title={copy.logoutConfirm} okText={copy.logout} cancelText={copy.cancel} onConfirm={() => { void signOut() }}>
-        <Button type="text" block loading={busy} title={copy.logout} aria-label={copy.logout}>{wide ? copy.logout : '↪'}</Button>
-      </Popconfirm>
       {!desktop && <DownloadButton transport={transport} compact={!wide} />}
-    </Space></ConfigProvider>
+    </div></ConfigProvider>
 }

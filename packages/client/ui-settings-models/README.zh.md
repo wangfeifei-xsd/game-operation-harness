@@ -29,6 +29,8 @@ kind: "package-reference"
 
 Harness Web/PWA 与 Electron 启用 `directModels: true`。“模型配置”直接打开“设置 → 模型”。antd 列表与单模型表单使用独立模型 Remote、内置供应商名称和本地图标。密钥只写入；编辑留空保留原 Key。修订冲突保留草稿，确认重新加载后才替换。提交成功后更新列表、聊天选择器和默认选择。连接检查使用已保存记录，只显示当前修订的结果。此模式不注册供应商授权、余额或充值界面。模型记录通过 [Host 模型服务](../../llm/harness-model-config/README.zh.md)持久化，不依赖通用配置编辑器。
 
+收起侧栏时，模型配置和设置图标在 36 px 按钮中居中，与 Web 和 Electron 的账号操作保持一致。
+
 以下供应商与引导说明适用于 `directModels: false` 的上游 `web` profile。
 
 ## 使用本包

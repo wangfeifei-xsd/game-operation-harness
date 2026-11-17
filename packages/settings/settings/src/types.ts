@@ -20,6 +20,8 @@ export interface SettingsSecretView {
  * because the Remote boundary admits no unconstrained data.
  */
 export interface SettingsNamespaceView {
+  /** 条目级写入权限；省略时使用服务级 writable。 */
+  writable?: boolean
   /** Generate a page if no custom page is registered for this instance. */
   autoGenerate: boolean
   /** Namespace key (`llm-deepseek`, `llm-pi-ai`, …). */
@@ -55,9 +57,9 @@ export type SettingsPathOpView =
 
 /** Every profile plugin entry with the deployment facts a configuration page renders around them. */
 export interface SettingsDescribeValue {
-  /** Whether the profile accepts writes; `false` disables every write control. */
+  /** 服务级可写性；条目可用自己的 writable 进一步限制。 */
   writable: boolean
-  /** Whether the configuration editor owns a local document, without exposing its Host path. */
+  /** 是否存在配置补丁或账号偏好文件，不暴露 Host 路径。 */
   hasDocument: boolean
   /** One view per profile plugin entry. */
   namespaces: SettingsNamespaceView[]

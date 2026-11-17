@@ -175,7 +175,7 @@ export class PermissionPresetSettingsController {
       this.store.update((state) => {
         state.status = 'ready'
         state.error = null
-        state.writable = writable
+        state.writable = view.writable ?? writable
         state.currentValue = resolved.currentValue
         state.options = resolved.options
         state.revision = view.revision

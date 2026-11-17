@@ -2,23 +2,85 @@ body:has(.harness-auth-page) {
   margin: 0;
 }
 
+.harness-auth-page,
+.harness-auth-modal {
+  --dsw-alias-state-business-primary: var(--ant-color-primary);
+  --dsw-focus-ring-color: var(--dsw-alias-state-business-primary);
+}
+
 .harness-auth-page {
   min-height: 100vh;
   min-height: 100dvh;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto 1fr;
+  gap: 24px;
   place-items: center;
-  padding: 32px 26px;
+  padding: max(18px, env(safe-area-inset-top)) 26px 32px;
   box-sizing: border-box;
-  background: #eef2f8;
-  color: #23242c;
+  background: var(--ant-color-bg-layout);
+  color: var(--ant-color-text);
+  color-scheme: light;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+.harness-auth-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  justify-self: end;
+  gap: 12px;
+  max-width: 100%;
+}
+
+.harness-auth-appearance.ant-segmented {
+  padding: 4px;
+  background: var(--ant-color-fill-secondary);
+  border-radius: var(--ant-border-radius-lg);
+  font-size: 14px;
+}
+
+.harness-auth-appearance .ant-segmented-item-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding-inline: 12px;
+  line-height: 32px;
+}
+
+.harness-auth-appearance .ant-segmented-item-icon {
+  display: inline-flex;
+  margin: 0;
+}
+
+.harness-auth-appearance .ant-segmented-item-selected {
+  box-shadow: var(--ant-box-shadow-tertiary);
+}
+
+.harness-auth-actions .harness-download {
+  height: 40px;
+  padding-inline: 16px;
+  background: var(--ant-color-primary-bg);
+  color: var(--ant-color-primary-text);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+@media (hover: hover) {
+  .harness-auth-actions .harness-download:hover {
+    background: var(--ant-color-primary-bg-hover);
+    color: var(--ant-color-primary-text-hover);
+  }
 }
 
 .harness-auth-card {
   width: min(100%, 972px);
-  border-color: #e5e9f1;
-  border-radius: 0;
-  box-shadow: 0 1px 4px #243b6410;
+  overflow: hidden;
+  border-color: var(--ant-color-border-secondary);
+  border-radius: var(--ant-border-radius-lg);
+  box-shadow: var(--ant-box-shadow-tertiary);
 }
 
 .harness-auth-card > .ant-card-body {
@@ -32,8 +94,8 @@ body:has(.harness-auth-page) {
   position: relative;
   overflow: hidden;
   padding: 28px 46px;
-  color: #fff;
-  background: linear-gradient(132deg, #2452e9 0%, #2c60f4 48%, #2050e1 100%);
+  color: var(--ant-color-text-light-solid);
+  background: linear-gradient(132deg, var(--ant-color-primary) 0%, var(--ant-color-primary-hover) 48%, var(--ant-color-primary-active) 100%);
 }
 
 .harness-auth-brand {
@@ -86,7 +148,7 @@ body:has(.harness-auth-page) {
 }
 
 .harness-auth-content .ant-tabs-nav::before {
-  border-bottom-color: #d9dce3;
+  border-bottom-color: var(--ant-color-border-secondary);
 }
 
 .harness-auth-content .ant-tabs-tab {
@@ -128,13 +190,92 @@ body:has(.harness-auth-page) {
   margin-top: 12px;
 }
 
-.harness-auth-verify,
 .harness-auth-content .harness-submit {
   height: 44px;
 }
 
+.harness-auth-content .harness-auth-verify {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) 24px;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  height: auto;
+  padding: 7px 12px;
+  border-color: transparent;
+  background: var(--ant-color-primary-bg);
+  color: var(--ant-color-text);
+  font-size: 16px;
+}
+
+@media (hover: hover) {
+  .harness-auth-content .harness-auth-verify:not(:disabled):hover {
+    border-color: var(--ant-color-primary-border);
+    background: var(--ant-color-primary-bg-hover);
+    color: var(--ant-color-text);
+  }
+}
+
+.harness-auth-verify-symbol {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--ant-border-radius);
+  background: var(--ant-color-primary-border);
+  color: var(--ant-color-primary-text);
+}
+
+.harness-auth-verify-symbol .harness-auth-shield-check {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+}
+
+.harness-auth-verify-label {
+  white-space: normal;
+  line-height: 22px;
+}
+
+.harness-auth-verify-next {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  corner-shape: round;
+  background: var(--ant-color-primary);
+  color: var(--ant-color-text-light-solid);
+}
+
+.harness-auth-content .harness-auth-verify[data-verified=true] {
+  background: var(--ant-color-success-bg);
+  color: var(--ant-color-success-text);
+}
+
+.harness-auth-verify[data-verified=true] .harness-auth-verify-symbol {
+  background: var(--ant-color-success-border);
+  color: var(--ant-color-success-text);
+}
+
+.harness-auth-verify[data-verified=true] .harness-auth-verify-next {
+  background: var(--ant-color-success);
+}
+
+.harness-auth-content .harness-auth-verify:disabled {
+  background: var(--ant-color-fill-tertiary);
+  color: var(--ant-color-text-disabled);
+}
+
+.harness-auth-verify:disabled .harness-auth-verify-symbol,
+.harness-auth-verify:disabled .harness-auth-verify-next {
+  background: var(--ant-color-fill-secondary);
+  color: inherit;
+}
+
 .harness-auth-content .harness-submit {
-  margin-top: 20px;
+  margin-top: 16px;
 }
 
 .harness-auth-card-register .ant-form-item {
@@ -158,7 +299,6 @@ body:has(.harness-auth-page) {
   height: auto;
 }
 
-.harness-auth-card-register .harness-auth-verify,
 .harness-auth-card-register .harness-submit {
   height: 42px;
 }
@@ -183,7 +323,7 @@ body:has(.harness-auth-page) {
 
 @media (max-width: 760px) {
   .harness-auth-page {
-    padding: 24px;
+    padding: max(24px, env(safe-area-inset-top)) 24px 24px;
   }
 
   .harness-auth-card {
@@ -219,7 +359,7 @@ body:has(.harness-auth-page) {
   }
 
   .harness-auth-panel {
-    padding: 32px;
+    padding: 32px 24px;
   }
 
   .harness-auth-content h2.ant-typography {
@@ -229,7 +369,6 @@ body:has(.harness-auth-page) {
 
   .harness-auth-content .ant-input,
   .harness-auth-content .ant-input-affix-wrapper,
-  .harness-auth-content .harness-auth-verify,
   .harness-auth-content .harness-submit {
     height: 44px;
   }
@@ -248,11 +387,162 @@ body:has(.harness-auth-page) {
   }
 }
 
-.harness-captcha{position:relative;min-height:150px;border-radius:6px;overflow:hidden;background:#f5f6f8}.harness-captcha>img{width:100%;display:block}.harness-captcha>img.harness-captcha-piece{position:absolute}.harness-captcha .ant-spin{position:absolute;inset:40% 0;text-align:center}
+@media (max-width: 400px) {
+  .harness-auth-content .harness-auth-verify {
+    gap: 6px;
+    padding-inline: 8px;
+  }
+}
 
-.harness-auth-download{position:absolute;right:24px;top:max(18px,env(safe-area-inset-top));z-index:2}
-.harness-auth-page{padding-top:72px}
-.harness-auth-page[data-dark=true]{background:#181b23;color:#e8e9ef}
-.harness-auth-page[data-dark=true] .harness-auth-card{border-color:#383d49}
-.harness-auth-page[data-dark=true] .harness-captcha{background:#252a34}
-@media(max-width:760px){.harness-auth-brand-panel{padding-top:32px}.harness-auth-brand{white-space:normal}}
+.harness-auth-modal .ant-modal-container {
+  border-radius: var(--ant-border-radius-lg);
+  box-shadow: var(--ant-box-shadow-secondary);
+}
+
+.harness-auth-modal .ant-modal-title {
+  font-size: 18px;
+}
+
+.harness-auth-modal .ant-modal-body > .ant-alert {
+  margin-bottom: 16px;
+}
+
+.harness-captcha {
+  position: relative;
+  overflow: hidden;
+  margin-top: 16px;
+  border-radius: var(--ant-border-radius);
+  background: var(--ant-color-fill-tertiary);
+}
+
+.harness-captcha > img {
+  width: 100%;
+  display: block;
+}
+
+.harness-captcha > .harness-captcha-piece {
+  position: absolute;
+}
+
+.harness-captcha .ant-spin {
+  position: absolute;
+  inset: 40% 0;
+  text-align: center;
+}
+
+.harness-captcha-slider {
+  position: relative;
+  height: 44px;
+  margin-top: 20px;
+  border-radius: 999px;
+  corner-shape: round;
+  background: var(--ant-color-fill-secondary);
+}
+
+.harness-captcha-slider-hint {
+  position: absolute;
+  inset: 0 44px;
+  display: grid;
+  place-items: center;
+  color: var(--ant-color-text-secondary);
+  font-size: 14px;
+  pointer-events: none;
+}
+
+.harness-captcha-slider .ant-slider {
+  height: 44px;
+  margin: 0 22px;
+  padding: 0;
+}
+
+.harness-captcha-slider .ant-slider-rail,
+.harness-captcha-slider .ant-slider-track {
+  visibility: hidden;
+}
+
+.harness-captcha-slider .ant-slider-handle {
+  top: 0;
+  width: 44px;
+  height: 44px;
+}
+
+.harness-captcha-slider .ant-slider-handle::before {
+  display: none;
+}
+
+.harness-auth-modal .harness-captcha-slider .ant-slider .ant-slider-handle::after {
+  inset: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--ant-border-radius-lg);
+  background: var(--ant-color-bg-elevated);
+  box-shadow: var(--ant-box-shadow-tertiary);
+  outline: none;
+  transition: box-shadow 0.2s;
+  cursor: grab;
+}
+
+.harness-auth-modal .harness-captcha-slider .ant-slider .ant-slider-handle:focus-visible::after {
+  outline: 2px solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
+  outline-offset: 2px;
+}
+
+.harness-auth-modal .harness-captcha-slider .ant-slider .ant-slider-handle:active::after {
+  cursor: grabbing;
+}
+
+.harness-captcha-slider-icons {
+  position: absolute;
+  inset: 0 22px;
+  pointer-events: none;
+  color: var(--ant-color-text);
+}
+
+.harness-captcha-slider-icons > span {
+  position: absolute;
+  top: 0;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  transform: translateX(-50%);
+}
+
+.harness-captcha-slider[data-disabled=true] {
+  opacity: 0.55;
+}
+
+.harness-auth-modal .harness-captcha-slider[data-disabled=true] .ant-slider .ant-slider-handle::after {
+  cursor: not-allowed;
+}
+
+.harness-auth-modal .harness-captcha-actions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 12px;
+}
+
+.harness-captcha-actions .ant-btn {
+  height: 36px;
+  padding-inline: 8px;
+  font-size: 14px;
+}
+
+.harness-captcha-actions .ant-btn:not(:disabled) {
+  color: var(--ant-color-primary-text);
+}
+
+.harness-auth-page[data-dark=true],
+.harness-auth-dark {
+  color-scheme: dark;
+}
+
+@media (max-width: 760px) {
+  .harness-auth-brand-panel {
+    padding-top: 32px;
+  }
+
+  .harness-auth-brand {
+    white-space: normal;
+  }
+}

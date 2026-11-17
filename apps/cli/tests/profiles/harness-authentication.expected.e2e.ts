@@ -11,6 +11,7 @@ import WebSocket from 'ws'
 import { createProcessInspector } from '@deepseek-ai/dsh-subprocess-local/process-inspector'
 import { afterAll, beforeAll, expect, it } from 'vitest'
 import { parseHarnessConfig } from '../../src/harness-config.ts'
+import type { SettingsDescribeValue } from '@deepseek-ai/dsh-settings/types'
 
 const repository = fileURLToPath(new URL('../../../../', import.meta.url))
 let directory: string
@@ -49,6 +50,19 @@ async function invoke(endpoint: string, args: object): Promise<string> {
   const result = await response.text()
   expect(result).toContain('"ok":true')
   return result
+}
+async function preferences(): Promise<object> {
+  const answer = JSON.parse(await invoke('settings/describe', {})) as { result: { value: SettingsDescribeValue } }
+  const entries = new Map(answer.result.value.namespaces.map(row => [row.ns, row]))
+  return {
+    writable: answer.result.value.writable,
+    theme: entries.get('ui-theme')?.value,
+    language: entries.get('locale')?.value,
+    chat: entries.get('ui-chat')?.value,
+    conversation: entries.get('ui-conversation')?.value,
+    codeWorkView: entries.get('ui-settings')?.value,
+    permissionWritable: entries.get('permission')?.writable,
+  }
 }
 async function launch(cli: string): Promise<ChildProcess> {
   const process = spawn(globalThis.process.execPath, [join(cli, 'lib/bin.js'), '--profile', 'harness', '--environment', 'dev', '--no-open'], {
@@ -167,6 +181,20 @@ it('serves the authenticated product tree and stops every old identity before sw
   expect(page).not.toContain('x-harness-parent-secret')
   expect(html.headers.get('cache-control')).toBe('no-store')
   expect(page).not.toMatch(/http:\/\/127\.0\.0\.1:\d+/u)
+  await invoke('settings/update', { ns: 'ui-theme', patch: { preference: 'light', fontSize: 18 } })
+  await invoke('settings/update', { ns: 'locale', patch: { preference: 'en' } })
+  await invoke('settings/update', { ns: 'ui-chat', patch: { collapseTiming: 'next-input', foldedReplies: 'final' } })
+  await invoke('settings/update', { ns: 'ui-conversation', patch: { busyEnter: 'steer' } })
+  await invoke('settings/update', { ns: 'ui-settings', patch: { enabled: false } })
+  const expectedPreferences: unknown = JSON.parse(await readFile(new URL('./expected/harness-authentication/preferences.expected.json', import.meta.url), 'utf8'))
+  expect(await preferences()).toEqual(expectedPreferences)
+  expect(JSON.parse(await readFile(join(directory, 'data/dev/users/user_alpha/preferences.json'), 'utf8')))
+    .toMatchObject({ 'ui-theme': { preference: 'light', fontSize: 18 } })
+  const protectedSettings = await request('/api/settings/update', {
+    type: 'client-request', rpcId: 'protected-settings', method: 'settings/update',
+    payload: { args: { ns: 'permission', patch: { defaultPreset: 'full-access' } } },
+  })
+  expect(await protectedSettings.text()).toContain('settings/rejected')
   expect(await invoke('modelConfig/list', {})).toContain('"models":[]')
   const oldAccount = await request('/api/account/getState', {
     type: 'client-request', rpcId: 'removed-account', method: 'account/getState', payload: { args: {} },
@@ -199,6 +227,7 @@ it('serves the authenticated product tree and stops every old identity before sw
   expect(await invoke('credentials/describe', { refs: ['HARNESS_FIXTURE'] })).toContain('"configured":false')
   expect(await invoke('session/list', { _request: {} })).not.toContain('harness_fixture_alpha')
   expect(await invoke('modelConfig/list', {})).toContain('"models":[]')
+  expect(await preferences()).toMatchObject({ theme: { preference: 'system', fontSize: 14 } })
   expect((await readFile(join(directory, 'data/dev/users/user_alpha/profiles/harness-runtime/package.json'), 'utf8'))).toContain('dsh-web-app')
   expect((await readFile(join(directory, 'data/dev/users/user_beta/profiles/harness-runtime/package.json'), 'utf8'))).toContain('dsh-web-app')
   remoteLogout = false
@@ -219,6 +248,7 @@ it('serves the authenticated product tree and stops every old identity before sw
   expect(await invoke('credentials/describe', { refs: ['HARNESS_FIXTURE'] })).toContain('"configured":true')
   expect(await invoke('session/list', { _request: {} })).toContain('harness_fixture_alpha')
   expect(await invoke('modelConfig/list', {})).toContain('隔离模型')
+  await expect.poll(preferences).toEqual(expectedPreferences)
   available = false
   const unavailable = await request('/harness/api/renew', {})
   expect(unavailable.status).toBe(503)

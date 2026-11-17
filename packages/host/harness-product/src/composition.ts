@@ -33,6 +33,10 @@ export function harnessComposition(patches: PatchOptions[], config: HarnessConfi
     const replace = (next: Record<string, unknown>): void => { entry.config = next }
     switch (entry.id) {
       case 'ui-brand-game-operation': replace({ productAccount: true }); break
+      case 'settings': replace({
+        preferencesPath: join(home, 'preferences.json'),
+        preferencesNamespaces: ['locale', 'ui-theme', 'ui-chat', 'ui-conversation', 'ui-settings', 'ui-settings-general'],
+      }); break
       case 'preset-cordis': entry.disabled = true; break
       case 'session-persistence-jsonl': replace({ root: join(home, 'sessions') }); break
       case 'storage-json': replace({ root: join(home, 'storages') }); break

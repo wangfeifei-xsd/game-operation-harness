@@ -3528,6 +3528,25 @@ export interface Config extends SessionTitleLlmConfig {
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-session-title-first-prompt-llm -->
 
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-settings -->
+<a id="deepseek-aidsh-settings"></a>
+
+## `@deepseek-ai/dsh-settings`
+
+- `inject`: `loader` · `profileContext`
+- `source`: [`packages/settings/settings/src/index.ts:200`](../packages/settings/settings/src/index.ts)
+
+```ts config-catalog
+/** 固定部署使用的账号偏好存储配置。 */
+export interface Config {
+  /** 账号目录中的偏好文件；省略时使用配置编辑器。 */
+  preferencesPath?: string
+  /** 允许保存即时字段的插件条目名称。 */
+  preferencesNamespaces?: string[]
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-settings -->
+
 <!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-shell-env -->
 <a id="deepseek-aidsh-shell-env"></a>
 
@@ -5357,7 +5376,6 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 | `@deepseek-ai/dsh-session-projection` | — | [`packages/session/session-projection/src/index.ts`](../packages/session/session-projection/src/index.ts) |
 | `@deepseek-ai/dsh-session-stats` | `sessionProjections` | [`packages/session/session-stats/src/index.ts`](../packages/session/session-stats/src/index.ts) |
 | `@deepseek-ai/dsh-session-turn-outline` | `sessionProjections` | [`packages/session/session-turn-outline/src/index.ts`](../packages/session/session-turn-outline/src/index.ts) |
-| `@deepseek-ai/dsh-settings` | `loader` · `profileContext` | [`packages/settings/settings/src/index.ts`](../packages/settings/settings/src/index.ts) |
 | `@deepseek-ai/dsh-skill-badge` | `skills` | [`packages/experimental/skill-badge/src/index.ts`](../packages/experimental/skill-badge/src/index.ts) |
 | `@deepseek-ai/dsh-storage` | — | [`packages/storage/storage/src/index.ts`](../packages/storage/storage/src/index.ts) |
 | `@deepseek-ai/dsh-subprocess-local` | — | [`packages/subprocess/subprocess-local/src/index.ts`](../packages/subprocess/subprocess-local/src/index.ts) |

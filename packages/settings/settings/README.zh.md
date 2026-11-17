@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-编辑插件通过 `.volatile()` 声明的字段，并查看其实际值。表单以 profile 条目 id 标识插件、保留秘密值，并拒绝过期写入。更改通过当前 profile 的 Cordis patch 持久化。
+编辑插件通过 `.volatile()` 声明的字段，并查看其实际值。表单以 profile 条目 id 标识插件、保留秘密值，并拒绝过期写入。更改通过当前 profile 的 Cordis patch 或其配置的账号偏好文件持久化。
 
 ## 目录
 
@@ -23,14 +23,16 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用此包
 
-将此插件与 Loader 和 profile 上下文一起挂载。写入需要 [config-editor](../../boot/config-editor/README.zh.md)；没有编辑器时，表单以 `writable: false` 描述即时值，不提供可编辑层，并拒绝修改与文档访问。基础组合包包含编辑器；受保护产品可以保持其禁用。
+将此插件与 Loader 和 profile 上下文一起挂载。profile 写入使用 [config-editor](../../boot/config-editor/README.zh.md)，固定部署也可配置隔离的偏好文件。两者均未配置时，表单以 `writable: false` 描述即时值，不提供可编辑层，并拒绝修改与文档访问。
 
 ```yaml
 - id: settings
   name: '@deepseek-ai/dsh-settings'
 ```
 
-此插件没有配置字段。表单只展示活动且可唯一定位的 profile 条目中的 volatile 字段。普通配置仍通过 Cordis 配置文件编辑。
+表单只展示活动且可唯一定位的 profile 条目中的 volatile 字段。普通配置仍通过 Cordis 配置文件编辑。
+
+固定部署通过 `preferencesPath` 指定账号内的 JSON 文件，通过 `preferencesNamespaces` 指定允许保存偏好的条目。写入校验完整 Config，串行完成修订检查和原子持久化，再更新即时引用，不加载用户补丁或改变插件树。其他条目保持可读，其命名空间返回 `writable: false`。Loader 启动完成后恢复已保存的偏好；文件损坏或包含非即时字段时明确失败，保留原文件供修复。
 
 挂载编辑器时，Settings 启动后、Loader 完成所有条目的加载时，早期版本留在 harness home 中的 `settings.yaml` 会被导入一次：每个 section 写入同名条目（`ui-developer-tools` → `ui-settings`、`ui-onboarding` → `ui-settings-general`、`shell` → 当前平台的 shell 执行器条目），文件在第一次写入前改名为 `settings.yaml.imported`，被当前组合拒绝的 section 会记录日志并只保留在改名后的文件中。
 

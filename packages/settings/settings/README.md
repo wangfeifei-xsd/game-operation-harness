@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Edit fields that plugins declare with `.volatile()` and inspect their effective values. Forms identify each plugin by its profile entry id, preserve secret values, and refuse stale writes. Changes persist through the active profile’s Cordis patch.
+Edit fields that plugins declare with `.volatile()` and inspect their effective values. Forms identify each plugin by its profile entry id, preserve secret values, and refuse stale writes. Changes persist through the active profile’s Cordis patch or its configured account preference file.
 
 ## Table of Contents
 
@@ -23,14 +23,16 @@ Edit fields that plugins declare with `.volatile()` and inspect their effective 
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount this plugin with Loader and a profile context. Add [config-editor](../../boot/config-editor/README.md) for writes; without it, forms describe live values with `writable: false`, omit editable layers, and refuse mutations and document access. The base bundle includes the editor; protected products can keep it disabled.
+Mount this plugin with Loader and a profile context. Add [config-editor](../../boot/config-editor/README.md) for profile writes, or configure an isolated preference document for a fixed deployment. Without either, forms describe live values with `writable: false`, omit editable layers, and refuse mutations and document access.
 
 ```yaml
 - id: settings
   name: '@deepseek-ai/dsh-settings'
 ```
 
-This plugin has no configuration fields. Forms expose only volatile fields from active, uniquely addressed profile entries. Ordinary configuration remains editable through Cordis configuration files.
+Forms expose only volatile fields from active, uniquely addressed profile entries. Ordinary configuration remains editable through Cordis configuration files.
+
+For a fixed deployment, set `preferencesPath` to an account-owned JSON file and `preferencesNamespaces` to the entry ids allowed to save preferences. Writes validate the full Config, serialize revision checks and atomic persistence, and update live references without loading user patches or changing plugin composition. Other entries remain readable with namespace-level `writable: false`. Saved preferences restore after Loader startup; malformed files or nonvolatile fields fail visibly and are preserved for repair.
 
 With the editor mounted, once the Loader has settled every entry after Settings starts, a `settings.yaml` left in the harness home by earlier releases is imported once: each section is written into the entry of the same id (`ui-developer-tools` → `ui-settings`, `ui-onboarding` → `ui-settings-general`, `shell` → the platform's shell executor entry), the file is renamed to `settings.yaml.imported` before the first write, and a section the running composition rejects is logged and stays only in the renamed file.
 

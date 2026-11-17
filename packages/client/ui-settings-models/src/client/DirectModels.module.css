@@ -9,4 +9,6 @@
 .feedback { margin-bottom: 16px; }
 .launcher { display: flex; gap: 4px; flex-direction: column; padding: 4px; }
 .launcher button { justify-content: flex-start; width: 100%; }
+.launcher[data-wide='false'] { width: 36px; padding: 0; }
+.launcher[data-wide='false'] button { justify-content: center; width: 36px; height: 36px; padding: 0; }
 @media (max-width: 600px) { .page { gap: 12px; } .heading { flex-wrap: wrap; } }

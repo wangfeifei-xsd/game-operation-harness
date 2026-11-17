@@ -2,11 +2,11 @@
 
 English | [中文](settings.zh.md)
 
-The [settings service](../../packages/settings/settings/README.md) projects volatile Config fields from active profile entries. The optional [configuration editor](../../packages/boot/config-editor/README.md) persists edits through Cordis patches. Without it, descriptors remain readable, but writes and document access are unavailable. Business consumers read `.get()` on their own Config references.
+The [settings service](../../packages/settings/settings/README.md) projects volatile Config fields from active profile entries. It persists edits through the optional [configuration editor](../../packages/boot/config-editor/README.md) or a configured account preference file. Without either storage provider, descriptors remain readable, but writes and document access are unavailable. Business consumers read `.get()` on their own Config references.
 
 ## Identity and values
 
-A form namespace is the local id of a uniquely addressed entry in the active profile. Multiple plugin instances have separate forms when their entry ids differ. Ordinary fields are excluded. Descriptors carry resolved values, inherited values, explicit profile overrides, and an optimistic revision.
+A form namespace is the local id of a uniquely addressed entry in the active profile. Multiple plugin instances have separate forms when their entry ids differ. Ordinary fields are excluded. Descriptors carry resolved values, inherited values, explicit user overrides, and an optimistic revision. A namespace's optional `writable` value takes precedence over service-level writability, so a fixed deployment can allow account preferences while protecting deployment configuration.
 
 ## Edits
 
@@ -37,7 +37,7 @@ Project Config schemas into forms and own optional instance-level UI policy.
  */
 configure(presentation: { auto?: boolean }, owner: Fiber = this.ctx.fiber): () => void
 
-/** 查找原生编辑器使用的配置文件；只读 Host 通过拒绝 Promise 报错。
+/** 查找表单使用的配置文件；只读 Host 通过拒绝 Promise 报错。
  * @returns 当前配置文件路径。
  */
 prepareDocument(): Promise<string>

@@ -130,6 +130,8 @@ export class ConfigFormController<T> implements ConfigForm<T> {
     const ownedOps = structuredClone(ops) as SettingsPathOpView[]
     const generation = ++this.writeGeneration
     return this.enqueue(async () => {
+      const snapshot = this.getSnapshot()
+      if (snapshot.status === 'ready' && !snapshot.writable) return false
       const revision = expectedRevision ?? this.pendingRevision ?? this.getSnapshot().revision
       const response = await this.ctx.remote.settings.mutate(this.spec.namespace, ownedOps, revision)
       if (!response.ok) {
@@ -182,8 +184,8 @@ export class ConfigFormController<T> implements ConfigForm<T> {
     if (this.disposed) return
     const mirrored = this.mirror.getSnapshot()
     if (mirrored.view === undefined) return
-    const { writable } = mirrored.view
     const view = mirrored.view.namespaces.find(candidate => candidate.ns === this.spec.namespace)
+    const writable = view?.writable ?? mirrored.view.writable
     if (view === undefined) {
       this.store.update((draft) => {
         draft.status = 'unavailable'

@@ -2,11 +2,11 @@
 
 [English](settings.md) | 中文
 
-[设置服务](../../packages/settings/settings/README.zh.md) 从活动 profile 条目投影 volatile Config 字段。可选的[配置编辑器](../../packages/boot/config-editor/README.zh.md)通过 Cordis patch 持久化编辑。未装载编辑器时，仍可读取描述符，但不能写入或访问配置文档。业务消费者对自己的 Config 引用调用 `.get()`。
+[设置服务](../../packages/settings/settings/README.zh.md) 从活动 profile 条目投影 volatile Config 字段，通过可选的[配置编辑器](../../packages/boot/config-editor/README.zh.md)或已配置的账号偏好文件持久化编辑。两种存储均未配置时，仍可读取描述符，但不能写入或访问配置文档。业务消费者对自己的 Config 引用调用 `.get()`。
 
 ## 标识与值
 
-表单命名空间是当前 profile 中可唯一定位条目的本地 id。多个插件实例在条目 id 不同时拥有独立表单。普通字段被排除。描述符包含实际值、继承值、显式 profile 覆盖值和乐观修订号。
+表单命名空间是当前 profile 中可唯一定位条目的本地 id。多个插件实例在条目 id 不同时拥有独立表单。普通字段被排除。描述符包含实际值、继承值、显式用户覆盖值和乐观修订号。命名空间可选的 `writable` 优先于服务级可写性，使固定部署能允许账号偏好，同时保护部署配置。
 
 ## 编辑
 
@@ -37,7 +37,7 @@ Project Config schemas into forms and own optional instance-level UI policy.
  */
 configure(presentation: { auto?: boolean }, owner: Fiber = this.ctx.fiber): () => void
 
-/** 查找原生编辑器使用的配置文件；只读 Host 通过拒绝 Promise 报错。
+/** 查找表单使用的配置文件；只读 Host 通过拒绝 Promise 报错。
  * @returns 当前配置文件路径。
  */
 prepareDocument(): Promise<string>

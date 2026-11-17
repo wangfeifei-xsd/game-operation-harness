@@ -1,0 +1,22 @@
+{
+  "writable": true,
+  "theme": {
+    "preference": "light",
+    "fontSize": 18,
+    "codeFontSize": 11,
+    "terminalFontSize": 13,
+    "textFontFamily": "",
+    "codeFontFamily": "",
+    "terminalFontFamily": ""
+  },
+  "language": { "preference": "en" },
+  "chat": {
+    "collapseTiming": "next-input",
+    "foldedReplies": "final",
+    "performanceUsage": "detailed",
+    "linkOpening": "sidebar"
+  },
+  "conversation": { "busyEnter": "steer" },
+  "codeWorkView": { "enabled": false },
+  "permissionWritable": false
+}

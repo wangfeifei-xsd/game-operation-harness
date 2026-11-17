@@ -1,16 +1,18 @@
-/** Config-schema projection and form edits over Cordis profile patches. */
+/** 投影配置表单，通过 Cordis 补丁或账号偏好文件保存即时字段。 */
 import { existsSync } from 'node:fs'
 import { readFile, rename } from 'node:fs/promises'
 import { join } from 'node:path'
 import { parse } from 'yaml'
 import { Context, FiberState, Service, resolveConfig, type Fiber } from '@deepseek-ai/cordis'
-import type z from '@deepseek-ai/schemastery'
+import z from '@deepseek-ai/schemastery'
 import { interpolate, type Entry } from '@deepseek-ai/cordis-plugin-loader'
 import type {} from '@deepseek-ai/dsh-config-editor'
 import type {} from '@deepseek-ai/dsh-app-boot'
 import { redactSecrets, type RedactedSecret } from './redact.ts'
 import { isVolatilePath, plainConfig, projectForm, volatileForm } from './schema.ts'
 import type { SettingsNamespace } from './types.ts'
+import { isPlainObject, mergeLayers } from './layers.ts'
+import { Preferences } from './preferences.ts'
 
 export { redactSecrets } from './redact.ts'
 export type { RedactedSecret, RedactedValue } from './redact.ts'
@@ -27,6 +29,8 @@ export interface SettingsDescriptor {
   base?: unknown
   user?: unknown
   applies: 'live'
+  /** 当前条目是否允许写入；省略时沿用服务级设置。 */
+  writable?: boolean
   secrets?: RedactedSecret[]
 }
 
@@ -61,13 +65,6 @@ export class SettingsConflictError extends Error {
     this.expected = expected
     this.actual = actual
   }
-}
-
-/** Whether a value is a plain data object (not an array, null, or class instance). */
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
-  const proto: unknown = Object.getPrototypeOf(value)
-  return proto === Object.prototype || proto === null
 }
 
 /**
@@ -165,26 +162,6 @@ function cloneJsonShaped(root: object): Record<string, unknown> {
   return clone(root, '$') as Record<string, unknown>
 }
 
-/**
- * Layer `over` onto `under`: plain objects merge recursively, every other
- * value (arrays included) replaces the lower layer wholesale. `over` never
- * carries `undefined` entries — sections come from parsed documents and write
- * snapshots pass {@link cloneJsonShaped}, which strips them so a sparse patch
- * cannot erase lower keys.
- */
-function mergeLayers(under: unknown, over: unknown): unknown {
-  if (!isPlainObject(under) || !isPlainObject(over)) return over
-  const merged: Record<string, unknown> = { ...under }
-  for (const [key, value] of Object.entries(over)) {
-    Object.defineProperty(merged, key, {
-      value: Object.hasOwn(merged, key) ? mergeLayers(merged[key], value) : value,
-      enumerable: true, configurable: true, writable: true,
-    })
-  }
-  return merged
-}
-
-
 /** Read one member of a plain object or array; `own` limits the read to own properties.
  * @param node Candidate container.
  * @param key Member name.
@@ -219,20 +196,46 @@ function inheritedConfig(runtime: Fiber['runtime'] & object, inherited: unknown)
   }
 }
 
+/** 固定部署使用的账号偏好存储配置。 */
+export interface Config {
+  /** 账号目录中的偏好文件；省略时使用配置编辑器。 */
+  preferencesPath?: string
+  /** 允许保存即时字段的插件条目名称。 */
+  preferencesNamespaces?: string[]
+}
+
 /** Project Config schemas into forms and own optional instance-level UI policy. */
 export class SettingsForms extends Service {
   static inject = ['loader', 'profileContext']
+  /** 固定部署可使用独立账号偏好文件，避免开放插件树编辑。 */
+  static Config: z<Config> = z.object({
+    preferencesPath: z.string(),
+    preferencesNamespaces: z.array(z.string()).default([]),
+  })
   private revisions = new Map<string, { raw: string | undefined; revision: number; ns: SettingsNamespace; autoGenerate: boolean }>()
   private closed = false
   private scheduled = false
   private readonly presentations = new Map<Fiber, { auto?: boolean }>()
+  private readonly preferences: Preferences | undefined
+  private readonly ready: Promise<void>
+  private initializationError: Error | undefined
 
-  constructor(private readonly ownerContext: Context) {
+  constructor(private readonly ownerContext: Context, config: Config = {}) {
     super(ownerContext, 'settings')
     const ctx = ownerContext
-    ctx.effect(() => () => { this.closed = true })
+    this.preferences = config.preferencesPath === undefined ? undefined
+      : new Preferences(ctx, config.preferencesPath, config.preferencesNamespaces ?? [])
+    ctx.effect(() => async () => { this.closed = true; await this.preferences?.close() })
     ctx.on('app-boot/config-reload', () => { this.invalidate() })
-    void ctx[Context.root].loader.await().then(() => this.importLegacyDocument()).catch((error: unknown) => { ctx.logger.error(error) })
+    this.ready = ctx[Context.root].loader.await().then(async () => {
+      if (this.closed) return
+      if (this.preferences !== undefined) await this.preferences.initialize()
+      this.invalidate()
+    })
+    void this.ready.then(() => this.preferences === undefined ? this.importLegacyDocument() : undefined).catch((error: unknown) => {
+      this.initializationError = error instanceof Error ? error : new Error('设置初始化失败，请重新启动', { cause: error })
+      ctx.logger.error(error)
+    })
   }
 
   /** Move the sections of the removed `settings.yaml` into the active profile once the Loader has settled every entry.
@@ -287,15 +290,15 @@ export class SettingsForms extends Service {
     })
   }
 
-  /** Whether the active profile accepts form edits. */
-  get writable(): boolean { return this.ownerContext.get('configEditor') !== undefined }
-  /** Current profile patch shown by the native configuration editor. */
+  /** 当前运行树是否提供表单存储；条目还需通过各自写入权限。 */
+  get writable(): boolean { return this.preferences !== undefined || this.ownerContext.get('configEditor') !== undefined }
+  /** 表单写入所使用的配置补丁或账号偏好文件。 */
   get documentPath(): string {
-    const editor = this.ownerContext.get('configEditor')
+    const editor = this.preferences ?? this.ownerContext.get('configEditor')
     if (editor === undefined) throw new Error('Settings are read-only: no configuration editor is mounted')
     return editor.documentPath
   }
-  /** 查找原生编辑器使用的配置文件；只读 Host 通过拒绝 Promise 报错。
+  /** 查找表单使用的配置文件；只读 Host 通过拒绝 Promise 报错。
    * @returns 当前配置文件路径。
    */
   prepareDocument(): Promise<string> { return Promise.resolve().then(() => this.documentPath) }
@@ -305,8 +308,9 @@ export class SettingsForms extends Service {
    * @returns Forms keyed by unique profile entry ids.
    */
   describe(options?: SettingsDescribeOptions): SettingsDescriptor[] {
+    if (this.initializationError !== undefined) throw this.initializationError
     const active = new Set<string>()
-    const editor = this.ownerContext.get('configEditor')
+    const editor = this.preferences ?? this.ownerContext.get('configEditor')
     const configuration = editor?.configuration() ?? [...this.ownerContext.loader.entries()].map(entry => ({
       entry, inherited: undefined, override: undefined,
     }))
@@ -334,6 +338,7 @@ export class SettingsForms extends Service {
       return [{
         autoGenerate,
         ns: entry.options.id as SettingsNamespace, schema: form.toJSON(), revision, applies: 'live' as const,
+        ...this.preferences === undefined ? {} : { writable: this.preferences.canWrite(entry.options.id) },
         value: options?.redactSecrets ? redacted.value : value,
         ...editor === undefined ? {} : {
           base: options?.redactSecrets ? redactSecrets(form as z<never>, base).value : base,
@@ -391,7 +396,9 @@ export class SettingsForms extends Service {
     change: (current: Record<string, unknown>, base: Record<string, unknown>, schema: z) => Record<string, unknown>,
     expected?: number, paths: readonly (readonly string[])[] = [],
   ): Promise<void> {
-    const editor = this.ownerContext.get('configEditor')
+    await this.ready
+    if (this.closed) throw new Error('Settings service is closed')
+    const editor = this.preferences ?? this.ownerContext.get('configEditor')
     if (editor === undefined) throw new Error('Settings are read-only: no configuration editor is mounted')
     const entry = editor.entries().find(row => row.options.id === ns)
     const schema = entry === undefined ? undefined : this.schema(entry)

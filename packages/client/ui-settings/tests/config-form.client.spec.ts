@@ -85,6 +85,19 @@ function trackValues(scope: ConfigForm<UiTestSettings>): Array<UiTestSettings | 
 }
 
 describe('ConfigFormController', () => {
+  it('honors a protected namespace while other preferences are writable', async () => {
+    const mutate = vi.fn()
+    const { mirror, scope } = derivedScope({
+      describe: vi.fn().mockResolvedValue(ok({
+        writable: true, hasDocument: true,
+        namespaces: [{ ...view({ preference: 'dark' }), writable: false }],
+      })), mutate,
+    })
+    await mirror.load()
+    expect(scope.getSnapshot().writable).toBe(false)
+    expect(await scope.set('preference', 'light')).toBe(false)
+    expect(mutate).not.toHaveBeenCalled()
+  })
   it('starts loading and derives a schema-valid section with revision and writability', async () => {
     const describeCall = vi.fn().mockResolvedValueOnce(described({ preference: 'dark' }, 3))
     const { mirror, scope } = derivedScope({ describe: describeCall })

@@ -17,6 +17,7 @@ export async function configurationFixture(options: {
   apply?: (ctx: Context, config: unknown) => void
   hmr?: boolean
   editor?: boolean
+  preferences?: boolean
 } = {}) {
   const home = realpathSync(mkdtempSync(join(tmpdir(), 'settings-config-')))
   const dir = join(home, 'profiles', 'test')
@@ -29,7 +30,9 @@ export async function configurationFixture(options: {
     dsh: { bundle: { patch: 'cordis.patch.yml' } } }))
   writeFileSync(join(bundle, 'cordis.patch.yml'), JSON.stringify([{ insert: [
     { id: 'config-editor', name: 'cordis:editor', disabled: options.editor === false },
-    { id: 'settings', name: 'cordis:settings' },
+    { id: 'settings', name: 'cordis:settings', ...(options.preferences ? {
+      config: { preferencesPath: join(home, 'preferences.json'), preferencesNamespaces: ['first'] },
+    } : {}) },
     { id: 'default-model', name: 'cordis:model', config: { provider: 'test', model: 'original' } },
     { id: 'first', name: 'cordis:probe', config: { ordinary: 'fixed', token: 'private' } },
     { id: 'second', name: 'cordis:probe', config: { ordinary: 'second' } },

@@ -1,6 +1,7 @@
 /** 手选安装目标；只展示服务端已验证的索引，不根据浏览器猜造链接。 */
 import React, { useEffect, useRef, useState } from 'react'
 import { Alert, Button, Modal, Select, Space, Spin, Typography } from 'antd'
+import { IconDownloadOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
 import { copy, type AuthTransport } from './shared.ts'
 
 interface DownloadFile { target: string; url: string; filename: string; bytes: number; sha256: string }
@@ -32,8 +33,9 @@ export function DownloadButton({ transport, compact = false }: { transport: Auth
   }
   const file = index?.files.find(value => value.target === target)
   return <>
-    <Button type="text" title={copy.download} aria-label={copy.download} block={compact}
-      onClick={() => { setOpen(true); void load() }}>{compact ? '↓' : copy.download}</Button>
+    <Button className="harness-download" type="text" title={copy.download} aria-label={copy.download} block={compact}
+      icon={<IconDownloadOutlineRegular size={20} />}
+      onClick={() => { setOpen(true); void load() }}>{compact ? null : copy.download}</Button>
     <Modal title={copy.downloadTitle} open={open} onCancel={close} footer={null} destroyOnHidden>
       <Space orientation="vertical" style={{ width: '100%' }} size="middle">
         <Select aria-label={copy.target} value={target} onChange={setTarget} style={{ width: '100%' }} options={[

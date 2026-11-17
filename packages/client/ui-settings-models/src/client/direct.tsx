@@ -18,7 +18,7 @@ type LauncherInjected = { t: TranslateNS<'models.direct'>; hooks: { theme: HostO
 function ModelLauncher({ wide, openSettings, t, useTheme }: PropsRuntime<'settings.launcher'> & InjectFace<LauncherInjected>) {
   const palette = useTheme(value => value)
   return <ConfigProvider theme={{ algorithm: palette.active.colorScheme === 'dark' ? theme.darkAlgorithm : theme.defaultAlgorithm }}>
-    <div className={css.launcher}>
+    <div className={css.launcher} data-wide={wide}>
       <Tooltip title={wide ? undefined : t('title')}><Button type="text" aria-label={t('title')} icon={<IconDataOutlineRegular size={18} />} onClick={() => { openSettings('models') }}>{wide ? t('title') : undefined}</Button></Tooltip>
       <Tooltip title={wide ? undefined : t('settings')}><Button type="text" aria-label={t('settings')} icon={<IconSettingsOutlineRegular size={18} />} onClick={() => { openSettings() }}>{wide ? t('settings') : undefined}</Button></Tooltip>
     </div>

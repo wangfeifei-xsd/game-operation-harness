@@ -48,6 +48,7 @@ export interface SettingsControllerInternals {
 function namespaceView(descriptor: SettingsDescriptor): SettingsNamespaceView {
   return {
     ns: String(descriptor.ns),
+    ...descriptor.writable === undefined ? {} : { writable: descriptor.writable },
     autoGenerate: descriptor.autoGenerate,
     schema: descriptor.schema as JsonValue,
     value: descriptor.value as JsonValue,
