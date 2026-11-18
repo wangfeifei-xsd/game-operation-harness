@@ -2842,6 +2842,16 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Launch-time DSH_TELEMETRY_DISABLED value; any non-empty value opts out.',
         parameters: [],
       },
+      {
+        signature: 'readonly transformBundles?: (patches: PatchOptions[]) => PatchOptions[]',
+        description: '入口提供的组合包默认值；用户补丁在其后应用，重载时仍使用同一转换。',
+        parameters: [],
+      },
+      {
+        signature: 'readonly transformPatches?: (patches: PatchOptions[]) => PatchOptions[]',
+        description: '入口的最终装配转换；启动、配置编辑和热更新共用，不能依赖可变运行状态。',
+        parameters: [],
+      },
     ],
   },
   {

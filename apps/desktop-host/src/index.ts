@@ -1,6 +1,5 @@
 /** Launch the Desktop profile through the Web application and report its URL to Electron. */
 
-import { readFileSync } from 'node:fs'
 import { delimiter, join } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import type { PluginOperationRunId } from '@deepseek-ai/dsh-plugin-manager/diagnostic'
@@ -11,7 +10,7 @@ import type {} from '@deepseek-ai/dsh-client-connection'
 import type {} from '@deepseek-ai/dsh-host-webserver'
 import { HarnessAuthClient, HarnessAuthError } from '@deepseek-ai/dsh-host-harness-product/auth-client'
 import { readHarnessConfig, harnessUserHome } from '@deepseek-ai/dsh-host-harness-product/config'
-import { harnessComposition } from '@deepseek-ai/dsh-host-harness-product/composition'
+import { harnessComposition, harnessDefaults } from '@deepseek-ai/dsh-host-harness-product/composition'
 import { installHarnessAuthorization } from '@deepseek-ai/dsh-host-harness-product/authorization'
 import { installProxyFromConfig } from '@deepseek-ai/dsh-http-proxy'
 import { localDragResource } from './file-drag.ts'
@@ -44,6 +43,7 @@ async function main(): Promise<void> {
   }
   const input = await authentication.product
   const config = readHarnessConfig(input.environment, input.configDirectory)
+  const extensionEnvironment = { ...process.env }
   const disposeProxy = await installProxyFromConfig(config.proxy)
   const client = new HarnessAuthClient(config)
   const verify = async (): Promise<void> => {
@@ -61,18 +61,8 @@ async function main(): Promise<void> {
   // Set before the launch-environment snapshot and profile evaluation; empty means the payload sits beside the runtime directory.
   process.env.DSH_PRIMARY_RUNTIME = process.argv[4] || join(runtimeDir, '..', 'runtime', 'primary-runtime')
   const installAnchor = join(runtimeDir, 'node_modules', '@deepseek-ai', 'dsh', 'package.json')
-  const metadata: unknown = JSON.parse(readFileSync(join(projectDir, 'package.json'), 'utf8'))
-  if (typeof metadata !== 'object' || metadata === null || !('dependencies' in metadata)
-    || typeof metadata.dependencies !== 'object' || metadata.dependencies === null || Object.keys(metadata.dependencies).length !== 0
-    || !('dsh' in metadata) || typeof metadata.dsh !== 'object' || metadata.dsh === null
-    || !('profile' in metadata.dsh) || typeof metadata.dsh.profile !== 'object' || metadata.dsh.profile === null
-    || !('bundles' in metadata.dsh.profile) ||
-      JSON.stringify(metadata.dsh.profile.bundles) !== JSON.stringify(['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app'])) {
-    throw new Error('桌面产品插件配置被修改，请重新登录')
-  }
-  const profile = loadProfileDirectory('dsh', projectDir, installAnchor, { userLayer: false })
+  const profile = loadProfileDirectory('dsh', projectDir, installAnchor)
   reportSkippedBundles('dsh', profile)
-  if (profile.skippedBundles.length !== 0 || profile.layers.length !== 2) throw new Error('桌面产品插件资源不完整')
   let stopping: Promise<void> | undefined
   let paused: ReturnType<typeof Promise.withResolvers<void>> | undefined
   let authorize: (() => Promise<void>) | undefined
@@ -87,7 +77,8 @@ async function main(): Promise<void> {
     patchFiles: [],
     args: [],
     product: {
-      home, patches: [], transform: patches => harnessComposition(patches, config, home),
+      home, patches: [], defaults: patches => harnessDefaults(patches, config, extensionEnvironment),
+      transform: patches => harnessComposition(patches, config, home),
       prepare: async (ctx) => {
         await verify()
         ctx.provide('fileDeployment', true)

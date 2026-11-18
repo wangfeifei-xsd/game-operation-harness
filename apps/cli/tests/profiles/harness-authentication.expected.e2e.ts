@@ -12,6 +12,7 @@ import { createProcessInspector } from '@deepseek-ai/dsh-subprocess-local/proces
 import { afterAll, beforeAll, expect, it } from 'vitest'
 import { parseHarnessConfig } from '../../src/harness-config.ts'
 import type { SettingsDescribeValue } from '@deepseek-ai/dsh-settings/types'
+import type { PluginInfo } from '@deepseek-ai/dsh-plugin-manager/types'
 
 const repository = fileURLToPath(new URL('../../../../', import.meta.url))
 let directory: string
@@ -61,12 +62,12 @@ async function preferences(): Promise<object> {
     chat: entries.get('ui-chat')?.value,
     conversation: entries.get('ui-conversation')?.value,
     codeWorkView: entries.get('ui-settings')?.value,
-    permissionWritable: entries.get('permission')?.writable,
+    permissionWritable: entries.get('permission')?.writable ?? answer.result.value.writable,
   }
 }
 async function launch(cli: string): Promise<ChildProcess> {
-  const process = spawn(globalThis.process.execPath, [join(cli, 'lib/bin.js'), '--profile', 'harness', '--environment', 'dev', '--no-open'], {
-    cwd: directory, stdio: ['ignore', 'pipe', 'pipe'], env: { ...globalThis.process.env, DSH_HOME: '/must-not-be-used', DEEPSEEK_BASE_URL: 'https://invalid.example' },
+  const process = spawn(globalThis.process.execPath, [join(cli, 'lib/bin.js'), '--profile', 'harness', '--patch', join(directory, 'extension.patch.yml'), '--environment', 'dev', '--no-open'], {
+    cwd: directory, stdio: ['ignore', 'pipe', 'pipe'], env: { ...globalThis.process.env, DSH_HOME: join(directory, 'personal'), DSH_AGENTS_HOME: join(directory, 'agents'), DEEPSEEK_BASE_URL: 'https://invalid.example' },
   })
   children.push(process)
   let text = ''
@@ -147,7 +148,25 @@ beforeAll(async () => {
   await writeFile(join(legacyHome, 'upgrade-marker'), '原有账号数据')
   config.auth.heartbeatIntervalMs = 250
   config.auth.shutdownGraceMs = 1500
+  config.telemetry.enabled = false
   await writeFile(join(cli, 'lib/resources/environments/dev.json'), JSON.stringify(config))
+  await writeFile(join(directory, 'extension.patch.yml'), JSON.stringify([{ insert: [
+    { id: 'extension-fixture', name: new URL('./fixtures/harness-extension.mjs', import.meta.url).href, config: { path: '/extension-fixture' } },
+  ] }]))
+  const extensionDir = join(directory, 'custom-extension')
+  await mkdir(extensionDir)
+  await writeFile(join(extensionDir, 'package.json'), JSON.stringify({ name: 'harness-extension-fixture', version: '1.0.0', type: 'module',
+    exports: './index.mjs', dsh: { bundle: { patch: 'cordis.patch.yml' } } }))
+  await cp(new URL('./fixtures/harness-extension.mjs', import.meta.url), join(extensionDir, 'index.mjs'))
+  await writeFile(join(extensionDir, 'cordis.patch.yml'), JSON.stringify([{ insert: [
+    { id: 'installed-fixture', name: 'harness-extension-fixture', config: { path: '/installed-fixture' } },
+  ] }]))
+  await writeFile(join(legacyHome, 'preferences.json'), JSON.stringify({ 'ui-theme': { preference: 'dark' } }))
+  for (const [root, name] of [['personal', 'legacy-personal'], ['agents', 'legacy-shared']] as const) {
+    const skills = join(directory, root, 'skills', name)
+    await mkdir(skills, { recursive: true })
+    await writeFile(join(skills, 'SKILL.md'), `---\nname: ${name}\ndescription: Personal skill fixture\n---\nUse this local test skill.\n`)
+  }
   await writeFile(join(directory, '.env'), 'DSH_HOME=/must-not-be-used\nDSH_PERMISSION_MODE=invalid\n')
   child = await launch(cli)
   const response = await request('/harness/api/session', undefined, '')
@@ -181,6 +200,27 @@ it('serves the authenticated product tree and stops every old identity before sw
   expect(page).not.toContain('x-harness-parent-secret')
   expect(html.headers.get('cache-control')).toBe('no-store')
   expect(page).not.toMatch(/http:\/\/127\.0\.0\.1:\d+/u)
+  await expect.poll(preferences).toMatchObject({ theme: { preference: 'dark' } })
+  const inventory = JSON.parse(await invoke('pluginManager/listPlugins', {})) as { result: { value: PluginInfo[] } }
+  const extensions = inventory.result.value.map(row => ({ id: row.patchId ?? row.moduleName.replace(/^@deepseek-ai\/dsh-(?:client-)?/u, ''), enabled: row.enabled, phase: row.fiberPhase })).filter(row => [
+    'plugin-manager', 'config-editor', 'hmr', 'client-hmr', 'harness-dev-context', 'ui-cordis',
+    'ui-plugin-manager', 'ui-settings-plugins', 'ui-settings-plugin-inventory', 'cordis-inspect-providers',
+    'cordis-host-runner', 'cordis-client-runner', 'message-feedback', 'ui-message-feedback', 'command-feedback', 'preset-cordis',
+  ].includes(row.id))
+  expect(extensions.sort((a, b) => a.id.localeCompare(b.id)))
+    .toEqual(JSON.parse(await readFile(new URL('./expected/harness-authentication/extensions.expected.json', import.meta.url), 'utf8')))
+  expect((await request('/extension-fixture')).status).toBe(200)
+  const installed = await invoke('pluginManager/installBundle', { spec: join(directory, 'custom-extension'), options: { enabled: true } })
+  expect(installed).not.toContain('"error"')
+  expect(await (await request('/installed-fixture')).json()).toEqual({ extension: 'active' })
+  const installedInventory = JSON.parse(await invoke('pluginManager/listPlugins', {})) as { result: { value: PluginInfo[] } }
+  const extension = installedInventory.result.value.find(row => row.patchId === 'installed-fixture')!
+  await invoke('pluginManager/setPluginEnabled', { id: extension.entryId, enabled: false })
+  expect(await (await request('/installed-fixture')).text()).not.toContain('"extension":"active"')
+  await invoke('pluginManager/setPluginEnabled', { id: extension.entryId, enabled: true })
+  expect(await (await request('/installed-fixture')).json()).toEqual({ extension: 'active' })
+  await invoke('settings/update', { ns: 'mcp-manager', patch: { servers: { fixture: { transport: 'stdio', command: 'unused-fixture', enabled: false } } } })
+  await invoke('settings/update', { ns: 'permission', patch: { defaultPreset: 'read-only' } })
   await invoke('settings/update', { ns: 'ui-theme', patch: { preference: 'light', fontSize: 18 } })
   await invoke('settings/update', { ns: 'locale', patch: { preference: 'en' } })
   await invoke('settings/update', { ns: 'ui-chat', patch: { collapseTiming: 'next-input', foldedReplies: 'final' } })
@@ -188,13 +228,9 @@ it('serves the authenticated product tree and stops every old identity before sw
   await invoke('settings/update', { ns: 'ui-settings', patch: { enabled: false } })
   const expectedPreferences: unknown = JSON.parse(await readFile(new URL('./expected/harness-authentication/preferences.expected.json', import.meta.url), 'utf8'))
   expect(await preferences()).toEqual(expectedPreferences)
-  expect(JSON.parse(await readFile(join(directory, 'data/dev/users/user_alpha/preferences.json'), 'utf8')))
-    .toMatchObject({ 'ui-theme': { preference: 'light', fontSize: 18 } })
-  const protectedSettings = await request('/api/settings/update', {
-    type: 'client-request', rpcId: 'protected-settings', method: 'settings/update',
-    payload: { args: { ns: 'permission', patch: { defaultPreset: 'full-access' } } },
-  })
-  expect(await protectedSettings.text()).toContain('settings/rejected')
+  expect(await readFile(join(directory, 'data/dev/users/user_alpha/profiles/harness-runtime/cordis.patch.yml'), 'utf8'))
+    .toContain('defaultPreset: read-only')
+  expect(await readFile(join(directory, 'data/dev/users/user_alpha/preferences.json.imported'), 'utf8')).toContain('dark')
   expect(await invoke('modelConfig/list', {})).toContain('"models":[]')
   const oldAccount = await request('/api/account/getState', {
     type: 'client-request', rpcId: 'removed-account', method: 'account/getState', payload: { args: {} },
@@ -210,6 +246,8 @@ it('serves the authenticated product tree and stops every old identity before sw
   expect(await invoke('credentials/describe', { refs: ['HARNESS_FIXTURE'] })).toContain('"configured":true')
   const created = await invoke('session/create', { request: { sessionId: 'harness_fixture_alpha', cwd: directory } })
   expect(created).toContain('harness_fixture_alpha')
+  const personalSkills = await (await request('/extension-fixture?sessionId=harness_fixture_alpha')).json() as { skills: string[] }
+  expect(personalSkills.skills).toEqual(expect.arrayContaining(['legacy-personal', 'legacy-shared']))
   const socket = new WebSocket(`${origin.replace('http:', 'ws:')}/api/remote.mux`, { headers: { origin, cookie } })
   socket.on('error', () => { /* 停用关闭连接属于测试预期，最终检查关闭状态。 */ })
   await once(socket, 'open')
@@ -249,6 +287,12 @@ it('serves the authenticated product tree and stops every old identity before sw
   expect(await invoke('session/list', { _request: {} })).toContain('harness_fixture_alpha')
   expect(await invoke('modelConfig/list', {})).toContain('隔离模型')
   await expect.poll(preferences).toEqual(expectedPreferences)
+  expect(await (await request('/installed-fixture')).json()).toEqual({ extension: 'active' })
+  const restoredSettings = await invoke('settings/describe', {})
+  expect(restoredSettings).toContain('unused-fixture')
+  expect(restoredSettings).toContain('"defaultPreset":"read-only"')
+  expect(await invoke('pluginManager/removeBundle', { name: 'harness-extension-fixture' })).not.toContain('"error"')
+  expect(await (await request('/installed-fixture')).text()).not.toContain('"extension":"active"')
   available = false
   const unavailable = await request('/harness/api/renew', {})
   expect(unavailable.status).toBe(503)

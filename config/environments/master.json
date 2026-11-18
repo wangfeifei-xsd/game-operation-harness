@@ -26,7 +26,7 @@
     "credentials": {}
   },
   "telemetry": {
-    "enabled": false,
+    "enabled": true,
     "mode": "FEEDBACK_ONLY",
     "url": "https://dsh-otel-collector.deepseeksvc.com/v1/logs"
   },

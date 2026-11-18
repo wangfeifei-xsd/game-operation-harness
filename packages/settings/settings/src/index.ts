@@ -230,12 +230,37 @@ export class SettingsForms extends Service {
     this.ready = ctx[Context.root].loader.await().then(async () => {
       if (this.closed) return
       if (this.preferences !== undefined) await this.preferences.initialize()
+      else await this.importLegacyPreferences()
       this.invalidate()
     })
     void this.ready.then(() => this.preferences === undefined ? this.importLegacyDocument() : undefined).catch((error: unknown) => {
       this.initializationError = error instanceof Error ? error : new Error('设置初始化失败，请重新启动', { cause: error })
       ctx.logger.error(error)
     })
+  }
+
+  /** 将旧账号偏好并入常规 profile；已有显式配置优先，全部写入后保留迁移源副本。 */
+  private async importLegacyPreferences(): Promise<void> {
+    const editor = this.ownerContext.get('configEditor')
+    if (editor === undefined) return
+    const path = join(this.ownerContext.profileContext.home, 'preferences.json')
+    let contents: string
+    try { contents = await readFile(path, 'utf8') }
+    catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return
+      throw error
+    }
+    const saved: unknown = JSON.parse(contents)
+    if (!isPlainObject(saved) || Object.values(saved).some(value => !isPlainObject(value))) {
+      throw new Error('账号偏好文件格式无效，原文件已保留')
+    }
+    for (const [ns, values] of Object.entries(saved)) {
+      const configuration = editor.configuration().find(row => row.entry.options.id === ns)
+      if (configuration === undefined) throw new Error(`账号偏好对应的插件 ${ns} 不可用，原文件已保留`)
+      await editor.edit(configuration.entry, current => mergeLayers(current,
+        mergeLayers(values, configuration.override)) as Record<string, unknown>)
+    }
+    await rename(path, `${path}.imported`)
   }
 
   /** Move the sections of the removed `settings.yaml` into the active profile once the Loader has settled every entry.

@@ -40,7 +40,7 @@ Composition mechanics are in [app-boot](../packages/boot/app-boot/README.md#prof
 
 ## Application launch
 
-Web/PWA uses `harness` with a parent-owned `harness-runtime`. [Product authentication](harness-product.md) defines their tracked configuration, fixed composition, account homes and lifecycle.
+Web/PWA uses `harness` with a parent-owned `harness-runtime`. [Product authentication](harness-product.md) defines their deployment settings, extensible profiles, account homes and lifecycle.
 
 Supported Node applications launch through named `dsh` profiles. The shipped profiles are `web`, `headless`, `sdk`, `sdk-minimal`, and `acp`, selected with `dsh --profile <name>` or `dsh <name>`. `plugin` names the management command; a profile with that name requires `--profile plugin`. The TypeScript SDK resolves its same-version `dsh` dependency and selects `sdk`; custom plugin composition remains a profile plus ordered patch files, not another executable or inline application tree. `sdk-minimal` is a repository-owned standalone bundle behind the same launcher, not a caller-supplied Cordis tree.
 

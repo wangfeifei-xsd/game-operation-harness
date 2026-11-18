@@ -1,4 +1,4 @@
-/** 使用隔离中央服务验证安装闭包；产品 Host 保持固定装配与认证。 */
+/** 使用隔离中央服务验证安装资源、账号认证和自定义插件配置。 */
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { rm } from 'node:fs/promises'
 import { randomBytes } from 'node:crypto'
@@ -30,13 +30,13 @@ export function assertOfficeSkillsLoadable(results: ReadonlyArray<{ readonly nam
 }
 
 /**
- * 验证原生 Office 依赖及经过中央认证的固定产品 Host，不给产品增加测试路由或插件豁免。
+ * 验证原生 Office 依赖、中央认证及普通 profile 的扩展装配。
  * @param root - 准备完成或位于 ASAR 内的运行目录。
  * @param node - 目标 Electron 可执行文件。
  * @param runtime - 已核验的目标资源描述。
  * @param environment - 已移除发布凭据的构建环境。
  * @param resourcesRuntime - ASAR 外的解释器与依赖目录。
- * @returns 原生转换、产品 HTTP 认证、固定装配与退出均已验证。
+ * @returns 原生转换、产品 HTTP 认证、扩展装配与退出均已验证。
  */
 export async function smokeDesktopRuntime(
   root: string, node: string, runtime: DesktopRuntimeDescriptor, environment: NodeJS.ProcessEnv, resourcesRuntime: string,
@@ -112,20 +112,29 @@ export async function smokeDesktopRuntime(
     const response = await fetch(ready.url, { headers: { cookie: ready.authenticationCookie } })
     if (response.status !== 200 || !(await response.text()).includes('<html')) throw new Error('desktop runtime: packaged frontend smoke failed')
     await host.stop()
-    // 修改 profile 不能让旧版插件装配绕过当前产品限制。
-    const manifest = JSON.parse(readFileSync(join(profile, 'package.json'), 'utf8')) as { dependencies: Record<string, string> }
-    manifest.dependencies['desktop-untrusted-plugin'] = 'file:./untrusted'
+    const pluginDir = join(profile, 'node_modules', 'desktop-extension-fixture')
+    mkdirSync(pluginDir, { recursive: true })
+    writeFileSync(join(pluginDir, 'package.json'), JSON.stringify({ name: 'desktop-extension-fixture', version: '1.0.0',
+      dsh: { bundle: { patch: 'cordis.patch.yml' } } }))
+    writeFileSync(join(pluginDir, 'cordis.patch.yml'), '[]\n')
+    const manifest = JSON.parse(readFileSync(join(profile, 'package.json'), 'utf8')) as { dependencies: Record<string, string>; dsh: { profile: { bundles: string[] } } }
+    manifest.dependencies['desktop-extension-fixture'] = 'file:./node_modules/desktop-extension-fixture'
+    manifest.dsh.profile.bundles.push('desktop-extension-fixture')
     writeFileSync(join(profile, 'package.json'), JSON.stringify(manifest))
+    writeFileSync(join(profile, 'cordis.patch.yml'), '- id: locale\n  config: { preference: en }\n')
     host = new DesktopHostProcess(node, root, profile, undefined, hostEnvironment, undefined, primary, undefined, undefined,
       { version: 1, generation: 2, environment: 'dev', configDirectory: configuration,
         token: login.access_token, sessionId: login.session_id, user: login.user })
-    try { await host.start() }
-    catch (error) {
-      if (!(error instanceof Error) || !error.message.includes('桌面产品插件配置被修改')) throw error
-      console.log('desktop runtime: protected Host, anonymous rejection, fixed composition and native Office operations passed')
-      return
-    }
-    throw new Error('desktop runtime: modified product profile was accepted')
+    const extended = await host.start()
+    const denied = await fetch(extended.url)
+    await denied.body?.cancel()
+    if (denied.status !== 401) throw new Error('desktop runtime: custom profile lost anonymous rejection')
+    const method = 'pluginManager/listBundles'
+    const inventory = await fetch(new URL(`/api/${method}`, extended.url), { method: 'POST',
+      headers: { cookie: extended.authenticationCookie, 'content-type': 'application/json' },
+      body: JSON.stringify({ type: 'client-request', rpcId: 'smoke-plugins', method, payload: { args: {} } }) })
+    if (!inventory.ok || !(await inventory.text()).includes('desktop-extension-fixture')) throw new Error('desktop runtime: custom bundle was not loaded')
+    console.log('desktop runtime: authenticated Host, custom plugin profile and native Office operations passed')
   } finally {
     clearTimeout(timer)
     try { await host?.stop() }

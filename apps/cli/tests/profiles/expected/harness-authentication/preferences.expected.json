@@ -18,5 +18,5 @@
   },
   "conversation": { "busyEnter": "steer" },
   "codeWorkView": { "enabled": false },
-  "permissionWritable": false
+  "permissionWritable": true
 }

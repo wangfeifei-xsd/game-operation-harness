@@ -6,6 +6,22 @@ import { parse } from 'yaml'
 import z from '@deepseek-ai/schemastery'
 import { configurationFixture as fixture } from './configuration-fixture.ts'
 
+it('imports account preferences into the profile and preserves later configuration edits across restart', async () => {
+  const { ctx, home, profile, start } = await fixture()
+  await ctx.fiber.dispose()
+  writeFileSync(join(home, 'preferences.json'), JSON.stringify({ first: { count: 7 }, second: { count: 8 } }))
+  writeFileSync(profile.patchPath, JSON.stringify([{ id: 'second', config: { ordinary: 'second', count: 10 } }]))
+  const restored = await start()
+  await expect.poll(() => existsSync(join(home, 'preferences.json.imported'))).toBe(true)
+  expect(restored.settings.describe().find(row => row.ns === 'first')!.value).toMatchObject({ count: 7 })
+  expect(restored.settings.describe().find(row => row.ns === 'second')!.value).toMatchObject({ count: 10 })
+  await restored.settings.update('first', { count: 9 })
+  await restored.fiber.dispose()
+  const next = await start()
+  expect(next.settings.describe().find(row => row.ns === 'first')!.value).toMatchObject({ count: 9 })
+  expect(JSON.parse(readFileSync(join(home, 'preferences.json.imported'), 'utf8'))).toEqual({ first: { count: 7 }, second: { count: 8 } })
+})
+
 it('describes live preferences without a configuration editor and refuses writes or document access', async () => {
   const { ctx, home } = await fixture({ editor: false, hmr: false })
   expect(ctx.settings.writable).toBe(false)

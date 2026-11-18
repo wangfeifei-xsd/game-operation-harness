@@ -37,7 +37,11 @@ export class HarnessRuntimeProcess {
   private stopping: Promise<void> | undefined
   private exited = false
 
-  constructor(private readonly config: HarnessConfig, private readonly failed: (error?: HarnessAuthError) => void) {}
+  constructor(
+    private readonly config: HarnessConfig,
+    private readonly failed: (error?: HarnessAuthError) => void,
+    private readonly patchFiles: readonly string[] = [],
+  ) {}
 
   /**
    * 启动同一 dsh 安装中的私有 profile，等待匹配本代的准备结果。
@@ -47,10 +51,10 @@ export class HarnessRuntimeProcess {
   async start(input: HarnessStart): Promise<string> {
     const source = import.meta.filename.endsWith('.ts')
     const entry = fileURLToPath(new URL(source ? './bin.ts' : './bin.js', import.meta.url))
-    // 子进程保留操作系统启动条件，但不继承旧产品配置和供应商凭据。
+    // 子进程保留操作系统和扩展配置环境，供应商凭据仍由模型配置提供。
     const environment = Object.fromEntries(Object.entries(process.env).filter(([key]) =>
-      !/^(DSH_|DEEPSEEK_|OPENAI_|ANTHROPIC_|HTTP_PROXY$|HTTPS_PROXY$|ALL_PROXY$|NO_PROXY$)/iu.test(key)))
-    const child = fork(entry, ['--profile', 'harness-runtime', '--environment', this.config.environment], {
+      !/^(DEEPSEEK_|OPENAI_|ANTHROPIC_|HTTP_PROXY$|HTTPS_PROXY$|ALL_PROXY$|NO_PROXY$)/iu.test(key)))
+    const child = fork(entry, ['--profile', 'harness-runtime', ...this.patchFiles.flatMap(file => ['--patch', file]), '--environment', this.config.environment], {
       execArgv: source ? ['--import', 'tsx/esm'] : [],
       env: environment, detached: process.platform !== 'win32', stdio: ['ignore', 'ignore', 'ignore', 'ipc'],
     })

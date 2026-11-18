@@ -1,0 +1,82 @@
+[
+  {
+    "id": "client-hmr",
+    "enabled": true,
+    "phase": "active"
+  },
+  {
+    "id": "command-feedback",
+    "enabled": true,
+    "phase": "active"
+  },
+  {
+    "id": "config-editor",
+    "enabled": true,
+    "phase": "active"
+  },
+  {
+    "id": "cordis-client-runner",
+    "enabled": true,
+    "phase": "active"
+  },
+  {
+    "id": "cordis-host-runner",
+    "enabled": true,
+    "phase": "active"
+  },
+  {
+    "id": "cordis-inspect-providers",
+    "enabled": true,
+    "phase": "active"
+  },
+  {
+    "id": "harness-dev-context",
+    "enabled": true,
+    "phase": "active"
+  },
+  {
+    "id": "hmr",
+    "enabled": true,
+    "phase": "active"
+  },
+  {
+    "id": "message-feedback",
+    "enabled": true,
+    "phase": "active"
+  },
+  {
+    "id": "plugin-manager",
+    "enabled": true,
+    "phase": "active"
+  },
+  {
+    "id": "preset-cordis",
+    "enabled": true,
+    "phase": "active"
+  },
+  {
+    "id": "ui-cordis",
+    "enabled": true,
+    "phase": "active"
+  },
+  {
+    "id": "ui-message-feedback",
+    "enabled": true,
+    "phase": "active"
+  },
+  {
+    "id": "ui-plugin-manager",
+    "enabled": true,
+    "phase": "active"
+  },
+  {
+    "id": "ui-settings-plugin-inventory",
+    "enabled": true,
+    "phase": "active"
+  },
+  {
+    "id": "ui-settings-plugins",
+    "enabled": true,
+    "phase": "active"
+  }
+]

@@ -31,9 +31,9 @@ export async function runCli(options: RunCliOptions = {}): Promise<void> {
   switch (invocation.mode) {
     case 'profile': {
       if (invocation.profile === 'harness' || invocation.profile === 'harness-runtime') {
-        if (invocation.patches.length || invocation.fromDefaultProfile !== undefined) throw new Error('Harness 产品入口不接受覆盖补丁')
+        if (invocation.fromDefaultProfile !== undefined) throw new Error('请在账号 profile 目录中管理组合包，登录入口不替换账号 profile 模板')
         const { runHarnessProfile } = await import('./harness-profile.ts')
-        await runHarnessProfile(invocation.profile, invocation.args)
+        await runHarnessProfile(invocation.profile, invocation.args, invocation.patches)
         break
       }
       const { runProfile } = await import('./profile-boot.ts')
@@ -54,9 +54,8 @@ export async function runCli(options: RunCliOptions = {}): Promise<void> {
       break
     }
     case 'plugin': {
-      if (invocation.profile === 'harness' || invocation.profile === 'harness-runtime') throw new Error('Harness 产品装配由安装包维护')
       const { runPlugin } = await import('./plugin.ts')
-      process.exit(await runPlugin(invocation.profile, invocation.args, options.packageManager))
+      process.exit(await runPlugin(invocation.profile === 'harness' ? 'harness-runtime' : invocation.profile, invocation.args, options.packageManager))
       break
     }
     case 'dump-config': {

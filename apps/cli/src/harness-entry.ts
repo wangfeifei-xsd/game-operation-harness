@@ -68,11 +68,14 @@ const mime: Record<string, string> = { js: 'text/javascript; charset=utf-8', css
 /** 产品入口插件由 profile prepare 挂载，公开树不装配聊天或工具服务。 */
 export const harnessEntry = {
   name: 'harness-public-entry',
-  async apply(ctx: Context, options: { config: HarnessConfig; openBrowser: boolean }): Promise<void> {
+  async apply(ctx: Context, options: { config: HarnessConfig; openBrowser: boolean; patchFiles?: readonly string[] }): Promise<void> {
     const { config } = options
     const cookieName = `harness_${config.environment}_${config.server.port}`
     const sockets = new Set<Duplex>()
-    const coordinator = new HarnessCoordinator(config, () => { for (const socket of sockets) socket.destroy(); sockets.clear() })
+    const coordinator = new HarnessCoordinator(config, () => {
+      for (const socket of sockets) socket.destroy()
+      sockets.clear()
+    }, options.patchFiles)
     const proxy = httpProxy.createProxyServer({ ws: true, xfwd: false, changeOrigin: true })
     proxy.on('proxyRes', (response) => {
       delete response.headers['set-cookie']

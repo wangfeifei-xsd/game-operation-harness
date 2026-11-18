@@ -606,7 +606,7 @@ describe('desktop main startup', () => {
     harness.app.isPackaged = false
     vi.stubEnv('DSH_DESKTOP_DSH_DIR', join(root, 'app.asar', 'dsh'))
     const host = await readyForUpdate()
-    expect(harness.analytics).not.toHaveBeenCalled()
+    expect(harness.analytics).toHaveBeenCalledWith(expect.objectContaining({ eventName: 'desktop_app_launch' }))
     expect(host.primaryRuntime).toBe('test-primary-runtime')
     expect(existsSync(harness.app.getPath('logs'))).toBe(false)
     expect(writeCrashReport).not.toHaveBeenCalled()

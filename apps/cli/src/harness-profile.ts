@@ -1,12 +1,12 @@
-/** Harness 产品的两个受支持 dsh profiles，全部配置直接来自环境文件。 */
-import { mkdirSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+/** 产品登录与账号运行 profiles；身份来自环境文件，扩展使用账号配置。 */
+import { mkdirSync } from 'node:fs'
+import { join, resolve } from 'node:path'
 import { Command } from 'commander'
 import { initProfile, loadProfileDirectory } from '@deepseek-ai/dsh-app-boot'
 import { installProxyFromConfig } from '@deepseek-ai/dsh-http-proxy'
 import { HarnessAuthClient, HarnessAuthError } from './harness-auth-client.ts'
 import { readHarnessConfig, harnessUserHome } from './harness-config.ts'
-import { harnessComposition } from './harness-composition.ts'
+import { harnessComposition, harnessDefaults } from './harness-composition.ts'
 import { installHarnessPrivateAuth } from './harness-private-auth.ts'
 import { harnessEntry } from './harness-entry.ts'
 import { runProfile, INSTALL_ANCHOR } from './profile-boot.ts'
@@ -40,16 +40,18 @@ async function receiveStart(): Promise<HarnessStart> {
 }
 
 /**
- * 只允许显式环境选择，不接受用户 overlay、端口或数据根覆盖。
+ * 显式选择登录环境，将用户覆盖补丁传给认证后的账号运行树。
  * @param profile - 公开入口或私有运行 profile。
  * @param args - 此 profile 的命令行参数。
+ * @param patchFiles - 命令行覆盖文件；省略时只读取账号配置。
  * @returns 产品树启动完成。
  */
-export async function runHarnessProfile(profile: 'harness' | 'harness-runtime', args: readonly string[]): Promise<void> {
+export async function runHarnessProfile(profile: 'harness' | 'harness-runtime', args: readonly string[], patchFiles: readonly string[] = []): Promise<void> {
   const command = new Command(`dsh --profile ${profile}`).requiredOption('--environment <name>', 'dev、test、fat 或 master').option('--no-open', '不自动打开浏览器')
   command.parse([...args], { from: 'user' })
   const flags = command.opts<{ environment: string; open: boolean }>()
   const config = readHarnessConfig(flags.environment)
+  const extensionEnvironment = { ...process.env }
   const disposeProxy = await installProxyFromConfig(config.proxy)
   const input = profile === 'harness-runtime' ? await receiveStart() : undefined
   let stopped = false
@@ -77,8 +79,7 @@ export async function runHarnessProfile(profile: 'harness' | 'harness-runtime', 
   const bundles = input === undefined ? [] : ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app']
   mkdirSync(dir, { recursive: true, mode: 0o700 })
   initProfile(dir, bundles)
-  writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: `dsh-profile-${profile}`, private: true, dependencies: {}, dsh: { profile: { bundles } } }) + '\n')
-  const resolved = loadProfileDirectory('dsh', dir, INSTALL_ANCHOR, { userLayer: false })
+  const resolved = loadProfileDirectory('dsh', dir, INSTALL_ANCHOR, { userLayer: input !== undefined })
   try {
     const client = new HarnessAuthClient(config)
     if (input !== undefined) {
@@ -88,14 +89,18 @@ export async function runHarnessProfile(profile: 'harness' | 'harness-runtime', 
     }
     const authorization: { run?: () => Promise<void> } = {}
     const runtime = await runProfile({ profile, resolvedProfile: { profile: resolved, installAnchor: INSTALL_ANCHOR },
-      patchFiles: [], args: [],
+      patchFiles: input === undefined ? [] : patchFiles, args: [],
       product: {
-        home, patches: [], transform: patches => harnessComposition(patches, config, home),
+        home, patches: [], defaults: patches => harnessDefaults(patches, config, extensionEnvironment),
+        transform: patches => input === undefined ? [] : harnessComposition(patches, config, home),
         prepare: async (ctx) => {
           ctx.provide('fileDeployment', true)
           ctx.provide('fileDeploymentHome', home)
           ctx.effect(() => disposeProxy)
-          if (input === undefined) { await ctx.plugin(harnessEntry, { config, openBrowser: flags.open }); return }
+          if (input === undefined) {
+            await ctx.plugin(harnessEntry, { config, openBrowser: flags.open, patchFiles: patchFiles.map(file => resolve(file)) })
+            return
+          }
           ctx.provide('webStartup', { host: '127.0.0.1', port: 0, openBrowser: false, trustedHosts: [] })
           authorization.run = installHarnessPrivateAuth(ctx, config, input, stop)
         },

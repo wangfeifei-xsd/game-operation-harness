@@ -28,7 +28,7 @@ Harness 入口通过本库读取部署配置、验证 Creativity 账号，并隔
 
 `config`、`auth-client` 和 `home` 入口验证部署文件与中央响应，确定已认证用户的目录并取得归属锁。中央访问 Token 仅保留在 Node 内存中。预期认证失败使用 `HarnessAuthError`，包含状态、稳定错误码和安全消息。
 
-`composition` 入口从产品中移除运行时配置编辑和供应商账号插件。通用界面偏好通过[设置服务](../../settings/settings/README.zh.md)的明确命名空间范围保存到账号内的 `preferences.json`；部署配置和权限配置保持只读。共用的 `model-composition` 入口装配[模型配置服务](../../llm/harness-model-config/README.zh.md)及 Remote 控制器，将存储绑定到传入目录，并要求产品默认模型来源。应用入口必须传入已经认证的目录；模型请求由本地 Host 调用供应商。
+`composition` 入口在加载用户扩展的同时保留账号存储与私有认证。`harnessDefaults` 提供可编辑的沙箱和遥测默认值；`harnessComposition` 在启动及每次重载时于用户层之后应用。[设置服务](../../settings/settings/README.zh.md)保存 profile 补丁并导入旧账号偏好。共用的 `model-composition` 入口装配[模型配置服务](../../llm/harness-model-config/README.zh.md)及 Remote 控制器，将存储绑定到已认证 home，并要求产品默认模型来源。模型请求由本地 Host 调用供应商。
 
 `authorization`、`desktop-start` 和 `process-tree` 入口支持认证后的执行与受管进程归属。调用者负责关闭和释放目录锁。这些入口不接受渲染端指定的用户目录，也不向浏览器暴露中央 Token。
 

@@ -27,6 +27,10 @@ export interface ProfileContext {
   readonly overlays: readonly PatchOptions[]
   /** Launch-time DSH_TELEMETRY_DISABLED value; any non-empty value opts out. */
   readonly telemetryDisabledEnv: string | undefined
+  /** 入口提供的组合包默认值；用户补丁在其后应用，重载时仍使用同一转换。 */
+  readonly transformBundles?: (patches: PatchOptions[]) => PatchOptions[]
+  /** 入口的最终装配转换；启动、配置编辑和热更新共用，不能依赖可变运行状态。 */
+  readonly transformPatches?: (patches: PatchOptions[]) => PatchOptions[]
 }
 
 declare module '@deepseek-ai/cordis' {
@@ -62,7 +66,8 @@ export function resolveTelemetryPatch(disabledEnv: string | undefined, hasRow: b
  */
 export function readBundlePatches(binName: string, context: ProfileContext, initialProfile?: Profile): PatchOptions[] {
   const profile = initialProfile ?? loadProfileDirectory(binName, context.dir, context.installAnchor, { userLayer: false })
-  return profile.layers.flatMap(layer => layer.patches)
+  const patches = structuredClone(profile.layers.flatMap(layer => layer.patches))
+  return context.transformBundles?.(patches) ?? patches
 }
 
 /** Read current bundle and user layers with the launch-time overlays.
@@ -72,12 +77,13 @@ export function readBundlePatches(binName: string, context: ProfileContext, init
  * @returns Detached ordered patches; this function does not update the Loader.
  */
 export function readProfilePatches(binName: string, context: ProfileContext, initialProfile?: Profile): PatchOptions[] {
-  const patches = structuredClone([
+  const layers = structuredClone([
     ...readBundlePatches(binName, context, initialProfile),
     ...(initialProfile?.patches ?? loadOptionalPatches(binName, context.patchPath) ?? []),
     ...(loadOptionalPatches(binName, join(context.home, PROFILE_PATCH_FILENAME)) ?? []),
     ...context.overlays,
   ])
+  const patches = context.transformPatches?.(layers) ?? layers
   const telemetryPatch = resolveTelemetryPatch(context.telemetryDisabledEnv,
     composeEntries([patches]).some(row => row.id === TELEMETRY_ROW_ID))
   if (telemetryPatch !== undefined) patches.push(telemetryPatch)

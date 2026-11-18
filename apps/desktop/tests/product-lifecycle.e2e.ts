@@ -49,6 +49,7 @@ async function start(): Promise<void> {
   const env: NodeJS.ProcessEnv = { ...process.env, DSH_DESKTOP_DSH_DIR: runtimeDirectory,
     DSH_DESKTOP_PRIMARY_RUNTIME_DIR: join(HARNESS_REPOSITORY, 'apps/desktop/.desktop-build/targets/mac-arm64/runtime/primary-runtime'),
     DSH_DESKTOP_OPEN_DEVTOOLS: '0', DSH_HOME: join(fixture.directory, 'ignored-upstream-home'),
+    DSH_AGENTS_HOME: join(fixture.directory, 'personal-agents'), DSH_PRODUCT_ANALYTICS_OTLP_URL: fixture.config.telemetry.url,
   }
   delete env.ELECTRON_RUN_AS_NODE
   application = await _electron.launch({ executablePath: electron,

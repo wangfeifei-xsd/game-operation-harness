@@ -6,7 +6,7 @@ import { Context, FiberState, Service } from '@deepseek-ai/cordis'
 import { parseEntryYaml, type PatchOptions } from '@deepseek-ai/cordis-plugin-include'
 import type { Entry, EntryOptions } from '@deepseek-ai/cordis-plugin-loader'
 import type {} from '@deepseek-ai/dsh-hmr'
-import { composeEntries, loadProfileDirectory, readProfilePatches, reconcileProfilePatches } from '@deepseek-ai/dsh-app-boot'
+import { composeEntries, loadProfileDirectory, readBundlePatches, readProfilePatches, reconcileProfilePatches } from '@deepseek-ai/dsh-app-boot'
 import { withFileLock, writeFileAtomic } from '@deepseek-ai/dsh-atomic-write'
 import { isMap, isSeq, parseDocument, Scalar, visit } from 'yaml'
 
@@ -53,7 +53,7 @@ export class ConfigEditor extends Service {
     const overridden = new Set(loaded.patches.filter(patch => patch.insert === undefined && Object.hasOwn(patch, 'config')).map(patch => patch.id))
     const composed = new Map<string, EntryOptions>()
     if (entries.some(entry => !overridden.has(entry.options.id))) {
-      for (const row of flatten(composeEntries([...loaded.layers.map(layer => layer.patches), loaded.patches]))) {
+      for (const row of flatten(composeEntries([readBundlePatches('dsh', profile, loaded), loaded.patches]))) {
         if (!composed.has(row.id)) composed.set(row.id, row)
       }
     }
@@ -74,7 +74,7 @@ export class ConfigEditor extends Service {
       const rest = { ...patch }; Reflect.deleteProperty(rest, 'config')
       return rest
     })
-    const row = flatten(composeEntries([...loaded.layers.map(layer => layer.patches), patches])).find(row => row.id === entry.options.id)
+    const row = flatten(composeEntries([readBundlePatches('dsh', this.ownerContext.profileContext, loaded), patches])).find(row => row.id === entry.options.id)
     return structuredClone((row?.config ?? {}) as Record<string, unknown>)
   }
 

@@ -50,6 +50,7 @@ export class HarnessProductFixture {
     this.central = createServer((request, response) => {
       void (async () => {
         response.setHeader('content-type', 'application/json')
+        if (request.url === '/fixture/telemetry') { request.resume(); response.end('{}'); return }
         if (request.url?.endsWith('/bootstrap')) { response.end(JSON.stringify({ deployment_id: 'harness-dev', registration_enabled: true, password_min_length: 12, password_max_length: 256 })); return }
         if (request.url?.includes('/auth/captcha/')) {
           if (request.url.endsWith('/challenges')) {
@@ -103,6 +104,7 @@ export class HarnessProductFixture {
     this.config = parseHarnessConfig(JSON.parse(await readFile(join(HARNESS_REPOSITORY, 'config/environments/dev.json'), 'utf8')), 'dev')
     this.config.server.port = port
     this.config.creativity.baseUrl = `http://127.0.0.1:${centralPort}`
+    this.config.telemetry.url = `http://127.0.0.1:${centralPort}/fixture/telemetry`
     this.config.storage.root = join(this.directory, 'data/dev')
     this.config.providers.credentials = {}
     this.config.proxy = { http: null, https: null, noProxy: '*' }
@@ -124,7 +126,7 @@ export class HarnessProductFixture {
     })
     await writeFile(join(cli, 'lib/resources/environments/dev.json'), JSON.stringify(this.config))
     const child = spawn(process.execPath, [join(cli, 'lib/bin.js'), 'harness', '--environment', 'dev', '--no-open'], {
-      cwd: this.directory, env: { ...process.env, DSH_HOME: '/must-not-be-used' }, stdio: ['ignore', 'pipe', 'pipe'],
+      cwd: this.directory, env: { ...process.env, DSH_HOME: join(this.directory, 'personal'), DSH_AGENTS_HOME: join(this.directory, 'personal-agents') }, stdio: ['ignore', 'pipe', 'pipe'],
     })
     this.children.push(child); this.child = child
     await new Promise<void>((resolve, reject) => {

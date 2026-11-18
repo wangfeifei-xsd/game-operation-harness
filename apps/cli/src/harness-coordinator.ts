@@ -29,7 +29,11 @@ export class HarnessCoordinator {
   private stopping: Promise<void> | undefined
   private failure: HarnessAuthError | undefined
 
-  constructor(private readonly config: HarnessConfig, private readonly closeConnections: () => void) {
+  constructor(
+    private readonly config: HarnessConfig,
+    private readonly closeConnections: () => void,
+    private readonly patchFiles: readonly string[] = [],
+  ) {
     this.auth = new HarnessAuthClient(config)
   }
 
@@ -68,7 +72,7 @@ export class HarnessCoordinator {
       migrateHarnessUserHome(this.config, login.user.user_id)
       identity.runtime = new HarnessRuntimeProcess(this.config, (error) => {
         this.invalidate(current, error ?? new HarnessAuthError(503, 'HARNESS_RUNTIME_STOPPED', '运行服务已停止，请重新登录'))
-      })
+      }, this.patchFiles)
       identity.origin = await identity.runtime.start({ kind: 'harness/start', generation, sessionId: login.session_id, token: login.access_token, secret: identity.secret, user: login.user })
       this.assertGeneration(generation)
       const verified = await this.auth.session(login.access_token)

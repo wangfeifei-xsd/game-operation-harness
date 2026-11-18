@@ -520,7 +520,8 @@ function launchDesktop(): void {
     const track = async <K extends keyof ProductEventMap>(eventName: K, attributes: ProductEventMap[K]): Promise<void> => {
       const event = { eventName, attributes, timestamp: Date.now() } as ProductEvent
       try {
-        if (analyticsEnabled) await startupBackend?.report(event)
+        const backend = startupBackend
+        if (analyticsEnabled && backend !== undefined && await backend.analyticsEnabled()) await backend.report(event)
       } catch (_error) { /* Analytics cannot interrupt native actions. */ }
     }
     const assertProductSender = (event: IpcMainInvokeEvent): BrowserWindow => {
@@ -584,7 +585,7 @@ function launchDesktop(): void {
           if (ready.injections === undefined) throw new Error('Desktop Host did not provide boot injections')
           injections = ready.injections
           startupBackend = connectDesktopStartup(ready.url, cookie)
-          analyticsEnabled = false
+          analyticsEnabled = true
           if (!reportedLaunch) { reportedLaunch = true; void track('desktop_app_launch', {}) }
 
         },

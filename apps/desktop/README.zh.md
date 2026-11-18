@@ -120,7 +120,7 @@ Desktop/SDK 共享运行时构建器在复制或签名产物前，裁剪 NumPy �
 | 包来源 | 即使离线，启动时安装核心依赖也会增加开销。 | `app.asar/dsh` 携带完整生产依赖树；产品 profile 拒绝外部插件。 |
 | 状态归属 | Web 与 Desktop 不得同时写同一账号。 | 两端持有环境/账号目录锁，应用依赖保留在只读资源中。 |
 | 传输 | Web 与 Desktop 共享请求准入和基于 Peer 的授权。 | Electron 加载打包的 Web 资源；私有 Desktop Provider 认证原生 Host 请求，Host 提供该 Peer 的启动注入。 |
-| 插件变更 | 所有入口均须执行账号授权。 | 固定产品装配关闭用户 overlay、HMR 及插件/配置修改。 |
+| 插件变更 | 所有入口均须执行账号授权。 | 用户 overlay、HMR 及插件/配置修改使用认证后的账号 profile。 |
 | 更新 | 桌面壳与 dsh 独立更新会重新产生版本分裂，而桌面壳未变化的数据块不应强制完整传输。 | Electron 壳、匹配的 dsh 运行时与 pnpm 组成一个已签名更新单元。平台更新产物可以复用未变化的数据块，但运行时版本选择绝不脱离 Desktop 发布。 |
 
 [薄壳决策](../../.agents/notes/implemented/architecture/2026-09-10-desktop-web-wrapper.zh.md)负责共享 Web 行为与 Desktop 适配。[Electron 打包与更新决策](../../.agents/notes/implemented/architecture/2026-08-25-electron-desktop-packaging-and-updates.zh.md)负责发布身份、签名及更新验收。
@@ -133,7 +133,7 @@ Welcome 加载共享 Toast 的配色和阴影变量，挂载在 body 下的通�
 
 安装后的 `resources/runtime/cli/bin/dsh` shell 脚本（Windows 为 `dsh.cmd`）使用 Desktop 的 Electron 可执行文件和内置 pnpm 运行普通 CLI 分派入口。Desktop 关闭时也可使用，并保留 Electron 运行时限制。普通 profile、配置和插件命令与 npm dsh 使用相同实现；该命令不会打开 Desktop。
 
-产品 profile 使用固定装配，内置 CLI 不能安装、移除产品插件或替换认证。普通 CLI profile 彼此独立，不用于恢复产品登录。
+产品 profile 保留自定义依赖、组合包选择和补丁。使用内置 CLI 管理 `--profile desktop` 时，将 `DSH_HOME` 指向已经初始化的账号 home。认证仍由 Electron 登录协调器管理，普通 CLI profile 不用于恢复产品登录。
 
 更新或卸载 Desktop 前请结束 CLI 命令；安装程序不与运行中的命令协调。CLI 不提供 Office 创作 skill 的资源路径。Desktop 现有 Office 设置与 Web 附件转换保留各自的资源配置。`prepare:runtime` 复制启动脚本，无需编译原生 CLI 启动器。
 

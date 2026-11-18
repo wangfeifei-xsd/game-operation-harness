@@ -120,7 +120,7 @@ The shared Desktop/SDK runtime builder omits directories named `tests` beneath N
 | Package sources | Core installation at startup adds work even when offline. | `app.asar/dsh` carries a complete production dependency tree; the product profile rejects external plugins. |
 | State ownership | Web and Desktop must not write the same account concurrently. | Both hold the environment/account home lock; application packages stay in read-only resources. |
 | Transport | Web and Desktop share request admission and Peer-based authorization. | Electron loads packaged Web assets; its private Desktop Provider authenticates native Host requests, and the Host supplies startup injections for that Peer. |
-| Plugin changes | Account authorization must survive every entry. | Fixed product composition disables user overlays, HMR and plugin/configuration mutation. |
+| Plugin changes | Account authorization must survive every entry. | User overlays, HMR and plugin/configuration edits share the authenticated account profile. |
 | Updates | Independent shell and dsh updates would recreate version splits, while unchanged shell blocks should not require a complete transfer. | The Electron shell, matching dsh runtime and pnpm form one signed update unit. Platform update artifacts may reuse unchanged blocks, but runtime version selection never splits from the Desktop release. |
 
 The [thin-wrapper decision](../../.agents/notes/implemented/architecture/2026-09-10-desktop-web-wrapper.md) owns shared Web behavior and Desktop adapters. The [Electron packaging and update decision](../../.agents/notes/implemented/architecture/2026-08-25-electron-desktop-packaging-and-updates.md) owns release identity, signing, and update qualification.
@@ -133,7 +133,7 @@ Welcome loads the shared Toast palette and shadow tokens, with system typography
 
 The installed `resources/runtime/cli/bin/dsh` shell script (`dsh.cmd` on Windows) runs the ordinary CLI dispatcher using Desktop's Electron executable and bundled pnpm. It works while Desktop is closed and retains the Electron runtime limitations. Ordinary profile, configuration, and plugin commands use the same implementation as npm dsh; the command does not open Desktop.
 
-The product profile uses fixed composition. The bundled CLI cannot install or remove product plugins or replace its authentication. Ordinary CLI profiles remain separate and do not restore a product login.
+The product profile retains custom dependencies, bundle selections and patches. Point `DSH_HOME` at the initialized account home to manage `--profile desktop` with the bundled CLI. Authentication remains owned by the Electron login coordinator; ordinary CLI profiles do not restore a product login.
 
 Finish CLI commands before updating or uninstalling Desktop; the installer does not coordinate with running commands. The CLI does not supply Office authoring-skill resource paths. Desktop's existing Office setup and Web attachment conversion retain their own resource configuration. `prepare:runtime` copies the launch scripts without compiling a native CLI launcher.
 

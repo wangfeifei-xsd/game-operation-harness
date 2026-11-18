@@ -32,7 +32,7 @@ kind: "package-reference"
 
 表单只展示活动且可唯一定位的 profile 条目中的 volatile 字段。普通配置仍通过 Cordis 配置文件编辑。
 
-固定部署通过 `preferencesPath` 指定账号内的 JSON 文件，通过 `preferencesNamespaces` 指定允许保存偏好的条目。写入校验完整 Config，串行完成修订检查和原子持久化，再更新即时引用，不加载用户补丁或改变插件树。其他条目保持可读，其命名空间返回 `writable: false`。Loader 启动完成后恢复已保存的偏好；文件损坏或包含非即时字段时明确失败，保留原文件供修复。
+固定部署通过 `preferencesPath` 指定账号内的 JSON 文件，通过 `preferencesNamespaces` 指定允许保存偏好的条目。写入校验完整 Config，串行完成修订检查和原子持久化，再更新即时引用，不加载用户补丁或改变插件树。其他条目保持可读，其命名空间返回 `writable: false`。未启用偏好模式时，Loader 启动完成后将账号 home 中的旧 `preferences.json` 导入当前 profile；已有显式 profile 值优先，全部段保存后才将原文件改名为 `preferences.json.imported`。偏好模式在 Loader 启动后恢复已保存偏好；文件损坏或包含非即时字段时明确失败，保留原文件供修复。
 
 挂载编辑器时，Settings 启动后、Loader 完成所有条目的加载时，早期版本留在 harness home 中的 `settings.yaml` 会被导入一次：每个 section 写入同名条目（`ui-developer-tools` → `ui-settings`、`ui-onboarding` → `ui-settings-general`、`shell` → 当前平台的 shell 执行器条目），文件在第一次写入前改名为 `settings.yaml.imported`，被当前组合拒绝的 section 会记录日志并只保留在改名后的文件中。
 

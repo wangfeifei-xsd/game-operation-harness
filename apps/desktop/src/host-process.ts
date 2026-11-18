@@ -208,7 +208,7 @@ export class DesktopHostProcess {
       cwd: this.projectDir,
       env: desktopNodeEnvironment(this.node, undefined,
         Object.fromEntries(Object.entries(this.environment).filter(([key]) =>
-          !/^(DSH_HOME$|DEEPSEEK_|OPENAI_|ANTHROPIC_|HTTP_PROXY$|HTTPS_PROXY$|ALL_PROXY$|NO_PROXY$)/iu.test(key)))),
+          !/^(DEEPSEEK_|OPENAI_|ANTHROPIC_|HTTP_PROXY$|HTTPS_PROXY$|ALL_PROXY$|NO_PROXY$)/iu.test(key)))),
       detached: process.platform !== 'win32',
       stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
     })

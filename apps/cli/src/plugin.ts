@@ -69,6 +69,10 @@ async function versionCommand(profile: string, args: readonly string[]): Promise
  * @returns Zero on success; nonzero on invalid approval or package-manager failure.
  */
 export async function runPlugin(profile: string, args: readonly string[], packageManager?: ProfileContext['packageManager']): Promise<number> {
+  if (profile === 'harness-runtime' && !existsSync(join(resolveProfileDir(profile), 'package.json'))) {
+    process.stderr.write('dsh: 请先登录初始化账号配置，并将 DSH_HOME 指向该账号目录，再管理 harness-runtime 插件。\n')
+    return 1
+  }
   if (profile === 'desktop') {
     try { requireDesktopProfile(resolveProfileDir(profile)) } catch (error) {
       process.stderr.write(`dsh: ${String(error)}\n`)

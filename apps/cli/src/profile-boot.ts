@@ -18,7 +18,6 @@ import type { PatchOptions } from '@deepseek-ai/cordis-plugin-include'
 import {
   boot,
   readProfilePatches,
-  readBundlePatches,
   createRuntimeResolution,
   initProfile,
   installFailLoud,
@@ -253,15 +252,17 @@ export interface ResolvedProfileRuntime {
 export interface RunProfileOptions {
   /** This run's frozen environment snapshot, provided before any entry mounts. */
   environment?: LaunchEnvironmentSnapshot
-  /** 文件配置的产品装配；调用方拥有固定补丁、数据根及认证插件。 */
+  /** 产品装配；调用方拥有账号数据根、部署默认值及认证插件。 */
   product?: {
     /** 本账号的数据根，绑定到路径服务。 */
     home: string
-    /** 产品自有固定补丁，不读取用户覆盖。 */
+    /** 产品自有补丁，应用在用户层之后。 */
     patches: PatchOptions[]
+    /** 可由用户层覆盖的组合包默认值。 */
+    defaults?: (patches: PatchOptions[]) => PatchOptions[]
     /**
-     * 将已安装组合包转换为固定产品树。
-     * @param patches - 组合包补丁。
+     * 在启动及重载时保留产品身份和模型装配。
+     * @param patches - 包含用户配置的完整补丁。
      * @returns 产品最终补丁。
      */
     transform?(patches: PatchOptions[]): PatchOptions[]
@@ -358,13 +359,17 @@ export async function runProfile(options: RunProfileOptions): Promise<{ ctx: Con
       installAnchor: options.resolvedProfile?.installAnchor ?? INSTALL_ANCHOR,
       startedBundles: composed.profile.layers.map(layer => layer.packageName),
       cwd: process.cwd(), home: options.product?.home ?? resolveDshHome(),
-      overlays: composed.overlays, telemetryDisabledEnv: options.product === undefined ? process.env.DSH_TELEMETRY_DISABLED : undefined,
+      overlays: composed.overlays, telemetryDisabledEnv: process.env.DSH_TELEMETRY_DISABLED,
+      ...(options.product?.defaults === undefined ? {} : { transformBundles: options.product.defaults }),
+      transformPatches: (patches) => {
+        const product = options.product
+        const combined = product === undefined ? patches : [...patches, ...product.patches]
+        const prepared = product?.transform?.(combined) ?? combined
+        return options.transformPatches?.(prepared) ?? prepared
+      },
     }
-    const patches = options.product === undefined
-      ? readProfilePatches(NAME, profileContext, composed.profile)
-      : [...(options.product.transform?.(readBundlePatches(NAME, profileContext, composed.profile))
-        ?? readBundlePatches(NAME, profileContext, composed.profile)), ...options.product.patches]
-    const ctx = await boot(NAME, rootConfig, options.transformPatches?.(patches) ?? patches, async (hostCtx) => {
+    const patches = readProfilePatches(NAME, profileContext, composed.profile)
+    const ctx = await boot(NAME, rootConfig, patches, async (hostCtx) => {
       app.current = hostCtx
       hostCtx.provide('profileContext', profileContext)
       // Before any config-tree entry mounts, so plugins resolve all launch-time
