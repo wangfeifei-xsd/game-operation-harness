@@ -6,6 +6,7 @@ import type { DesktopProductStart } from '@deepseek-ai/dsh-host-harness-product/
 import { installProxyFromConfig } from '@deepseek-ai/dsh-http-proxy'
 import { DesktopProductSession } from './product-session.ts'
 import { readDesktopProductConfiguration } from './product-config.ts'
+import { DesktopBusinessPairing } from './business-pairing.ts'
 import { installProductIpc } from './product-ipc.ts'
 import { PRODUCT_IPC } from './product-protocol.ts'
 import { installFileActions } from './file-actions.ts'
@@ -556,6 +557,12 @@ function launchDesktop(): void {
       navigation = next
       return next.promise
     }
+    const pairing = new DesktopBusinessPairing({
+      node: resources.node, runtimeDir: resources.dsh, primaryRuntime,
+      environment: config.environment, configDirectory,
+      shutdownGraceMs: config.auth.shutdownGraceMs, env: () => hostEnvironment,
+    })
+    process.once('exit', () => { pairing.terminateOnExit() })
     const backend = new DesktopBackendController((onFailure) => {
       if (activeProject === undefined || productStart === undefined) throw new HarnessAuthError(403, 'HARNESS_LOGIN_REQUIRED', '请先登录')
       const accountHome = activeAccountHome
@@ -713,7 +720,7 @@ function launchDesktop(): void {
     process.on('exit', () => { product.terminateOnExit() })
     powerMonitor.on('suspend', () => { product.suspend() })
     powerMonitor.on('resume', () => { void product.resume() })
-    stopForRecovery = async () => { await product.stop(); await stopOperationReports() }
+    stopForRecovery = async () => { await Promise.all([product.stop(), pairing.stop()]); await stopOperationReports() }
 
     const manifest: unknown = JSON.parse(await readFile(join(app.getAppPath(), 'package.json'), 'utf8'))
     const packagedChannel = config.desktop.channel
@@ -834,8 +841,18 @@ function launchDesktop(): void {
           })
         }
         if (url.hostname === 'app' && browserSession === accountSession && product.state.state === 'active') {
+          if (url.pathname === '/api/harness-embed/chat') {
+            return product.authorize().then(async () => {
+              if (request.method !== 'GET' && request.method !== 'POST') return new Response(null, { status: 405 })
+              if (request.method === 'POST' && request.headers.get('origin') !== 'dsh-app://app') return new Response(null, { status: 403 })
+              const body = request.method === 'POST' ? await request.text() : undefined
+              if (body && Buffer.byteLength(body) > 3 * 1024 * 1024 + 256) return new Response(null, { status: 413 })
+              const value = await pairing.request('chat', body === undefined ? undefined : JSON.parse(body))
+              return Response.json(value, { headers: { 'cache-control': 'no-store' } })
+            }).catch(() => Response.json({ error: '本机业务会话暂不可用' }, { status: 409 }))
+          }
           if (url.pathname === '/' || url.pathname === '/index.html' || url.pathname.startsWith('/assets/')
-        || ['/favicon.svg', '/manifest.webmanifest'].includes(url.pathname)) {
+        || ['/favicon.svg', '/manifest.webmanifest', '/embed.html', '/embed-plugin.html'].includes(url.pathname)) {
             return serveWebDocument(request, join(resources.dsh, 'node_modules', '@deepseek-ai', 'dsh-web-frontend', 'dist'))
           }
           if (backend.host === undefined || hostUrl === undefined || hostCookie === undefined) {
@@ -1446,6 +1463,16 @@ function launchDesktop(): void {
         throw new HarnessAuthError(503, 'HARNESS_START_FAILED', '工作区启动失败，请重新登录')
       }
       if (product.state.authenticated) authWindow?.hide()
+    }, async (operation, body) => {
+      if (quitting || shuttingDown || isMandatory()) throw new HarnessAuthError(409, 'HARNESS_PAIRING_BUSY', '本机助手暂不可用')
+      if (operation !== 'pick') return pairing.request(operation, body)
+      if (typeof body !== 'object' || body === null || !('id' in body) || typeof body.id !== 'string') {
+        throw new HarnessAuthError(422, 'HARNESS_INPUT_INVALID', '配对已失效')
+      }
+      const owner = currentDialogWindow()
+      if (!owner || owner.isDestroyed()) throw new HarnessAuthError(403, 'HARNESS_ORIGIN_DENIED', '请从本机助手入口操作')
+      const result = await dialog.showOpenDialog(owner, { properties: ['openDirectory'] })
+      return pairing.request('pick', { id: body.id, selectedPath: result.canceled ? null : result.filePaths[0] })
     })
     focusPrimaryWindow = () => {
       if (quitting) return
@@ -1486,7 +1513,10 @@ function launchDesktop(): void {
       updateSchedule.dispose()
       updateDialog.dispose()
       mandatoryUI?.dispose()
-      void Promise.all([stopOperationReports(), Promise.resolve(mandatoryPolicy?.dispose()).then(() => policyAuth?.dispose()),
+      void Promise.all([
+        pairing.stop(),
+        stopOperationReports(),
+        Promise.resolve(mandatoryPolicy?.dispose()).then(() => policyAuth?.dispose()),
         product.logout().then(async () => { product.dispose(); await backend.close() }).then(async () => {
           await operationJournal?.drain(500)
         }, async (error: unknown) => {
@@ -1506,6 +1536,7 @@ function launchDesktop(): void {
         tray?.dispose()
         updateDialog.dispose()
         mandatoryUI?.dispose()
+        pairing.terminateOnExit()
         // 安装准备已经等待原生资源释放。
         return
       }
@@ -1519,6 +1550,8 @@ function launchDesktop(): void {
     })
 
     showAuthWindow()
+    void access(join(config.storage.root, 'desktop-pairing', 'business-assistant', 'consent.json'))
+      .then(() => quitting ? undefined : pairing.request('status')).catch(() => {})
     if (typeof manifest !== 'object' || manifest === null) throw new Error('desktop policy: invalid application manifest')
     const policyConfig = config.desktop.mandatoryUpdate.enabled && config.desktop.mandatoryUpdate.url !== null
       ? resolveDesktopPolicyConfig({ origin: config.desktop.mandatoryUpdate.url, authentication: 'anonymous',

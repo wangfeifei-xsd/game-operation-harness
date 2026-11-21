@@ -201,6 +201,7 @@ export const SERVICE_WALK_EXEMPTIONS: Record<string, string> = {
   launchEnvironment: 'not a service: launcher-provided root accessor value (LaunchEnvironmentSnapshot | undefined) — packages/util/launch-environment/README.md owns this launcher contract',
   fileDeployment: '不是服务：启动器写入的文件部署标志；docs/harness-product.md 定义配置读取规则。',
   fileDeploymentHome: '不是服务：启动器传递的账号独占目录；docs/harness-product.md 定义目录归属。',
+  harnessEmbedPlugins: '业务会话专用的浏览器模块登记器，由 docs/harness-product.md 说明用法。',
   pluginPackages: 'profile-boot-owned package resolver service used by optional consumers — packages/boot/app-boot/README.md owns this internal API',
   fileUpload: 'client-side browser upload service — packages/client/file-upload/README.md owns the API',
   uiRenderer: 'client-side interface-typed browser service — packages/client/ui-renderer/README.md owns the API',

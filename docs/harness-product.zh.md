@@ -14,6 +14,7 @@
 - [配置](#configuration)
 - [模型配置](#model-configuration)
 - [运行与数据](#runtime-and-data)
+- [连接业务助手](#connect-a-business-assistant)
 - [故障与恢复](#failure-and-recovery)
 
 <a id="start-the-product"></a>
@@ -62,6 +63,21 @@ Electron 共享页面、Remote、服务和图标，模型为空或供应商未�
 公开 profile 仅负责认证资源、同源接口与进程协调。登录成功后先取得账号目录锁，再派生私有 `harness-runtime` profile。私有凭据与身份通过 IPC 传递，私有 loopback 监听仅接受所属父进程秘密。浏览器 HTTP 与 WebSocket 流量经过公开监听转发。HTTP 请求、新远程操作、模型步骤、工具执行、计划投递与恢复各自重新向中央认证。后台工作与状态轮询不续期，可信浏览器输入显式触发续期。
 
 受管账号数据位于 `~/.game-operation-harness/<environment>/users/<user_id>/`：会话、存储、凭据、附件及匿名标识使用显式账号 home。旧会话和凭据数据保留且不自动导入。个人指令和 Skill 恢复读取 `~/.dsh`、`~/.agents`，也接受 `DSH_HOME`、`DSH_AGENTS_HOME` 覆盖；项目与内置 Skill 沿用原有发现路径。用户选择的文件仍受操作系统权限管理。首次认证登录时，协调器锁定并以原子重命名将唯一旧目录 `users/<channel_id>/<user_id>` 搬至新路径。多份来源、目标与旧目录并存、符号链接或旧目录占用均停止登录，不合并数据。升级前停止旧实例；冲突时保留备份并核对到一份权威目录后重试。不改变已发布 Session 格式。
+
+<a id="connect-a-business-assistant"></a>
+## 连接业务助手
+
+俱乐部管理员开通后，从 Core 后台或 PC 打开「Agent 助手」。助手自动使用已绑定的 Harness 账号。
+
+1. 在本机 Harness 入口选择「连接业务助手」，输入业务页显示的配对码。本机登录页也提供此入口。
+2. 核对俱乐部和用户，选择工作区，再决定是否授予桌面操作和 Creativity 智能体权限。
+3. 回到业务页确认设备和工作区。本机运行服务在该授权范围内启动。从旧配对协议升级后，需重新配对设备。
+
+本机 Harness 运行且业务授权有效时，已确认的设备可重连。关闭业务助手会结束本次会话。在本机断开连接会清除保存的授权范围。俱乐部管理员在 Core 撤销账号授权。
+
+本机对话在隔离运行服务启动时，从环境数据根下的 `business-models/storages/harness_models.json` 和 `business-models/.credentials.yaml` 读取部署的模型快照与凭据。文件沿用[模型服务](../packages/llm/harness-model-config/README.zh.md)格式。没有启用的默认模型时，本机对话会提示用户联系部署管理员。
+
+自定义嵌入插件通过 `harnessEmbedPlugins` 登记浏览器模块。登记操作放在 `ctx.effect` 内，插件停止时卸载模块。模块在隔离的 iframe 中运行，`api.status()` 返回当前会话的连接和处理状态。
 
 <a id="failure-and-recovery"></a>
 ## 故障与恢复

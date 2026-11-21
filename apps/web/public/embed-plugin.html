@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' blob:; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'">
+    <title>会话插件</title>
+  </head>
+  <body>
+    <script>
+      if (window.parent !== window && window.origin === 'null') {
+        const start = async event => {
+          if (event.source !== window.parent || event.data?.type !== 'harness:plugin' || event.ports.length !== 1 || typeof event.data.source !== 'string') return;
+          window.removeEventListener('message', start);
+          const port = event.ports[0];
+          const pending = new Map();
+          let sequence = 0;
+          port.onmessage = ({ data }) => {
+            if (data?.type !== 'result' || !pending.has(data.id)) return;
+            const complete = pending.get(data.id);
+            pending.delete(data.id);
+            complete(data.data);
+          };
+          const source = URL.createObjectURL(new Blob([event.data.source], { type: 'text/javascript' }));
+          try {
+            const plugin = await import(source);
+            await plugin.default(Object.freeze({
+              status: () => new Promise((resolve, reject) => {
+                if (pending.size >= 8) { reject(new Error('请等待会话状态返回')); return; }
+                const id = ++sequence;
+                const timer = setTimeout(() => { pending.delete(id); reject(new Error('无法读取会话状态')); }, 5000);
+                pending.set(id, data => { clearTimeout(timer); resolve(data); });
+                port.postMessage({ type: 'rpc', op: 'session.status', id });
+              })
+            }));
+            port.postMessage({ type: 'ready' });
+          } catch (error) {
+            port.postMessage({ type: 'failed' });
+          } finally {
+            URL.revokeObjectURL(source);
+          }
+        };
+        window.addEventListener('message', start);
+      }
+    </script>
+  </body>
+</html>

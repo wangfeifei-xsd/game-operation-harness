@@ -1,0 +1,36 @@
+* { box-sizing: border-box; }
+body { margin: 0; font: 14px system-ui, sans-serif; }
+.embed-shell {
+  --surface: #fff;
+  --panel: #f6f7fa;
+  --border: #e7e9ef;
+  --text: #22252d;
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  min-width: 0;
+  color: var(--text);
+  background: var(--surface);
+}
+.embed-shell[data-theme="dark"] { --surface: #17181c; --panel: #222329; --border: #31333d; --text: #e9e9ee; }
+.embed-bar, .embed-device, .embed-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.embed-bar { min-height: 50px; padding: 6px 16px; border-bottom: 1px solid var(--border); }
+.embed-center { flex: 1; display: grid; place-items: center; padding: 16px; min-height: 0; overflow: auto; }
+.embed-center .ant-card { width: min(100%, 460px); }
+.embed-notice { margin: 8px 12px; }
+.embed-chat { display: flex; flex: 1; flex-direction: column; min-height: 0; }
+.embed-device { padding: 4px 12px; border-bottom: 1px solid var(--border); }
+.embed-messages { flex: 1; min-height: 72px; overflow: auto; padding: 16px; }
+.embed-message { width: fit-content; max-width: 92%; margin: 0 0 12px; padding: 8px 12px; border-radius: 8px; white-space: pre-wrap; overflow-wrap: anywhere; background: var(--panel); }
+.embed-user { margin-left: auto; }
+.embed-compose { display: grid; gap: 8px; padding: 8px 12px 12px; border-top: 1px solid var(--border); }
+.embed-questions { margin: 8px 12px; max-height: 34vh; overflow: auto; }
+.embed-activity { margin: 6px 12px; }
+.embed-plugin { width: 100%; height: min(52vh, 420px); border: 0; }
+.embed-receipts { margin: 0 12px; }
+.embed-receipts ul { margin: 0; padding-inline-start: 20px; max-height: 120px; overflow: auto; }

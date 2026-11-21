@@ -10,6 +10,7 @@ import { readDesktopDownloadIndex } from '@deepseek-ai/dsh-host-harness-product/
 import { HarnessAuthError } from './harness-auth-client.ts'
 import { HarnessCoordinator } from './harness-coordinator.ts'
 import type { HarnessConfig } from './harness-config.ts'
+import type { businessAssistant } from './harness-embed-runtime.ts'
 import { HARNESS_PRIVATE_HEADER } from './harness-private-auth.ts'
 
 function reply(response: ServerResponse, status: number, body?: unknown): void {
@@ -22,7 +23,7 @@ function failure(response: ServerResponse, error: unknown): void {
   const known = error instanceof HarnessAuthError ? error : new HarnessAuthError(503, 'HARNESS_UNAVAILABLE', '本地服务暂不可用，请重新登录')
   reply(response, known.status, { error: { code: known.code, message: known.message } })
 }
-async function body(request: IncomingMessage): Promise<unknown> {
+async function body(request: IncomingMessage, limit = 65536): Promise<unknown> {
   if (!request.headers['content-type']?.startsWith('application/json')) throw new HarnessAuthError(415, 'HARNESS_JSON_REQUIRED', '请使用 JSON 请求')
   const chunks: Buffer[] = []
   let size = 0
@@ -31,7 +32,7 @@ async function body(request: IncomingMessage): Promise<unknown> {
     if (typeof value !== 'string' && !(value instanceof Uint8Array)) throw new HarnessAuthError(400, 'HARNESS_JSON_INVALID', '请求内容无效')
     const bytes = typeof value === 'string' ? Buffer.from(value) : Buffer.from(value.buffer, value.byteOffset, value.byteLength)
     size += bytes.length
-    if (size > 65536) throw new HarnessAuthError(413, 'HARNESS_INPUT_TOO_LARGE', '请求内容过大')
+    if (size > limit) throw new HarnessAuthError(413, 'HARNESS_INPUT_TOO_LARGE', '请求内容过大')
     chunks.push(bytes)
   }
   try { return JSON.parse(Buffer.concat(chunks).toString('utf8')) }
@@ -68,7 +69,12 @@ const mime: Record<string, string> = { js: 'text/javascript; charset=utf-8', css
 /** 产品入口插件由 profile prepare 挂载，公开树不装配聊天或工具服务。 */
 export const harnessEntry = {
   name: 'harness-public-entry',
-  async apply(ctx: Context, options: { config: HarnessConfig; openBrowser: boolean; patchFiles?: readonly string[] }): Promise<void> {
+  async apply(ctx: Context, options: {
+    config: HarnessConfig
+    assistant: ReturnType<typeof businessAssistant>
+    openBrowser: boolean
+    patchFiles?: readonly string[]
+  }): Promise<void> {
     const { config } = options
     const cookieName = `harness_${config.environment}_${config.server.port}`
     const sockets = new Set<Duplex>()
@@ -131,6 +137,27 @@ export const harnessEntry = {
         coordinator.assertOwner(cookie)
         await coordinator.auth.bootstrap()
         reply(response, 201, await coordinator.auth.request('/auth/register', 'POST', await body(request))); return
+      }
+      const pairing = /^\/api\/harness-embed\/(status|lookup|pick|claim|disconnect|chat)$/u.exec(path)?.[1]
+      if (pairing !== undefined) {
+        const reading = request.method === 'GET'
+        if (reading ? pairing !== 'status' && pairing !== 'chat' : request.method !== 'POST' || pairing === 'status') {
+          reply(response, 405); return
+        }
+        if (cookie === undefined) throw new HarnessAuthError(403, 'HARNESS_ORIGIN_DENIED', '请从本机助手入口打开配对')
+        // 公开页面只能配对。个人应用同源视图通过原有认证读取本机业务会话。
+        if (pairing === 'chat') await coordinator.authorize(cookie)
+        try {
+          reply(response, 200, await options.assistant.request(pairing,
+            reading ? undefined : await body(request, pairing === 'chat' ? 3 * 1024 * 1024 + 256 : 4096)))
+        } catch (error) {
+          const message = error instanceof Error && !('code' in error) ? error.message : '本机助手暂不可用'
+          reply(response, 409, { error: { code: 'HARNESS_PAIRING_DENIED', message } })
+        }
+        return
+      }
+      if (path === '/embed.html' || path === '/embed-plugin.html') {
+        await coordinator.authorize(cookie)
       }
       if (path.startsWith('/harness/')) { reply(response, 404); return }
       try {

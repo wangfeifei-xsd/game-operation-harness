@@ -126,7 +126,7 @@ export class HarnessAuthClient {
    */
   async login(body: unknown): Promise<HarnessLogin> {
     await this.bootstrap()
-    const value = await this.request('/auth/login','POST',body)
+    const value = await this.request('/auth/login', 'POST', body)
     const session = parseHarnessSession(value)
     if (typeof value !== 'object' || value === null || !('access_token' in value) || typeof value.access_token !== 'string'
       || !/^[A-Za-z0-9_-]{43}$/u.test(value.access_token) || !('token_type' in value) ||

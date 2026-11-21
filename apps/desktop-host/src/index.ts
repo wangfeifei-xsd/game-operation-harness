@@ -6,6 +6,7 @@ import type { PluginOperationRunId } from '@deepseek-ai/dsh-plugin-manager/diagn
 import { formatFatalDiagnostic } from './fatal-diagnostic.ts'
 import { loadProfileDirectory, reportSkippedBundles } from '@deepseek-ai/dsh-app-boot'
 import { runProfile } from '@deepseek-ai/dsh/profile-boot'
+import { businessAssistant } from '@deepseek-ai/dsh/harness-embed-runtime'
 import type {} from '@deepseek-ai/dsh-client-connection'
 import type {} from '@deepseek-ai/dsh-host-webserver'
 import { HarnessAuthClient, HarnessAuthError } from '@deepseek-ai/dsh-host-harness-product/auth-client'
@@ -221,8 +222,47 @@ async function main(): Promise<void> {
   process.send?.({ type: 'ready', generation: input.generation, url, injections }, (error) => { if (error !== null) console.error(error) })
 }
 
+// 公开子进程只装配配对协调器。普通桌面 Host 仍走独立账号启动分支。
+async function pairingMain(): Promise<void> {
+  const parentConnected = () => process.connected
+  if (!parentConnected() || process.send === undefined || process.ppid <= 1) return
+  const [, , , runtimeDir, primaryRuntime, environment, configDirectory] = process.argv
+  if (!runtimeDir || !environment || !configDirectory) throw new Error('本机助手配置不完整')
+  const config = readHarnessConfig(environment, configDirectory)
+  const disposeProxy = await installProxyFromConfig(config.proxy)
+  if (!parentConnected()) { await disposeProxy(); return }
+  const assistant = businessAssistant({ config, home: join(config.storage.root, 'desktop-pairing'),
+    installAnchor: join(runtimeDir, 'node_modules', '@deepseek-ai', 'dsh', 'package.json'),
+    primaryRuntime: primaryRuntime || join(runtimeDir, '..', 'runtime', 'primary-runtime'), environment: { ...process.env },
+  })
+  let closing = false
+  const close = async (): Promise<void> => {
+    if (closing) return
+    closing = true
+    try { await assistant.close() }
+    finally { await disposeProxy(); process.exit() }
+  }
+  process.once('disconnect', () => { void close() })
+  process.on('message', (message: unknown) => {
+    if (closing || typeof message !== 'object' || message === null || !('type' in message)) return
+    if (message.type === 'shutdown') { void close(); return }
+    if (message.type !== 'pairing' || !('requestId' in message) || typeof message.requestId !== 'number'
+      || !('action' in message) || typeof message.action !== 'string' ||
+      !['status', 'lookup', 'claim', 'pick', 'disconnect', 'chat'].includes(message.action)) return
+    const { requestId, action } = message
+    const body = 'body' in message ? message.body : undefined
+    const picked = typeof body === 'object' && body !== null && 'selectedPath' in body
+      && typeof body.selectedPath === 'string' ? body.selectedPath : null
+    void assistant.request(action, body, () => Promise.resolve(picked))
+      .then((result) => { process.send?.({ requestId, result }, () => {}) }, (error: unknown) => {
+        process.send?.({ requestId, error: error instanceof Error && !('code' in error) ? error.message : '本机助手暂不可用' }, () => {})
+      })
+  })
+}
+
 if (import.meta.main) {
-  main().catch((error: unknown) => {
+  const run = process.argv[2] === '--business-pairing' ? pairingMain : main
+  run().catch((error: unknown) => {
     if (error instanceof HarnessAuthError) {
       process.send?.({ type: 'product-failed', status: error.status, code: error.code, message: error.message },
         () => { if (process.connected) process.disconnect() })

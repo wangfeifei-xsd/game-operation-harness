@@ -227,9 +227,10 @@ async function composeProfile(
   fromDefaultProfile?: string,
   resolvedProfile?: ResolvedProfileRuntime,
   home?: string,
+  managed = false,
 ): Promise<ComposedProfile> {
   const profile = resolvedProfile?.profile ?? prepareProfile(name, true, fromDefaultProfile)
-  if (resolvedProfile !== undefined) writeFileSync(join(profile.dir, PROFILE_ROOT_FILENAME), PROFILE_ROOT_CONFIG)
+  if (resolvedProfile !== undefined && !managed) writeFileSync(join(profile.dir, PROFILE_ROOT_FILENAME), PROFILE_ROOT_CONFIG)
   const resolutionOptions = {
     installAnchor: resolvedProfile?.installAnchor ?? INSTALL_ANCHOR,
     profile,
@@ -250,12 +251,16 @@ export interface ResolvedProfileRuntime {
 
 /** Options for {@link runProfile}. */
 export interface RunProfileOptions {
+  /** 子运行由父 Host 负责销毁，无独立的进程级退出处理。 */
+  managed?: boolean
   /** This run's frozen environment snapshot, provided before any entry mounts. */
   environment?: LaunchEnvironmentSnapshot
   /** 产品装配；调用方拥有账号数据根、部署默认值及认证插件。 */
   product?: {
     /** 本账号的数据根，绑定到路径服务。 */
     home: string
+    /** 配置与依赖从账号目录读取，运行数据仍写入 home。 */
+    configurationHome?: string
     /** 产品自有补丁，应用在用户层之后。 */
     patches: PatchOptions[]
     /** 可由用户层覆盖的组合包默认值。 */
@@ -271,7 +276,7 @@ export interface RunProfileOptions {
      * @param ctx - 根上下文。
      * @returns 准备完成。
      */
-    prepare(ctx: Context): Promise<void>
+    prepare(ctx: Context): void | Promise<void>
   }
   /** 最终 profile 补丁转换；保留入口自己的配置层与身份。 */
   transformPatches?: (patches: PatchOptions[]) => PatchOptions[]
@@ -307,7 +312,11 @@ export function userAgentProfile(name: string): string {
  * @returns the settled root context and the shutdown controller.
  * @throws after disposing startup resources; cleanup failures retain the original error.
  */
-export async function runProfile(options: RunProfileOptions): Promise<{ ctx: Context; shutdown: ProcessShutdown }> {
+export async function runProfile(options: RunProfileOptions): Promise<{
+  ctx: Context
+  shutdown: ProcessShutdown
+  dispose(): Promise<void>
+}> {
   // Model providers see which profile sent a request.
   if (options.product === undefined) process.env.DSH_USER_AGENT_SUFFIX = `dsh-profile/${userAgentProfile(options.profile)}`
   // Before the first plugin mounts and before anything can issue a request: Node's fetch ignores the
@@ -331,7 +340,8 @@ export async function runProfile(options: RunProfileOptions): Promise<{ ctx: Con
   })()
   try {
     const composed = await composeProfile(
-      options.profile, options.patchFiles, options.fromDefaultProfile, options.resolvedProfile, options.product?.home,
+      options.profile, options.patchFiles, options.fromDefaultProfile, options.resolvedProfile,
+      options.product?.configurationHome ?? options.product?.home, options.managed,
     )
     const appReady = createAppReady()
     const shutdown = createProcessShutdown(dispose)
@@ -345,11 +355,13 @@ export async function runProfile(options: RunProfileOptions): Promise<{ ctx: Con
     // SIGTERM is a supervisor's ordinary stop request and exits 0 on every
     // surface — the launcher does not know whether the app considered its work
     // complete; SIGINT is a user interrupt and reports 130.
-    process.on('SIGTERM', () => { interrupt(0) })
-    process.on('SIGINT', () => { interrupt(130) })
-    installFailLoud(NAME, process, async () => {
-      await app.current?.fiber.dispose()
-    })
+    if (!options.managed) {
+      process.on('SIGTERM', () => { interrupt(0) })
+      process.on('SIGINT', () => { interrupt(130) })
+      installFailLoud(NAME, process, async () => {
+        await app.current?.fiber.dispose()
+      })
+    }
 
     const rootConfig = join(composed.profile.dir, PROFILE_ROOT_FILENAME)
     const profileContext: ProfileContext = {
@@ -368,7 +380,9 @@ export async function runProfile(options: RunProfileOptions): Promise<{ ctx: Con
         return options.transformPatches?.(prepared) ?? prepared
       },
     }
-    const patches = readProfilePatches(NAME, profileContext, composed.profile)
+    const patches = readProfilePatches(NAME, {
+      ...profileContext, home: options.product?.configurationHome ?? profileContext.home,
+    }, composed.profile)
     const ctx = await boot(NAME, rootConfig, patches, async (hostCtx) => {
       app.current = hostCtx
       hostCtx.provide('profileContext', profileContext)
@@ -383,7 +397,7 @@ export async function runProfile(options: RunProfileOptions): Promise<{ ctx: Con
       // to every app plugin that injects the argument snapshot.
       provideCmdline(hostCtx, {
         args: options.args,
-        exit: code => void shutdown.shutdown(code),
+        exit: code => void (options.managed ? dispose() : shutdown.shutdown(code)),
         ready: appReady.service,
       })
     }, undefined, options.product === undefined ? undefined : { home: options.product.home })
@@ -393,7 +407,7 @@ export async function runProfile(options: RunProfileOptions): Promise<{ ctx: Con
       && ctx.get('loader') !== undefined) {
       appReady.commit()
     }
-    return { ctx, shutdown }
+    return { ctx, shutdown, dispose }
   } catch (error) {
     try { await dispose() } catch (cleanupError) {
       throw new AggregateError([error, cleanupError], 'dsh: profile startup and cleanup failed')

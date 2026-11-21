@@ -14,6 +14,7 @@ The public login and registration page pairs a blue brand panel with a white for
 - [Configuration](#configuration)
 - [Model configuration](#model-configuration)
 - [Runtime and data](#runtime-and-data)
+- [Connect a business assistant](#connect-a-business-assistant)
 - [Failure and recovery](#failure-and-recovery)
 
 <a id="start-the-product"></a>
@@ -62,6 +63,21 @@ Electron shares the page, Remote, service and icons. Empty model configuration a
 The public profile owns only authentication resources, same-origin endpoints and the runtime coordinator. A successful login acquires the account directory lock, then forks the private `harness-runtime` profile. Private credentials and identity travel through IPC; the private loopback listener accepts only the owning parent's secret. Browser HTTP and WebSocket traffic passes through the public listener. HTTP requests, new remote operations, model steps, tool executions and scheduled delivery/recovery each revalidate centrally. Background work and state polling do not renew the token; trusted browser input triggers explicit renewal.
 
 Managed account data lives under `~/.game-operation-harness/<environment>/users/<user_id>/`: sessions, storage, credentials, attachments and anonymous identity use this explicit home. Old session and credential data is retained and is not imported. Personal instructions and skills again read `~/.dsh` and `~/.agents`, or their `DSH_HOME` and `DSH_AGENTS_HOME` overrides; projects and bundled skills keep their normal discovery paths. User-selected files remain subject to operating-system permissions. On the first authenticated login, the coordinator locks and atomically moves a sole legacy `users/<channel_id>/<user_id>` home to the new path. Multiple sources, an existing destination alongside a source, symbolic links or a locked legacy home stop login without merging data. Stop old instances before upgrading; retain backups and resolve conflicts to one authoritative home before retrying. No published Session format changes.
+
+<a id="connect-a-business-assistant"></a>
+## Connect a business assistant
+
+After a club administrator grants access, open Agent Assistant in Core or the PC client. The assistant uses the linked Harness account automatically.
+
+1. On the local Harness entry, select **Connect Business Assistant** and enter the pairing code shown on the business page. The local sign-in page also offers this action.
+2. Review the club and user, select a workspace, and choose whether to allow desktop operations or Creativity agents.
+3. Return to the business page and confirm the device and workspace. The local runtime starts within that scope. After an upgrade from the previous pairing protocol, pair the device again.
+
+An approved device can reconnect while Harness is running and the business authorization remains valid. Closing the business assistant ends the current session. Disconnecting on the device clears its saved consent. Club administrators revoke account authorization in Core.
+
+Local chat reads the deployment's model snapshot and credentials from `business-models/storages/harness_models.json` and `business-models/.credentials.yaml` under the environment's storage root. These use the [model service](../packages/llm/harness-model-config/README.md) format and are read when the isolated runtime starts. With no enabled default model in this configuration, the local chat asks the user to contact the deployment administrator.
+
+Custom embedded plugins register a browser module through `harnessEmbedPlugins`. Register it within a `ctx.effect` so the module is released when its plugin stops. The module runs in an isolated iframe, and `api.status()` reports the current session's connection and activity.
 
 <a id="failure-and-recovery"></a>
 ## Failure and recovery

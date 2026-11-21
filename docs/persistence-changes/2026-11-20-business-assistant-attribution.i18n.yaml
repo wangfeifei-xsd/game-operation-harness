@@ -1,0 +1,28 @@
+# Bilingual-pair consistency record for 2026-11-20-business-assistant-attribution.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/persistence-changes/2026-11-20-business-assistant-attribution.md
+/:
+  en: 3d5a424ae7d7e46b
+  zh: c22a8e4a62d8cc1a
+/2026-11-20-business-assistant-attribution:
+  en: 8ff01e783135350a
+  zh: 794022332c3553ae
+/2026-11-20-business-assistant-attribution/summary:
+  en: fb7dda9f84254a4f
+  zh: f5a66fccdac6228b
+/2026-11-20-business-assistant-attribution/table-of-contents:
+  en: 6cf314a069ceb451
+  zh: 9adff678e9ecab3b
+/2026-11-20-business-assistant-attribution/declaration:
+  en: 6907136f28e48c90
+  zh: 02f8298485f3d8e7
+/2026-11-20-business-assistant-attribution/compatibility:
+  en: 8d3145b2a5086b16
+  zh: 6368089178fdd2c8
+/2026-11-20-business-assistant-attribution/verification:
+  en: d782e7a6e6d2d76c
+  zh: 2a14f1e2c51c8d7f
+/2026-11-20-business-assistant-attribution/dev-note:
+  en: b75c8458928b72b9
+  zh: 003ba4e17b4b5269

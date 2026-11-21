@@ -1,9 +1,13 @@
 /** CUA tool and prompt ownership follows live Agent presets and provider disposal. */
-import { resolve } from 'node:path'
+import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join, resolve } from 'node:path'
+import { PassThrough, Writable } from 'node:stream'
 import { Context, FiberState } from '@deepseek-ai/cordis'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
 import AgentPresets from '@deepseek-ai/dsh-agent-preset-registry'
 import type { Agent } from '@deepseek-ai/dsh-agent'
+import type { ToolCallId } from '@deepseek-ai/dsh-llm'
 import { mountAgentLoopTestDependencies, mountAgentLoopTestHarness } from '@deepseek-ai/dsh-agent-loop-testkit'
 import ComputerUseRegistry from '@deepseek-ai/dsh-computer-use'
 import NodeRuntime from '@deepseek-ai/dsh-ptc-runtime-node'
@@ -15,6 +19,7 @@ import WorkingDirectory from '@deepseek-ai/dsh-working-directory'
 import type { SessionId } from '@deepseek-ai/dsh-session'
 import { expect, it, onTestFinished, vi } from 'vitest'
 import { CuaConfig, installCua } from '../src/index.ts'
+import type { NativeChannel } from '../src/native-client.ts'
 import { brandString } from '@deepseek-ai/dsh-brand'
 
 const programPrompt = 'Fixture CUA program guidance\n\nAX read defaults: maxElements=2000, maxDepth=25.\n\nMaximum click holdMs: 5000 ms.'
@@ -122,6 +127,73 @@ it('keeps explicitly configured global raw-tool registration', async () => {
   expect(ctx.get('cuaPrograms')).toBeUndefined()
   await mounted.dispose()
   expect(ctx.tools.get('cua', handle.agent)).toBeUndefined()
+})
+
+it('waits for the current desktop request before dispatching another session', async () => {
+  const { ctx } = await setup(false)
+  const directory = await mkdtemp(join(tmpdir(), 'dsh-cua-desktop-test-'))
+  vi.stubEnv('TMPDIR', directory)
+  vi.stubEnv('TEMP', directory)
+  vi.stubEnv('TMP', directory)
+  const firstDispatched = Promise.withResolvers<undefined>()
+  const releaseFirst = Promise.withResolvers<undefined>()
+  const received: string[] = []
+  onTestFinished(async () => {
+    releaseFirst.resolve(undefined)
+    vi.unstubAllEnvs()
+    await rm(directory, { recursive: true, force: true })
+  })
+  const createChannel = (): NativeChannel => {
+    const stdout = new PassThrough()
+    const closed = Promise.withResolvers<undefined>()
+    const stdin = new Writable({
+      write(chunk, _encoding, finish) {
+        const { id } = JSON.parse(String(chunk)) as { id: string }
+        received.push(id)
+        const respond = () => { stdout.write(JSON.stringify({ id, result: {} }) + '\n') }
+        finish()
+        if (received.length === 1) {
+          firstDispatched.resolve(undefined)
+          void releaseFirst.promise.then(respond)
+        } else respond()
+      },
+    })
+    return {
+      stdin, stdout, done: closed.promise, waitForClose: () => closed.promise,
+      close() {
+        stdin.destroy()
+        stdout.end()
+        closed.resolve(undefined)
+      },
+    }
+  }
+  await ctx.plugin({ ...provider, apply(scope: Context, config: CuaConfig) {
+    installCua(scope, config, {
+      helperPath: resolve('unused-cua-helper'),
+      createChannel,
+      permissionParameters: (_method, permission, locale) => ({ permission, locale }),
+      getGuidance: () => programPrompt,
+      capabilities: { platform: 'macos', methods: ['getCapabilities'], appLevelAccessibility: true,
+        keyboard: ['app'], browser: false, coordinateSpace: 'screenshot-pixels' },
+    })
+  } }, { agentPreset: false })
+  const first = (await ctx.agents.create({ sessionId: brandString<SessionId>('cua-desktop-first') })).agent
+  const second = (await ctx.agents.create({ sessionId: brandString<SessionId>('cua-desktop-second') })).agent
+  const run = (agent: Agent, id: string, signal: AbortSignal) => ctx.tools.execute({
+    agent, signal, calls: [{ type: 'tool-call', name: 'cua', id: brandString<ToolCallId>(id),
+      arguments: JSON.stringify({ method: 'getCapabilities', params: {} }) }],
+  })
+  const active = run(first, 'first', new AbortController().signal)
+  await firstDispatched.promise
+  try {
+    const contending = await run(second, 'waiting', AbortSignal.timeout(250))
+    expect(contending.results[0]?.result.isError).toBe(true)
+    expect(received).toEqual(['first'])
+  } finally { releaseFirst.resolve(undefined) }
+  expect((await active).results[0]?.result.isError).not.toBe(true)
+  const next = await run(second, 'second', new AbortController().signal)
+  expect(next.results[0]?.result.isError).not.toBe(true)
+  expect(received).toEqual(['first', 'second'])
 })
 
 it('gives Agents a program tool in a composition without a preset registry', async () => {

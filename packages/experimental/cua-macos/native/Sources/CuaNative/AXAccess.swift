@@ -555,6 +555,9 @@ final class AXAccess {
         guard let position = try attribute(element, "AXPosition") else { return nil }
         return try bounds(position: position, size: attribute(element, "AXSize"))
     }
+    func checkedWindow(_ identity: ProcessIdentity, _ enclosing: (element: AXUIElement, id: UInt32)) throws -> WindowInfo {
+        try WindowGeometry.resolve(owner: identity, windowID: enclosing.id) { try bounds(enclosing.element) }
+    }
     func coordinateWindow(_ identity: ProcessIdentity, _ windowID: UInt32, budget: inout AXChildRecoveryBudget, forClick: Bool = false,
                                   trace: ScreenshotTrace? = nil) throws -> (window: WindowInfo, element: AXUIElement?) {
         var element: AXUIElement?

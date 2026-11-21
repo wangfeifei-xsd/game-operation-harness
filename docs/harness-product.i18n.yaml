@@ -9,8 +9,8 @@
   en: b8d72abb86d866d8
   zh: 262977880e9a2195
 /harness-product-authentication/contents:
-  en: 4bc0ec7d52295591
-  zh: a05de3fbb2226dbe
+  en: b531d04ffdb5feee
+  zh: fd0a3709bde174cb
 /harness-product-authentication/start-the-product:
   en: 30b2d281e38ffb1f
   zh: 1ed4563635f26b84
@@ -21,8 +21,11 @@
   en: 20833d2e66efd6fb
   zh: 4952dd02e1d10c99
 /harness-product-authentication/runtime-and-data:
-  en: 31f369e39d413034
-  zh: 5c42e455600b5a8b
+  en: 3ecf303a9b1a9e5b
+  zh: 39729b654f2fca1f
+/harness-product-authentication/connect-a-business-assistant:
+  en: 07d335337e99eb4e
+  zh: ff879146bf18128d
 /harness-product-authentication/failure-and-recovery:
   en: a7b05bced7f4d1d6
   zh: 7ce7edf3983b45b6

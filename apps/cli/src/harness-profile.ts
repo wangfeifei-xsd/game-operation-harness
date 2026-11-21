@@ -9,6 +9,7 @@ import { readHarnessConfig, harnessUserHome } from './harness-config.ts'
 import { harnessComposition, harnessDefaults } from './harness-composition.ts'
 import { installHarnessPrivateAuth } from './harness-private-auth.ts'
 import { harnessEntry } from './harness-entry.ts'
+import { businessAssistant } from './harness-embed-runtime.ts'
 import { runProfile, INSTALL_ANCHOR } from './profile-boot.ts'
 import type { HarnessStart } from './harness-runtime-process.ts'
 
@@ -98,7 +99,11 @@ export async function runHarnessProfile(profile: 'harness' | 'harness-runtime', 
           ctx.provide('fileDeploymentHome', home)
           ctx.effect(() => disposeProxy)
           if (input === undefined) {
-            await ctx.plugin(harnessEntry, { config, openBrowser: flags.open, patchFiles: patchFiles.map(file => resolve(file)) })
+            const assistant = businessAssistant({ config, home, installAnchor: INSTALL_ANCHOR, environment: extensionEnvironment })
+            ctx.effect(() => () => assistant.close())
+            await ctx.plugin(harnessEntry, {
+              config, assistant, openBrowser: flags.open, patchFiles: patchFiles.map(file => resolve(file)),
+            })
             return
           }
           ctx.provide('webStartup', { host: '127.0.0.1', port: 0, openBrowser: false, trustedHosts: [] })

@@ -40,9 +40,10 @@ export function harnessDefaults(
  * @param patches - 组合包、用户配置和命令行覆盖补丁。
  * @param config - 已验证的环境文件。
  * @param home - 中央身份确定的独占账号目录。
+ * @param modelHome - 模型只读配置来源。
  * @returns 已保留产品登录及模型改造的单次插入补丁。
  */
-export function harnessComposition(patches: PatchOptions[], config: HarnessConfig, home: string): PatchOptions[] {
+export function harnessComposition(patches: PatchOptions[], config: HarnessConfig, home: string, modelHome = home): PatchOptions[] {
   const entries = composeEntries([patches])
   const visit = (entry: EntryOptions): void => {
     if (disabled.has(entry.id)) entry.disabled = true
@@ -69,5 +70,5 @@ export function harnessComposition(patches: PatchOptions[], config: HarnessConfi
     }
   }
   entries.forEach(visit)
-  return modelComposition([{ insert: entries }], home)
+  return modelComposition([{ insert: entries }], home, modelHome)
 }

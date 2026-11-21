@@ -269,6 +269,7 @@
     "tests/workflow-run.e2e.ts"
   ],
   "references": [
+    { "path": "../../packages/util/crypto" },
     { "path": "../../packages/host/harness-product" },
     { "path": "../../packages/client/ui-harness-account" },
     { "path": "../../packages/experimental/auto-review" },

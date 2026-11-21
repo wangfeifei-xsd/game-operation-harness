@@ -173,3 +173,31 @@ it('verifies the puzzle with the keyboard and retains the proof when changing ap
   expect(screen.getByRole('button', { name: copy.verified })).toBeTruthy()
   expect(screen.getByLabelText(copy.account)).toHaveProperty('value', 'keyboard-user')
 })
+
+it('pairs from the public entry without signing in', async () => {
+  const events: { operation: string; body: unknown }[] = []
+  const authenticated = vi.fn()
+  const transport: AuthTransport = {
+    async request<T>(operation: AuthOperation, body?: object) {
+      events.push({ operation, body })
+      switch (operation) {
+        case 'bootstrap': return { registration_enabled: true } as T
+        case 'pairing/status': return { state: 'idle' } as T
+        case 'pairing/lookup': return { id: 'selection', tenant: '俱乐部甲', account: '会员甲', entry: 'pc' } as T
+        case 'pairing/claim': return { state: 'confirm' } as T
+        default: throw new Error('请求超出公开配对流程')
+      }
+    },
+  }
+  render(<AuthPage transport={transport} onAuthenticated={authenticated} />)
+  fireEvent.click(screen.getByRole('button', { name: copy.businessAssistant }))
+  fireEvent.change(await screen.findByRole('textbox', { name: copy.businessCode }), { target: { value: 'A1B2C3D4' } })
+  fireEvent.click(screen.getByRole('button', { name: copy.businessLookup }))
+  fireEvent.change(await screen.findByRole('textbox', { name: copy.businessWorkspace }), { target: { value: '/workspace' } })
+  fireEvent.click(await screen.findByRole('button', { name: copy.businessGrant }))
+  await waitFor(() =>{  expect(events).toContainEqual({
+    operation: 'pairing/claim', body: { id: 'selection', workspace: '/workspace', desktop: false, agents: false },
+  }) })
+  expect(events.some(row => row.operation === 'login')).toBe(false)
+  expect(authenticated).not.toHaveBeenCalled()
+})

@@ -1741,6 +1741,8 @@ export interface Config {
 export interface Config {
   /** 入口已解析并验证的模型存储根。 */
   root: string
+  /** 业务会话读取部署快照，不能修改模型或清理凭据。 */
+  readOnly?: boolean
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-harness-model-config -->

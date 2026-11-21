@@ -58,3 +58,5 @@ The components add no model request prefix and do not control provider caches.
 ### Dev Note
 
 The caller owns the account transport lifecycle and navigation.
+
+The sign-in page sends pairing requests through the same transport. The user reviews the business identity and grants access to a workspace. The business page then confirms the device.

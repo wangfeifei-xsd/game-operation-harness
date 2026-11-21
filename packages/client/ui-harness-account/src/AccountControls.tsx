@@ -3,6 +3,7 @@ import React, { useState } from 'react'
 import { Alert, Avatar, Badge, Button, ConfigProvider, Popconfirm, Typography, theme } from 'antd'
 import LogoutOutlined from '@ant-design/icons/es/icons/LogoutOutlined'
 import UserOutlined from '@ant-design/icons/es/icons/UserOutlined'
+import { BusinessAssistant } from './BusinessAssistant.tsx'
 import { DownloadButton } from './DownloadButton.tsx'
 import { copy, errorText, type AuthTransport, type LocalSession } from './shared.ts'
 import css from './AccountControls.module.css'
@@ -45,6 +46,7 @@ export function AccountControls({ session, wide, dark, transport, desktop, logou
         </Popconfirm>
       </div>
       {error && <Alert type="error" title={error} />}
+      {session.authenticated && <BusinessAssistant compact={!wide} />}
       {!desktop && <DownloadButton transport={transport} compact={!wide} />}
     </div></ConfigProvider>
 }

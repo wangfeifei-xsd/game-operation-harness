@@ -381,7 +381,8 @@ export function installCua(ctx: Context, config: CuaConfig, backend: CuaBackend)
         const owner = ownerFor(agent)
         const signal = AbortSignal.any([execution.signal, lifetime.signal, owner.signal])
         signal.throwIfAborted()
-        const operation = (async () => {
+        // 两个 Host 进程同样争用桌面，对原生操作和其确认使用同一台设备的锁。
+        const operation = withFileLock(join(tmpdir(), 'dsh-cua-system-desktop'), async () => {
           const previous = clients.get(agent)
           if (previous?.disposed) {
             try { await previous.dispose() } catch (error) {
@@ -420,7 +421,7 @@ export function installCua(ctx: Context, config: CuaConfig, backend: CuaBackend)
           return 'appHandle' in request.params
             ? access.run(nativeClient, request.params.appHandle as CuaAppHandle, signal, dispatch, route?.prepare)
             : dispatch(signal)
-        })()
+        }, { waitMs: config.timeoutMs, signal })
         pending.set(operation, agent)
         try {
           return await operation

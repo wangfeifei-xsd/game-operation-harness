@@ -190,6 +190,10 @@
     "@types/proper-lockfile": "^4.1.4"
   },
   "exports": {
+    "./harness-embed-runtime": {
+      "types": "./lib/types/harness-embed-runtime.d.ts",
+      "default": "./lib/harness-embed-runtime.js"
+    },
     "./profile-boot": {
       "types": "./lib/types/profile-boot.d.ts",
       "default": "./lib/profile-boot.js"

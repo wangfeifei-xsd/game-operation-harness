@@ -33,12 +33,18 @@ const challengeResult = z.object({ challenge_id: z.string(), background: z.strin
  * @param activate - 完成产品登录后创建本代聊天窗口。
  */
 export function installProductIpc(product: DesktopProductSession,
-  windows: () => { auth: BrowserWindow | undefined; app: BrowserWindow | undefined }, activate: () => Promise<void>): void {
+  windows: () => { auth: BrowserWindow | undefined; app: BrowserWindow | undefined }, activate: () => Promise<void>,
+  pairing?: (operation: string, body: unknown) => Promise<unknown>): void {
   ipcMain.handle(PRODUCT_IPC.request, async (event, operation: unknown, body: unknown): Promise<ProductReply> => {
     try {
       const current = windows()
       const fromAuth = current.auth?.webContents === event.sender
       assertProductWindow(event, fromAuth ? current.auth : current.app, fromAuth ? 'dsh-app://auth/' : 'dsh-app://app/')
+      if (typeof operation === 'string' && /^pairing\/(status|lookup|pick|claim|disconnect)$/u.test(operation)) {
+        if (!pairing) throw new HarnessAuthError(503, 'HARNESS_UNAVAILABLE', '本机助手暂不可用')
+        if (!fromAuth) await product.authorize()
+        return { ok: true, value: await pairing(operation.slice('pairing/'.length), body) }
+      }
       if (typeof operation !== 'string' || !fromAuth && !['session','logout',
         'renew'].includes(operation)) throw new HarnessAuthError(403, 'HARNESS_ORIGIN_DENIED', '请求来源无效')
       let value: unknown

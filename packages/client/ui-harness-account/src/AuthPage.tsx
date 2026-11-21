@@ -5,6 +5,7 @@ import {
   CatLogo, ICON_SYMBOLS, IconCheckOutlineMedium, IconChevronRightOutlineMedium,
   IconDarkOutlineRegular, IconLightOutlineRegular, IconRefreshOutlineRegular, IconShieldOutlineRegular,
 } from '@deepseek-ai/dsh-client-ui-primitives'
+import { BusinessAssistant } from './BusinessAssistant.tsx'
 import { copy, errorText, type LocalSession, type AuthBootstrap, type AuthTransport } from './shared.ts'
 
 
@@ -198,12 +199,14 @@ export function AuthPage({ transport, onAuthenticated, notice: initialNotice = '
         </aside>
         <section className="harness-auth-panel" aria-labelledby="harness-auth-title"><div className="harness-auth-content">
           <Typography.Title id="harness-auth-title" level={2}>{copy.product}</Typography.Title>
-          <Tabs activeKey={mode} onChange={(key) => { setMode(key as 'login' | 'register'); setError(''); setNotice('') }} items={[
+          <Tabs activeKey={mode} onChange={(key) => {
+            clearCaptcha(); setMode(key === 'register' ? 'register' : 'login'); setError(''); setNotice('')
+          }} items={[
             { key: 'login', label: copy.login, disabled: busy || locked }, ...(bootstrap?.registration_enabled ? [{ key: 'register', label: copy.register, disabled: busy || locked }] : []),
           ]} />
           {error && !captchaOpen && <Alert type="error" title={error} showIcon />}{notice && <Alert type="info" title={notice} showIcon />}
           {phase && ['starting', 'stopping', 'authenticating', 'revalidating'].includes(phase) && <Alert type="info" title={copy[phase as 'starting' | 'stopping' | 'authenticating' | 'revalidating']} />}
-          <Form form={form} layout="vertical" onFinish={fields => void submit(fields)} disabled={busy || locked || bootstrap === undefined} autoComplete="on">
+          <Form key="password" form={form} layout="vertical" onFinish={fields => void submit(fields)} disabled={busy || locked || bootstrap === undefined} autoComplete="on">
             <Form.Item name="login_name" label={copy.account} rules={[{ required: true, whitespace: true, message: copy.required }, { min: 3, max: 128, message: copy.required }]}>
               <Input autoComplete="username" maxLength={128} />
             </Form.Item>
@@ -218,6 +221,7 @@ export function AuthPage({ transport, onAuthenticated, notice: initialNotice = '
             </Button>
             <Button className="harness-submit" block type="primary" htmlType="submit" loading={busy} disabled={locked || bootstrap === undefined}>{copy[mode]}</Button>
           </Form>
+          <BusinessAssistant compact={false} transport={transport} />
           {(busy || phase === 'starting' || phase === 'authenticating' || phase === 'stopFailed') && <Button block onClick={() => void cancel()}>{phase === 'stopFailed' ? copy.retryStop : copy.cancelLogin}</Button>}
         </div></section>
       </Card>

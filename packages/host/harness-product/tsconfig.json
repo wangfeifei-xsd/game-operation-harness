@@ -46,6 +46,33 @@
     },
     {
       "path": "../../subprocess/subprocess-local"
+    },
+    {
+      "path": "../../api/gateway/tsconfig.host.json"
+    },
+    {
+      "path": "../../api/remote-access/tsconfig.host.json"
+    },
+    {
+      "path": "../../api/session-controller/tsconfig.host.json"
+    },
+    {
+      "path": "../directory-picker"
+    },
+    {
+      "path": "../../core/session"
+    },
+    {
+      "path": "../../deliverables/tool-present"
+    },
+    {
+      "path": "../../typert/protocol"
+    },
+    {
+      "path": "../../interaction/user-approval"
+    },
+    {
+      "path": "../../interaction/user-questions"
     }
   ]
 }

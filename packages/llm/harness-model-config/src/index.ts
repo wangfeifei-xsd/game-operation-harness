@@ -44,9 +44,11 @@ export class ModelConfigError extends HarnessError {
 export interface Config {
   /** 入口已解析并验证的模型存储根。 */
   root: string
+  /** 业务会话读取部署快照，不能修改模型或清理凭据。 */
+  readOnly?: boolean
 }
 /** 显式传入已验证 Host 作用域，禁止从 UI 或供应商账号推导。 */
-export const Config: z<Config> = z.object({ root: z.string().required() })
+export const Config: z<Config> = z.object({ root: z.string().required(), readOnly: z.boolean().default(false) })
 export const name = SCOPE
 export const inject = ['storage', 'storage.backend.json', 'credentials', 'llm', 'agentDefaultModel']
 
@@ -63,11 +65,11 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   await mkdir(config.root, { recursive: true, mode: 0o700 })
   const ready = Promise.withResolvers<void>()
   const release = Promise.withResolvers<void>()
-  const ownership = withFileLock(join(config.root, 'harness_models.owner'), async () => {
+  const open = async (): Promise<void> => {
     const kv = ctx.storage.backend.get('json').kv
     if (kv === undefined) throw new ModelConfigError('模型存储不可用', 'MODEL_CONFIG_STORAGE')
     const unit = await kv.open({ name: 'harness_models', version: 1, layout: 'single', tables: [], hasGlobal: true })
-    const service = new HarnessModelConfig(ctx, unit)
+    const service = new HarnessModelConfig(ctx, unit, config.readOnly === true)
     try {
       await service.initialize()
       ctx.provide('harnessModelConfig', service)
@@ -77,7 +79,8 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
       ready.resolve()
       await release.promise
     } finally { await service.close() }
-  }, { waitMs: 0 })
+  }
+  const ownership = config.readOnly ? open() : withFileLock(join(config.root, 'harness_models.owner'), open, { waitMs: 0 })
   void ownership.catch((error: unknown) => { ready.reject(error) })
   ctx.effect(() => async () => { release.resolve(); await ownership }, '模型配置：独占写入和退出等待')
   await ready.promise
@@ -99,7 +102,7 @@ class HarnessModelConfig {
   private readonly credentialKeys = new WeakMap<ResolvedPiAiProviderProfile, CredentialKey>()
   private readonly adapter: PiAiAdapter
 
-  constructor(private readonly ctx: Context, private readonly unit: KvUnit) {
+  constructor(private readonly ctx: Context, private readonly unit: KvUnit, private readonly readOnly: boolean) {
     this.adapter = new PiAiAdapter({
       profiles: () => { this.assertAccepting(); return this.profiles },
       resolveApiKey: async (route, profile) => {
@@ -131,7 +134,7 @@ class HarnessModelConfig {
     }
     this.validateSnapshot(this.state)
     this.publish(this.buildProfiles(this.state))
-    await this.cleanup()
+    if (!this.readOnly) await this.cleanup()
   }
 
   /**
@@ -404,6 +407,7 @@ class HarnessModelConfig {
     delete candidate.defaultReasoningEffort
   }
   private mutate(revision: number | undefined, prepare: (candidate: StoredSnapshot) => PendingKey[]): Promise<ModelConfigSnapshot> {
+    if (this.readOnly) return Promise.reject(new ModelConfigError('业务模型由部署配置管理', 'MODEL_CONFIG_INVALID'))
     this.assertAccepting()
     const operation = this.queue.then(async () => {
       this.assertOpen(); this.checkRevision(revision)

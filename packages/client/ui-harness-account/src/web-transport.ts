@@ -7,7 +7,8 @@ import { copy, LocalAuthError, type AuthOperation, type AuthTransport } from './
  */
 export function createWebAuthTransport(): AuthTransport {
   return { async request<T>(operation: AuthOperation, data?: object, signal?: AbortSignal): Promise<T> {
-    const response = await fetch(`/harness/api/${operation}`, { method: data === undefined ? 'GET' : 'POST',
+    const path = operation.startsWith('pairing/') ? `/api/harness-embed/${operation.slice('pairing/'.length)}` : `/harness/api/${operation}`
+    const response = await fetch(path, { method: data === undefined ? 'GET' : 'POST',
       credentials: 'same-origin', cache: 'no-store', headers: { 'content-type': 'application/json' },
       ...(data === undefined ? {} : { body: JSON.stringify(data) }), ...(signal === undefined ? {} : { signal }) })
     const value: unknown = await response.json()

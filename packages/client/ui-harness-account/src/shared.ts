@@ -13,6 +13,13 @@ const zh = {
   starting: '正在启动', stopping: '正在停止', authenticating: '正在登录', revalidating: '正在验证登录状态', retryStop: '重试停止',
   loggingOut: '正在退出', remoteUnknown: '本机已退出，远端退出未确认',
   expired: '会话已结束，请重新登录', captchaRequired: '请先完成滑动验证',
+  businessAssistant: '连接业务助手', businessShort: '业务', businessCode: '配对码', businessLookup: '核对业务账号',
+  businessWorkspace: '本机工作区', businessWorkspacePath: '输入已有目录的绝对路径', businessBrowse: '选择目录',
+  businessDesktop: '允许助手操作本机桌面', businessAgents: '允许助手调用已授权的 Creativity 智能体',
+  businessLocalFiles: '在选定工作区使用文件和终端', businessGrant: '确认授予', businessDisconnect: '断开连接',
+  businessWaitConfirm: '请在业务助手网页确认本机连接', businessConnected: '业务助手已连接', businessConnecting: '正在连接业务助手',
+  businessPc: 'PC 客户端', businessWeb: '业务后台', businessLocal: '独立助手',
+  businessChat: '打开业务会话',
 }
 const en: Record<keyof typeof zh, string> = {
   login: 'Sign in', register: 'Register', account: 'Username', name: 'Display name', password: 'Password',
@@ -29,6 +36,13 @@ const en: Record<keyof typeof zh, string> = {
   starting: 'Starting', stopping: 'Stopping', authenticating: 'Signing in', revalidating: 'Verifying session', retryStop: 'Retry stopping',
   loggingOut: 'Signing out', remoteUnknown: 'Signed out locally. Remote sign-out was not confirmed.',
   expired: 'Session ended. Sign in again.', captchaRequired: 'Complete verification first',
+  businessAssistant: 'Connect Business Assistant', businessShort: 'Business', businessCode: 'Pairing code', businessLookup: 'Check business account',
+  businessWorkspace: 'Local workspace', businessWorkspacePath: 'Absolute path to an existing folder', businessBrowse: 'Choose folder',
+  businessDesktop: 'Allow desktop actions', businessAgents: 'Allow access to authorized Creativity agents',
+  businessLocalFiles: 'Use files and the terminal in the selected workspace', businessGrant: 'Grant access', businessDisconnect: 'Disconnect',
+  businessWaitConfirm: 'Confirm the device on the business page', businessConnected: 'Business Assistant connected', businessConnecting: 'Connecting to Business Assistant',
+  businessPc: 'PC client', businessWeb: 'Business website', businessLocal: 'Standalone assistant',
+  businessChat: 'Open business chat',
 }
 /** 选择当前语言的账号文案。 */
 export const copy = typeof navigator === 'undefined' || navigator.language.toLowerCase().startsWith('zh') ? zh : en
@@ -54,7 +68,7 @@ export function errorText(error: unknown): string { return error instanceof Loca
 /** 已完成部署验证的公开注册规则。 */
 export interface AuthBootstrap { registration_enabled: boolean; password_min_length: number; password_max_length: number }
 /** 仅支持固定认证操作，不接受外部 URL 或中央 Token。 */
-export type AuthOperation = 'bootstrap' | 'downloads' | 'session' | 'login' | 'register' | 'logout' | 'renew' | `captcha/${'login' | 'register'}/${'challenges' | 'verify'}`
+export type AuthOperation = 'bootstrap' | 'downloads' | 'session' | 'login' | 'register' | 'logout' | 'renew' | `pairing/${'status' | 'lookup' | 'pick' | 'claim' | 'disconnect'}` | `captcha/${'login' | 'register'}/${'challenges' | 'verify'}`
 /** 两种载体提供同样的公开操作，导航仍由各自入口拥有。 */
 export interface AuthTransport {
   request<T>(operation: AuthOperation, data?: object, signal?: AbortSignal): Promise<T>

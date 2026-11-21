@@ -49,6 +49,14 @@
       "types": "./lib/types/process-tree.d.ts",
       "default": "./lib/process-tree.js"
     },
+    "./embed/controller": {
+      "types": "./lib/types/embed/controller.d.ts",
+      "default": "./lib/embed/controller.js"
+    },
+    "./embed/runtime": {
+      "types": "./lib/types/embed/runtime.d.ts",
+      "default": "./lib/embed/runtime.js"
+    },
     "./downloads": {
       "types": "./lib/types/downloads.d.ts",
       "default": "./lib/downloads.js"
@@ -56,7 +64,7 @@
   },
   "files": [
     "lib/index.js",
-    "lib/*.js",
+    "lib/**/*.js",
     "lib/types/**/*.d.ts",
     "lib/types/**/*.d.ts.map",
     "lib/**/*.js.map",
@@ -67,6 +75,7 @@
     "@deepseek-ai/dsh-error": "workspace:*",
     "@deepseek-ai/dsh-home-paths": "workspace:*",
     "proper-lockfile": "^4.1.2",
+    "@deepseek-ai/dsh-tools": "workspace:*",
     "@deepseek-ai/dsh-subprocess-local": "workspace:*"
   },
   "peerDependencies": {
@@ -79,7 +88,15 @@
     "@types/proper-lockfile": "^4.1.4",
     "@deepseek-ai/dsh-client-connection": "workspace:*",
     "@deepseek-ai/dsh-agent": "workspace:*",
-    "@deepseek-ai/dsh-tools": "workspace:*",
+    "@deepseek-ai/dsh-api-gateway": "workspace:*",
+    "@deepseek-ai/dsh-api-remote-access": "workspace:*",
+    "@deepseek-ai/dsh-api-session-controller": "workspace:*",
+    "@deepseek-ai/dsh-host-directory-picker": "workspace:*",
+    "@deepseek-ai/dsh-session": "workspace:*",
+    "@deepseek-ai/dsh-tool-present": "workspace:*",
+    "@deepseek-ai/dsh-typert-protocol": "workspace:*",
+    "@deepseek-ai/dsh-user-approval": "workspace:*",
+    "@deepseek-ai/dsh-user-questions": "workspace:*",
     "@deepseek-ai/dsh-schedule": "workspace:*",
     "@deepseek-ai/dsh-host-webserver": "workspace:*",
     "@deepseek-ai/dsh-llm": "workspace:*"
